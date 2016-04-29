@@ -1,0 +1,19 @@
+apply plugin: 'java'
+
+project.version = "0.1"
+
+jar {
+	version = project.version
+	classifier = "dev"
+}
+
+// Source jar
+task srcJar(type: Jar) {
+	from sourceSets.main.allSource
+	version = project.version
+	classifier = "src"
+}
+
+artifacts {
+    archives srcJar
+}
