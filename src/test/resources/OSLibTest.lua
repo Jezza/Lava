@@ -30,3 +30,7 @@ function testdate()
   local d = os.date()
   return type(d) == 'string'
 end
+function testtime()
+  local d = os.time()
+  return type(d) == 'number'
+end

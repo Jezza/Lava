@@ -16,7 +16,7 @@ assert(type(package.loaded) == "table")
 assert(type(package.preload) == "table")
 
 
-local DIR = "libs/"
+local DIR = "/libs/"
 
 -- Use of IO libs COMMENTED out
 -- These files must be created/copied manually
