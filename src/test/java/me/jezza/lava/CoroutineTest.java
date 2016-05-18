@@ -82,7 +82,7 @@ public class CoroutineTest extends AbstractTest {
 			} else {
 				Assert.assertTrue("Status is not 0", status == 0);
 			}
-			double v = Lua.toNumber(L.getGlobal("v"));
+			double v = Lua.toNumber(L.getGlobal("v")).orElse(0D);
 			Assert.assertTrue("V isn't equal to " + i, v == i);
 		}
 	}
@@ -153,8 +153,8 @@ public class CoroutineTest extends AbstractTest {
 			System.out.println(L.value(-1));
 		Assert.assertTrue("Status is not 0", status == 0);
 		Assert.assertTrue("k is not 4", k == 4);
-		Assert.assertTrue("first return value isn't 16", Lua.toNumber(L.value(-2)) == 16);
-		Assert.assertTrue("second return value isn't 20", Lua.toNumber(L.value(-1)) == 20);
+		Assert.assertTrue("first return value isn't 16", Lua.toNumber(L.value(-2)).orElse(0D) == 16);
+		Assert.assertTrue("second return value isn't 20", Lua.toNumber(L.value(-1)).orElse(0D) == 20);
 	}
 
 	@Test

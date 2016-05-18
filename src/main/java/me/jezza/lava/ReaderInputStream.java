@@ -52,10 +52,10 @@ final class ReaderInputStream extends InputStream {
 	}
 
 	@Override
-	public void mark(int readahead) {
+	public void mark(int readAheadLimit) {
 		try {
-			reader.mark(readahead);
-		} catch (Exception e_) {
+			reader.mark(readAheadLimit);
+		} catch (Exception ignored) {
 		}
 	}
 

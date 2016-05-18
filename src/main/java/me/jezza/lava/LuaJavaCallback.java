@@ -25,17 +25,16 @@
 package me.jezza.lava;
 
 /**
- * Common superclass for all Lua Java Functions.  A Lua function that
- * is implemented in Java is called a Lua Java Function.  Each such
- * function corresponds to an indirect instance of this class.  If you
- * wish to implement your own Lua Java Function then you'll need to
- * subclass this class and have one instance for each function that you
- * need.  It is recommended that you extend the class with at least one
- * member so that you can distinguish the different instances.  Whilst
- * it is possible to implement each different Lua Java Function by
- * having a new subclass for each one, this is not recommended as it
- * will increase the size of the resulting <code>.jar</code> file by a
- * large amount.
+ * Common superclass for all Lua Java Functions.
+ * <p>
+ * A Lua function that is implemented in Java is called a LuaJavaFunction.
+ * Each such function corresponds to an indirect instance implementation.
+ * <p>
+ * If you wish to implement your own Lua Java Function then you'll need to subclass this class and have one instance for each function that you need.
+ * <p>
+ * It is recommended that you extend the class with at least one member so that you can distinguish the different instances.
+ * <p>
+ * Whilst it is possible to implement each different Lua Java Function by having a new subclass for each one, this is not recommended as it will increase the size of the resulting <code>.jar</code> file by a large amount.
  */
 @FunctionalInterface
 public interface LuaJavaCallback {

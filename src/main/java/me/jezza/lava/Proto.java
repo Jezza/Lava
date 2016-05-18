@@ -234,7 +234,7 @@ final class Proto {
 			if (newSize > limit)
 				newSize = limit;
 			if (minSize + 1 > newSize)
-				throw L.gRunerror("too many local variables");
+				throw L.gRunError("too many local variables");
 			LocVar[] newlocvars = new LocVar[newSize];
 			System.arraycopy(locvars, 0, newlocvars, 0, size);
 			for (int i = size; i < newSize; i++)
@@ -250,7 +250,7 @@ final class Proto {
 			if (newSize > Lua.MAXARG_Bx)
 				newSize = Lua.MAXARG_Bx;
 			if (minSize + 1 > newSize)
-				throw L.gRunerror("constant table overflow");
+				throw L.gRunError("constant table overflow");
 			Proto[] newProtos = new Proto[newSize];
 			System.arraycopy(p, 0, newProtos, 0, size);
 			p = newProtos;
@@ -262,7 +262,7 @@ final class Proto {
 		if (minSize + 1 > size) {
 			int newSize = minSize + (minSize >> 1) + 1;
 			if (minSize + 1 > newSize)
-				throw L.gRunerror("upvalues overflow");
+				throw L.gRunError("upvalues overflow");
 			String[] newUpvalues = new String[newSize];
 			System.arraycopy(upvalues, 0, newUpvalues, 0, size);
 			upvalues = newUpvalues;
@@ -274,7 +274,7 @@ final class Proto {
 		if (minSize + 1 > size) {
 			int newSize = minSize + (minSize >> 1) + 1;
 			if (minSize + 1 > newSize)
-				throw L.gRunerror("code overflow");
+				throw L.gRunError("code overflow");
 			int[] newCode = new int[newSize];
 			System.arraycopy(code, 0, newCode, 0, size);
 			code = newCode;

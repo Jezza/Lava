@@ -27,6 +27,8 @@ package me.jezza.lava;
 import java.io.*;
 import java.util.Iterator;
 import java.util.Objects;
+import java.util.OptionalDouble;
+import java.util.OptionalInt;
 
 /**
  * <p>
@@ -183,10 +185,8 @@ public final class Lua {
 	static final int MAXUPVALUES = 60;
 
 	/**
-	 * Stored in Slot.r to denote a numeric value (which is stored at
-	 * Slot.d).
+	 * Stored in Slot.r to denote a bypassed value (which can be stored in the other fields within the Slot).
 	 */
-//	static final Object NUMBER = new Object();
 	static final Object BYPASS_TYPE = new Object();
 
 	/**
@@ -495,7 +495,7 @@ public final class Lua {
 	 * @return never.
 	 */
 	public LuaError error(Object message) {
-		throw gErrormsg(message);
+		throw gErrorMsg(message);
 	}
 
 	/**
@@ -536,14 +536,14 @@ public final class Lua {
 	 */
 	public LuaTable getFenv(Object o) {
 		if (o instanceof LuaFunction)
-			return ((LuaFunction) o).getEnv();
+			return ((LuaFunction) o).env();
 		if (o instanceof LuaJavaCallback) {
 			LuaJavaCallback f = (LuaJavaCallback) o;
 			// :todo: implement this case.
 			return null;
 		}
 		if (o instanceof LuaUserdata)
-			return ((LuaUserdata) o).getEnv();
+			return ((LuaUserdata) o).env();
 		if (o instanceof Lua)
 			return ((Lua) o).global;
 		return null;
@@ -592,8 +592,16 @@ public final class Lua {
 		if (o instanceof LuaTable)
 			return ((LuaTable) o).metatable();
 		if (o instanceof LuaUserdata)
-			return ((LuaUserdata) o).getMetatable();
+			return ((LuaUserdata) o).metatable();
 		return metatable[type(o)];
+	}
+
+	public LuaTable getMetatable(LuaTable o) {
+		return o.metatable();
+	}
+
+	public LuaTable getMetatable(LuaUserdata o) {
+		return o.metatable();
 	}
 
 	/**
@@ -689,6 +697,10 @@ public final class Lua {
 	}
 
 	/**
+	 * NOTE: Keep in mind that this might actually have to parse the object, to determine if it's a number.
+	 * So, keep in mind that the method does the exact same as the conversion, so if you plan to use the number later, it's probably the best if you just manually called {@link #toNumber(Object)}, and check {@link OptionalDouble#isPresent()} there.
+	 * That way you have access to the number, and you don't have to do a reparse.
+	 * <p>
 	 * Tests that an object is a Lua number or a string convertible to a
 	 * number.
 	 *
@@ -696,8 +708,7 @@ public final class Lua {
 	 * @return true if and only if the object is a number or a convertible string.
 	 */
 	public static boolean isNumber(Object o) {
-		SPARE_SLOT.setObject(o);
-		return tonumber(SPARE_SLOT, NUMOP);
+		return toNumber(o).isPresent();
 	}
 
 	/**
@@ -928,6 +939,18 @@ public final class Lua {
 		return 0;
 	}
 
+	public static int objLen(String o) {
+		return o.length();
+	}
+
+	public static int objLen(LuaTable o) {
+		return o.firstNilIndex();
+	}
+
+	public static int objLen(Double o) {
+		return vmToString(o).length();
+	}
+
 
 	/**
 	 * <p>
@@ -1076,7 +1099,7 @@ public final class Lua {
 	 * @return true if and only if they compare equal.
 	 */
 	public static boolean rawEqual(Object o1, Object o2) {
-		return oRawequal(o1, o2);
+		return oRawEqual(o1, o2);
 	}
 
 	/**
@@ -1111,6 +1134,11 @@ public final class Lua {
 	 * @param v The new value to be stored at index <var>k</var>.
 	 */
 	public void rawSet(Object t, Object k, Object v) {
+		if (k instanceof Integer) {
+			rawSetI(t, (Integer) k, v);
+			return;
+		}
+		apiCheck(t instanceof LuaTable);
 		LuaTable table = (LuaTable) t;
 		table.put(this, k, v);
 	}
@@ -1204,7 +1232,7 @@ public final class Lua {
 
 		if (o instanceof LuaFunction) {
 			LuaFunction f = (LuaFunction) o;
-			f.setEnv(t);
+			f.env(t);
 			return true;
 		}
 		if (o instanceof LuaJavaCallback) {
@@ -1214,7 +1242,7 @@ public final class Lua {
 		}
 		if (o instanceof LuaUserdata) {
 			LuaUserdata u = (LuaUserdata) o;
-			u.setEnv(t);
+			u.env(t);
 			return true;
 		}
 		if (o instanceof Lua) {
@@ -1254,10 +1282,28 @@ public final class Lua {
 			t.metatable(mtt);
 		} else if (o instanceof LuaUserdata) {
 			LuaUserdata u = (LuaUserdata) o;
-			u.setMetatable(mtt);
+			u.metatable(mtt);
 		} else {
 			metatable[type(o)] = mtt;
 		}
+	}
+
+	public void setMetatable(LuaTable t, Object mt) {
+		if (isNil(mt)) {
+			mt = null;
+		} else {
+			apiCheck(mt instanceof LuaTable);
+		}
+		t.metatable((LuaTable) mt);
+	}
+
+	public void setMetatable(LuaUserdata u, Object mt) {
+		if (isNil(mt)) {
+			mt = null;
+		} else {
+			apiCheck(mt instanceof LuaTable);
+		}
+		u.metatable((LuaTable) mt);
 	}
 
 	/**
@@ -1330,8 +1376,9 @@ public final class Lua {
 	 * @param o Lua value to convert.
 	 * @return the resulting int.
 	 */
-	public static int toInteger(Object o) {
-		return (int) toNumber(o);
+	public static OptionalInt toInteger(Object o) {
+		OptionalDouble number = toNumber(o);
+		return number.isPresent() ? OptionalInt.of((int) number.getAsDouble()) : OptionalInt.empty();
 	}
 
 	/**
@@ -1341,10 +1388,18 @@ public final class Lua {
 	 * @param o Lua value to convert.
 	 * @return The resulting number.
 	 */
-	public static double toNumber(Object o) {
-		SPARE_SLOT.setObject(o);
-		return tonumber(SPARE_SLOT, NUMOP) ? NUMOP[0] : 0;
+	public static OptionalDouble toNumber(Object o) {
+		return _toNumber(o);
 	}
+
+	//	public static double toNumber(Object o) {
+//		if (o instanceof Double) {
+//			return (Double) o;
+//		} else if (o instanceof String) {
+//			return parseDouble((String) o).orElse(0D);
+//		}
+//		return 0.0D;
+//	}
 
 	/**
 	 * Convert to string and return it.  If value cannot be converted then
@@ -1473,7 +1528,7 @@ public final class Lua {
 	 */
 	public int yield(int nresults) {
 		if (nCcalls > 0)
-			throw gRunerror("attempt to yield across metamethod/Java-call boundary");
+			throw gRunError("attempt to yield across metamethod/Java-call boundary");
 		base = stackSize - nresults;     // protect stack slots below
 		status = YIELD;
 		return -1;
@@ -1487,10 +1542,9 @@ public final class Lua {
 	 * @return an index into <code>this.stack</code> or -1 if out of range.
 	 */
 	private int absIndex(int idx) {
-		int s = stackSize;
-
 		if (idx == 0)
 			return -1;
+		int s = stackSize;
 		if (idx > 0) {
 			if (idx + base > s)
 				return -1;
@@ -1522,7 +1576,7 @@ public final class Lua {
 
 	// :todo: consider placing in separate class (or macroised) so that we
 	// can change its definition (to remove the check for example).
-	private void apiCheck(boolean cond) {
+	private static void apiCheck(boolean cond) {
 		if (!cond)
 			throw new IllegalArgumentException();
 	}
@@ -1603,10 +1657,12 @@ public final class Lua {
 	 */
 	public double checkNumber(int narg) {
 		Object o = value(narg);
-		double d = toNumber(o);
-		if (d == 0 && !isNumber(o))
+		if (o == NIL)
 			throw tagError(narg, TNUMBER);
-		return d;
+		OptionalDouble number = _toNumber(o);
+		if (!number.isPresent())
+			throw tagError(narg, TNUMBER);
+		return number.getAsDouble();
 	}
 
 	/**
@@ -1817,7 +1873,8 @@ public final class Lua {
 	 * @return the name of the value's type.
 	 */
 	public String typeNameOfIndex(int idx) {
-		return TYPENAME[type(idx)];
+		int i = type(idx);
+		return i == TNONE ? "nil" : TYPENAME[i];
 	}
 
 	/**
@@ -1842,9 +1899,7 @@ public final class Lua {
 		if (ar != null) {
 			getInfo("Sl", ar);                // get info about it
 			if (ar.currentline() > 0)         // is there info?
-			{
 				return ar.shortsrc() + ":" + ar.currentline() + ": ";
-			}
 		}
 		return "";  // else, no information available...
 	}
@@ -1866,16 +1921,29 @@ public final class Lua {
 
 	//////////////////////////////////////////////////////////////////////
 	// Debug
-
 	// Methods equivalent to debug API.  In PUC-Rio most of these are in
 	// ldebug.c
+
+	public static final LuaJavaCallback ADD_STACK_TRACE = L -> {
+		boolean any = false;
+		for (int i = 1; i <= 3; ++i) {
+			String s = L.where(i);
+			if (!s.isEmpty()) {
+				if (any)
+					s = s + " > ";
+				any = true;
+				L.insert(s, -1);
+				L.concat(2);
+			}
+		}
+		return 1;
+	};
 
 	boolean getInfo(String what, Debug ar) {
 		Object f = null;
 		CallInfo callinfo = null;
 		// :todo: complete me
-		if (ar.ici() > 0)   // no tail call?
-		{
+		if (ar.ici() > 0) {   // no tail call?
 			callinfo = civ.get(ar.ici());
 			f = stack[callinfo.function()].r;
 			//# assert isFunction(f)
@@ -1930,11 +1998,11 @@ public final class Lua {
 	 * @return true is okay, false otherwise (for example, error).
 	 */
 	private boolean auxgetinfo(String what, Debug ar, Object f, CallInfo ci) {
-		boolean status = true;
 		if (f == null) {
 			// :todo: implement me
-			return status;
+			return true;
 		}
+		boolean status = true;
 		for (int i = 0; i < what.length(); ++i) {
 			switch (what.charAt(i)) {
 				case 'S':
@@ -1994,8 +2062,7 @@ public final class Lua {
 	 * Equivalent to macro isLua _and_ f_isLua from lstate.h.
 	 */
 	private boolean isLua(CallInfo callinfo) {
-		Object f = stack[callinfo.function()].r;
-		return f instanceof LuaFunction;
+		return stack[callinfo.function()].r instanceof LuaFunction;
 	}
 
 	private static int pcRel(int pc) {
@@ -2035,6 +2102,7 @@ public final class Lua {
 	}
 
 	private static final String MEMERRMSG = "not enough memory";
+	private static final String ERRERRMSG = "error in error handling";
 
 	/**
 	 * Equivalent to luaD_seterrorobj.  It is valid for oldtop to be
@@ -2043,16 +2111,15 @@ public final class Lua {
 	 */
 	private void dSeterrorobj(int errcode, int oldtop) {
 		Object msg = objectAt(stackSize - 1);
-		if (stackSize == oldtop) {
+		if (stackSize == oldtop)
 			stacksetsize(oldtop + 1);
-		}
 		switch (errcode) {
 			case ERRMEM:
 				stack[oldtop].setObject(MEMERRMSG);
 				break;
 
 			case ERRERR:
-				stack[oldtop].setObject("error in error handling");
+				stack[oldtop].setObject(ERRERRMSG);
 				break;
 
 			case ERRFILE:
@@ -2087,9 +2154,8 @@ public final class Lua {
 		int i = openupval.size();
 		while (--i >= 0) {
 			UpVal uv = openupval.get(i);
-			if (uv.offset() < level) {
+			if (uv.offset() < level)
 				break;
-			}
 			uv.close();
 		}
 		openupval.setSize(i + 1);
@@ -2131,22 +2197,22 @@ public final class Lua {
 	 * computation (consider the error message for code like <code>local
 	 * y='a'; return y+1</code> for example).  Currently the debug info is
 	 * not used, and this opportunity is wasted (it would require changing
-	 * or overloading gTypeerror).
+	 * or overloading gTypeError).
 	 */
-	private LuaError gAritherror(Slot p1, Slot p2) {
-		if (!tonumber(p1, NUMOP))
+	private LuaError gArithError(Slot p1, Slot p2) {
+		if (!_toNumber(p1).isPresent())
 			p2 = p1;  // first operand is wrong
-		throw gTypeerror(p2, "perform arithmetic on");
+		throw gTypeError(p2, "perform arithmetic on");
 	}
 
 	/**
 	 * <var>p1</var> and <var>p2</var> are absolute stack indexes.
 	 */
-	private LuaError gConcaterror(int p1, int p2) {
-		if (stack[p1].r instanceof String)
+	private LuaError gConcatError(int p1, int p2) {
+		if (stack[p1].t == TSTRING)
 			p1 = p2;
 		// assert !(p1 instanceof String);
-		throw gTypeerror(stack[p1], "concatenate");
+		throw gTypeError(stack[p1], "concatenate");
 	}
 
 	boolean gCheckcode(Proto p) {
@@ -2154,7 +2220,7 @@ public final class Lua {
 		return true;
 	}
 
-	private LuaError gErrormsg(Object message) {
+	private LuaError gErrorMsg(Object message) {
 		push(message);
 		// is there an error handling function
 		if (errfunc != null) {
@@ -2166,29 +2232,29 @@ public final class Lua {
 		throw dThrow(ERRRUN, message);
 	}
 
-	private LuaError gOrdererror(Slot p1, Slot p2) {
+	LuaError gRunError(String s) {
+		throw gErrorMsg(s);
+	}
+
+	private LuaError gOrderError(Slot p1, Slot p2) {
 		String t1 = typeName(type(p1));
 		String t2 = typeName(type(p2));
 		if (t1.charAt(2) == t2.charAt(2)) {
-			throw gRunerror("attempt to compare two " + t1 + "values");
+			throw gRunError("attempt to compare two " + t1 + "values");
 		}
-		throw gRunerror("attempt to compare " + t1 + " with " + t2);
+		throw gRunError("attempt to compare " + t1 + " with " + t2);
 	}
 
-	LuaError gRunerror(String s) {
-		throw gErrormsg(s);
-	}
-
-	private LuaError gTypeerror(Object o, String op) {
+	private LuaError gTypeError(Object o, String op) {
 		String t = typeName(type(o));
-		throw gRunerror("attempt to " + op + " a " + t + " value");
+		throw gRunError("attempt to " + op + " a " + t + " value");
 	}
 
-	private LuaError gTypeerror(Slot p, String op) {
+	private LuaError gTypeError(Slot p, String op) {
 		// :todo: PUC-Rio searches the stack to see if the value (which may
 		// be a reference to stack cell) is a local variable.
-		// For now we cop out and just call gTypeerror(Object, String)
-		throw gTypeerror(p.asObject(), op);
+		// For now we cop out and just call gTypeError(Object, String)
+		throw gTypeError(p.asObject(), op);
 	}
 
 
@@ -2202,7 +2268,7 @@ public final class Lua {
 	/**
 	 * @return a string no longer than IDSIZE.
 	 */
-	static String oChunkid(String source) {
+	static String oChunkId(String source) {
 		int len = IDSIZE;
 		if (source.startsWith("=")) {
 			if (source.length() < IDSIZE + 1) {
@@ -2234,8 +2300,7 @@ public final class Lua {
 		StringBuilder buf = new StringBuilder();
 		buf.append("[string \"");
 		buf.append(source.substring(0, l));
-		if (source.length() > l)    // must truncate
-		{
+		if (source.length() > l) {   // must truncate
 			buf.append("...");
 		}
 		buf.append("\"]");
@@ -2249,9 +2314,8 @@ public final class Lua {
 	 */
 	private static int oFb2int(int x) {
 		int e = (x >>> 3) & 31;
-		if (e == 0) {
+		if (e == 0)
 			return x;
-		}
 		return ((x & 7) + 8) << (e - 1);
 	}
 
@@ -2260,44 +2324,70 @@ public final class Lua {
 	 * <p>
 	 * See also {@link #vmEqual(Slot, Slot)}
 	 */
-	private static boolean oRawequal(Object a, Object b) {
+	private static boolean oRawEqual(Object a, Object b) {
 		// Now a is not null, so a.equals() is a valid call.
 		// Numbers (Doubles), Booleans, Strings all get compared by value,
 		// as they should; tables, functions, get compared by identity as
 		// they should.
-		return NIL == a ? NIL == b : a.equals(b);
+		return a == NIL ? b == NIL : a.equals(b);
 	}
 
 	/**
 	 * Equivalent to luaO_str2d.
-	 * <p>
-	 * TODO A lot to do with this method... It's insanely slow...
 	 */
-	private static boolean oStr2d(String s, double[] out) {
-		// :todo: using try/catch may be too slow.  In which case we'll have to recognise the valid formats first.
+	private static OptionalDouble parseDouble(String s) {
+		if (s.length() == 0)
+			return OptionalDouble.empty();
 		try {
-			out[0] = Double.parseDouble(s);
-			return true;
-		} catch (NumberFormatException ignored) {
-			try {
-				// Attempt hexadecimal conversion.
-				// :todo: using String.trim is not strictly accurate, because it trims other ASCII control characters as well as whitespace.
-				s = s.trim().toUpperCase();
-				if (s.startsWith("0X")) {
-					s = s.substring(2);
-				} else if (s.startsWith("-0X")) {
-					s = "-" + s.substring(3);
-				} else {
-					return false;
-				}
-				out[0] = Integer.parseInt(s, 16);
-				return true;
-			} catch (NumberFormatException e1_) {
-				return false;
+			return OptionalDouble.of(Double.parseDouble(s));
+		} catch (NumberFormatException e) {
+			int radix = 10;
+			int index = 0;
+			boolean negative = false;
+
+			char firstChar = s.charAt(index);
+			// Trim leading whitespace
+			while (firstChar == ' ')
+				firstChar = s.charAt(index++);
+
+			// Handle sign, if present
+			if (firstChar == '-') {
+				negative = true;
+				index++;
+			} else if (firstChar == '+')
+				index++;
+
+			// Handle radix specifier, if present
+			if (s.startsWith("0x", index) || s.startsWith("0X", index)) {
+				index += 2;
+				radix = 16;
+			} else if (s.charAt(index) == '#') {
+				index++;
+				radix = 16;
+			} else if (s.charAt(index) == '0' && s.length() > 1 + index) {
+				index++;
+				radix = 8;
+			} else {
+				return OptionalDouble.empty();
 			}
+
+			if (s.charAt(index) == '-' || s.charAt(index) == '+')
+				return OptionalDouble.empty();
+
+			Integer result;
+			try {
+				result = Integer.valueOf(s.substring(index), radix);
+				result = negative ? Integer.valueOf(-result) : result;
+			} catch (NumberFormatException ignored) {
+				// If number is Integer.MIN_VALUE, we'll end up here. The next line
+				// handles this case, and causes any genuine format error to be
+				// rethrown.
+				String constant = negative ? ("-" + s.substring(index)) : s.substring(index);
+				result = Integer.valueOf(constant, radix);
+			}
+			return OptionalDouble.of(result.doubleValue());
 		}
 	}
-
 
 	////////////////////////////////////////////////////////////////////////
 	// VM
@@ -2571,13 +2661,13 @@ public final class Lua {
 			int n = 2;  // number of elements handled in this pass (at least 2)
 			if (!tostring(top - 2) || !tostring(top - 1)) {
 				if (!call_binTM(stack[top - 2], stack[top - 1], stack[top - 2], "__concat"))
-					throw gConcaterror(top - 2, top - 1);
+					throw gConcatError(top - 2, top - 1);
 			} else if (((String) stack[top - 1].r).length() > 0) {
 				int tl = ((String) stack[top - 1].r).length();
 				for (n = 1; n < total && tostring(top - n - 1); ++n) {
 					tl += ((String) stack[top - n - 1].r).length();
 					if (tl < 0)
-						throw gRunerror("string length overflow");
+						throw gRunError("string length overflow");
 				}
 				StringBuilder buffer = new StringBuilder(tl);
 				// Concat all strings
@@ -2607,7 +2697,7 @@ public final class Lua {
 				case TNUMBER:
 					return a.d == b.d;
 				default:
-					throw gErrormsg("Slot Type not yet implemented: " + typeName(a.t));
+					throw gErrorMsg("Slot Type not yet implemented: " + typeName(a.t));
 			}
 		}
 		// Now we're only concerned with the .r field.
@@ -2710,7 +2800,7 @@ public final class Lua {
 						rb = k[ARGBx(i)];
 						// assert rb instance of String;
 						savedpc = pc; // Protect
-						vmGettable(function.getEnv(), rb, stack[base + a]);
+						vmGettable(function.env(), rb, stack[base + a]);
 						continue;
 					case OP_GETTABLE: {
 						savedpc = pc; // Protect
@@ -2725,8 +2815,7 @@ public final class Lua {
 					}
 					case OP_SETGLOBAL:
 						savedpc = pc; // Protect
-						System.out.println(k[ARGBx(i)].toString());
-						vmSettable(function.getEnv(), k[ARGBx(i)], objectAt(base + a));
+						vmSettable(function.env(), k[ARGBx(i)], objectAt(base + a));
 						continue;
 					case OP_SETTABLE: {
 						savedpc = pc; // Protect
@@ -2756,7 +2845,7 @@ public final class Lua {
 						} else if (toNumberPair(rb, rc, NUMOP)) {
 							stack[base + a].setObject(NUMOP[0] + NUMOP[1]);
 						} else if (!call_binTM(rb, rc, stack[base + a], "__add")) {
-							throw gAritherror(rb, rc);
+							throw gArithError(rb, rc);
 						}
 						continue;
 					case OP_SUB:
@@ -2767,7 +2856,7 @@ public final class Lua {
 						} else if (toNumberPair(rb, rc, NUMOP)) {
 							stack[base + a].setObject(NUMOP[0] - NUMOP[1]);
 						} else if (!call_binTM(rb, rc, stack[base + a], "__sub")) {
-							throw gAritherror(rb, rc);
+							throw gArithError(rb, rc);
 						}
 						continue;
 					case OP_MUL:
@@ -2778,7 +2867,7 @@ public final class Lua {
 						} else if (toNumberPair(rb, rc, NUMOP)) {
 							stack[base + a].setObject(NUMOP[0] * NUMOP[1]);
 						} else if (!call_binTM(rb, rc, stack[base + a], "__mul")) {
-							throw gAritherror(rb, rc);
+							throw gArithError(rb, rc);
 						}
 						continue;
 					case OP_DIV:
@@ -2789,7 +2878,7 @@ public final class Lua {
 						} else if (toNumberPair(rb, rc, NUMOP)) {
 							stack[base + a].setObject(NUMOP[0] / NUMOP[1]);
 						} else if (!call_binTM(rb, rc, stack[base + a], "__div")) {
-							throw gAritherror(rb, rc);
+							throw gArithError(rb, rc);
 						}
 						continue;
 					case OP_MOD:
@@ -2800,7 +2889,7 @@ public final class Lua {
 						} else if (toNumberPair(rb, rc, NUMOP)) {
 							stack[base + a].setObject(modulus(NUMOP[0], NUMOP[1]));
 						} else if (!call_binTM(rb, rc, stack[base + a], "__mod")) {
-							throw gAritherror(rb, rc);
+							throw gArithError(rb, rc);
 						}
 						continue;
 					case OP_POW:
@@ -2811,17 +2900,18 @@ public final class Lua {
 						} else if (toNumberPair(rb, rc, NUMOP)) {
 							stack[base + a].setObject(Math.pow(NUMOP[0], NUMOP[1]));
 						} else if (!call_binTM(rb, rc, stack[base + a], "__pow")) {
-							throw gAritherror(rb, rc);
+							throw gArithError(rb, rc);
 						}
 						continue;
 					case OP_UNM:
 						rb = stack[base + ARGB(i)];
+						OptionalDouble optNum;
 						if (rb.t == TNUMBER) {
 							stack[base + a].setObject(-rb.d);
-						} else if (tonumber(rb, NUMOP)) {
-							stack[base + a].setObject(-NUMOP[0]);
+						} else if ((optNum = _toNumber(rb)).isPresent()) {
+							stack[base + a].setObject(-optNum.getAsDouble());
 						} else if (!call_binTM(rb, rb, stack[base + a], "__unm")) {
-							throw gAritherror(rb, rb);
+							throw gArithError(rb, rb);
 						}
 						continue;
 					case OP_NOT: {
@@ -2842,7 +2932,7 @@ public final class Lua {
 						}
 						savedpc = pc; // Protect
 						if (!call_binTM(rb, rb, stack[base + a], "__len"))
-							throw gTypeerror(rb, "get length of");
+							throw gTypeError(rb, "get length of");
 						continue;
 					case OP_CONCAT: {
 						int b = ARGB(i);
@@ -2929,9 +3019,8 @@ public final class Lua {
 					}
 					case OP_TAILCALL: {
 						int b = ARGB(i);
-						if (b != 0) {
+						if (b != 0)
 							stacksetsize(base + a + b);
-						}
 						savedpc = pc;
 						// assert ARGC(i) - 1 == MULTRET
 						switch (vmPrecall(base + a, MULTRET)) {
@@ -2998,12 +3087,12 @@ public final class Lua {
 						int plimit = base + a + 1;
 						int pstep = base + a + 2;
 						savedpc = pc;       // next steps may throw errors
-						if (!tonumber(init)) {
-							throw gRunerror("'for' initial value must be a number");
-						} else if (!tonumber(plimit)) {
-							throw gRunerror("'for' limit must be a number");
-						} else if (!tonumber(pstep)) {
-							throw gRunerror("'for' step must be a number");
+						if (!_setNumber(init)) {
+							throw gRunError("'for' initial value must be a number");
+						} else if (!_setNumber(plimit)) {
+							throw gRunError("'for' limit must be a number");
+						} else if (!_setNumber(pstep)) {
+							throw gRunError("'for' step must be a number");
 						}
 						stack[init].setObject(stack[init].d - stack[pstep].d);
 						// dojump
@@ -3066,7 +3155,7 @@ public final class Lua {
 								up[j] = fFindupval(base + ARGB(in));
 							}
 						}
-						stack[base + a].setObject(new LuaFunction(p, up, function.getEnv()));
+						stack[base + a].setObject(new LuaFunction(p, up, function.env()));
 						continue;
 					}
 					case OP_VARARG: {
@@ -3116,7 +3205,7 @@ public final class Lua {
 			} else {
 				tm = tagmethod(t, "__index");
 				if (tm == NIL)
-					throw gTypeerror(t, "index");
+					throw gTypeError(t, "index");
 			}
 			if (isFunction(tm)) {
 				SPARE_SLOT.setObject(t);
@@ -3125,7 +3214,7 @@ public final class Lua {
 			}
 			t = tm;     // else repeat with 'tm'
 		}
-		throw gRunerror("loop in gettable");
+		throw gRunError("loop in gettable");
 	}
 
 	/**
@@ -3133,7 +3222,7 @@ public final class Lua {
 	 */
 	private boolean vmLessthan(Slot l, Slot r) {
 		if (l.r.getClass() != r.r.getClass()) {
-			throw gOrdererror(l, r);
+			throw gOrderError(l, r);
 		} else if (l.t == TNUMBER) {
 			return l.d < r.d;
 		} else if (l.r instanceof String) {
@@ -3144,7 +3233,7 @@ public final class Lua {
 		int res = call_orderTM(l, r, "__lt");
 		if (res >= 0)
 			return res != 0;
-		throw gOrdererror(l, r);
+		throw gOrderError(l, r);
 	}
 
 	/**
@@ -3153,13 +3242,13 @@ public final class Lua {
 	private boolean vmLessequal(Slot l, Slot r) {
 		if (l.r == BYPASS_TYPE) {
 			if (r.r != BYPASS_TYPE)
-				throw gOrdererror(l, r);
+				throw gOrderError(l, r);
 			if (l.t == Lua.TNUMBER && l.t == r.t)
 				return l.d <= r.d;
 		} else if (r.r == BYPASS_TYPE) {
-			throw gOrdererror(l, r);
+			throw gOrderError(l, r);
 		} else if (l.r.getClass() != r.r.getClass()) {
-			throw gOrdererror(l, r);
+			throw gOrderError(l, r);
 		} else if (l.t == TSTRING) {
 			return ((String) l.r).compareTo((String) r.r) <= 0;
 		}
@@ -3169,7 +3258,7 @@ public final class Lua {
 		res = call_orderTM(r, l, "__lt");   // else try 'lt'
 		if (res >= 0)
 			return res == 0;
-		throw gOrdererror(l, r);
+		throw gOrderError(l, r);
 	}
 
 	/**
@@ -3301,7 +3390,7 @@ public final class Lua {
 			} else {
 				tm = tagmethod(t, "__newindex");
 				if (tm == NIL)
-					throw gTypeerror(t, "index");
+					throw gTypeError(t, "index");
 			}
 			if (isFunction(tm)) {
 				callTM(tm, t, key, val);
@@ -3309,7 +3398,7 @@ public final class Lua {
 			}
 			t = tm;     // else repeat with 'tm'
 		}
-		throw gRunerror("loop in settable");
+		throw gRunError("loop in settable");
 	}
 
 	/**
@@ -3390,7 +3479,7 @@ public final class Lua {
 			return -1;
 		Object tm2 = tagmethod(p2.asObject(), event);
 		// different metamethods?
-		if (!oRawequal(tm1, tm2))
+		if (!oRawEqual(tm1, tm2))
 			return -1;
 		Slot s = new Slot();
 		callTMres(s, tm1, p1, p2);
@@ -3441,7 +3530,7 @@ public final class Lua {
 		Object tm2 = mt2.get(event);
 		if (isNil(tm2))
 			return NIL;       // no metamethod
-		if (oRawequal(tm1, tm2))
+		if (oRawEqual(tm1, tm2))
 			return tm1;       // same metamethods?
 		return NIL;
 	}
@@ -3474,14 +3563,14 @@ public final class Lua {
 		// First implementation of this simply ensures that the stack array
 		// has at least the required size number of elements.
 		// :todo: consider policies where the stack may also shrink.
-		int old = stackSize;
-		if (n > stack.length) {
-			int newLength = Math.max(n, 2 * stack.length);
+		int oldSize = stackSize;
+		int oldArrayLength = stack.length;
+		if (n > oldArrayLength) {
+			int newLength = Math.max(n, oldArrayLength + 1 + (oldArrayLength + 1 >> 1));
 			Slot[] newStack = new Slot[newLength];
 			// Currently the stack only ever grows, so the number of items to
 			// copy is the length of the old stack.
-			int toCopy = stack.length;
-			System.arraycopy(stack, 0, newStack, 0, toCopy);
+			System.arraycopy(stack, 0, newStack, 0, oldArrayLength);
 			stack = newStack;
 		}
 		stackSize = n;
@@ -3498,13 +3587,14 @@ public final class Lua {
 		// we maintain a stackhighwater which is 1 more than that largest
 		// stack slot that has been nilled.  We use this to nil out stacks
 		// slow when we grow.
-		if (n <= old) {
+		if (n <= oldSize) {
+			Slot[] stack = this.stack;
 			// when shrinking
-			for (int i = n; i < old; ++i) {
+			for (int i = n; i < oldSize; ++i)
 				stack[i].setObject(NIL);
-			}
 		}
 		if (n > stackhighwater) {
+			Slot[] stack = this.stack;
 			// when growing above stackhighwater for the first time
 			for (int i = stackhighwater; i < n; ++i)
 				stack[i] = new Slot(NIL);
@@ -3536,6 +3626,7 @@ public final class Lua {
 		// Copy each slot N into its neighbour N+1.  Loop proceeds from high
 		// index slots to lower index slots.
 		// A loop from n to 1 copies n slots.
+		Slot[] stack = this.stack;
 		for (int j = n; j >= 1; --j)
 			stack[i + j].setObject(stack[i + j - 1]);
 		stack[i].setObject(o);
@@ -3555,8 +3646,7 @@ public final class Lua {
 		int mask = hookmask;
 		int oldpc = savedpc;
 		savedpc = pc;
-		if (mask > MASK_LINE)        // instruction-hook set?
-		{
+		if (mask > MASK_LINE) {       // instruction-hook set?
 			if (hookcount == 0) {
 				resethookcount();
 				dCallhook(HOOK_COUNT, -1);
@@ -3565,37 +3655,61 @@ public final class Lua {
 		// :todo: line hook.
 	}
 
-	/**
-	 * Convert to number.  Returns true if the argument <var>o</var> was
-	 * converted to a number.  Converted number is placed in <var>out[0]</var>.
-	 * Returns
-	 * false if the argument <var>o</var> could not be converted to a number.
-	 * Overloaded.
-	 */
-	private static boolean tonumber(Slot o, double[] out) {
-		if (o.t == TNUMBER) {
-			out[0] = o.d;
-			return true;
+	static OptionalDouble _toNumber(Object o) {
+		if (o instanceof Double) {
+			return OptionalDouble.of((Double) o);
+		} else if (o instanceof String) {
+			return parseDouble((String) o);
 		}
-		return o.t == TSTRING && oStr2d((String) o.r, out);
+		return OptionalDouble.empty();
 	}
 
 	/**
-	 * Converts a stack slot to number.  Returns true if the element at
-	 * the specified stack slot was converted to a number.  False
-	 * otherwise.  Note that this actually modifies the element stored at
-	 * <var>idx</var> in the stack (in faithful emulation of the PUC-Rio
-	 * code).  Corrupts <code>NUMOP[0]</code>.  Overloaded.
-	 *
-	 * @param idx absolute stack slot.
+	 * @param o - The slot to parse the number from.
+	 * @return The number that was parsed from the slot at the given index, if any. Be sure to check isPresent where relevant.
 	 */
-	private boolean tonumber(int idx) {
-		Slot slot = stack[idx];
-		if (tonumber(slot, NUMOP)) {
-			slot.setObject(NUMOP[0]);
+	static OptionalDouble _toNumber(Slot o) {
+		if (o.t == TNUMBER) {
+			return OptionalDouble.of(o.d);
+		} else if (o.t == TSTRING) {
+			return parseDouble((String) o.r);
+		}
+		return OptionalDouble.empty();
+	}
+
+	/**
+	 * Note: This actually sets the stack's value, and doesn't return it.
+	 * If you wish to return the number, and not set it, simply call {@link #_toNumber(Slot)}
+	 *
+	 * @param o - The slot whose value will be determined, and attempted to convert to a number.
+	 * @return True, if the number was parsed correctly, and if it was set into the slot correctly.
+	 */
+	static boolean _setNumber(Slot o) {
+		OptionalDouble number = _toNumber(o);
+		if (number.isPresent()) {
+			o.setObject(number.getAsDouble());
 			return true;
 		}
 		return false;
+	}
+
+	/**
+	 * @param idx - The absolute stack index that the slot can be found at.
+	 * @return The number that was parsed from the slot at the given index, if any. Be sure to check isPresent where relevant.
+	 */
+	OptionalDouble _toNumber(int idx) {
+		return _toNumber(stack[idx]);
+	}
+
+	/**
+	 * Note: This actually sets the stack's value, and doesn't return it.
+	 * If you wish to return the number, and not set it, simply call {@link #_toNumber(int)}
+	 *
+	 * @param idx - The absolute stack index that the slot can be found at.
+	 * @return True, if the number was parsed correctly, and if it was set into the slot correctly.
+	 */
+	boolean _setNumber(int idx) {
+		return _setNumber(stack[idx]);
 	}
 
 	/**
@@ -3605,10 +3719,14 @@ public final class Lua {
 	 * @return true if and only if both values converted to number.
 	 */
 	private static boolean toNumberPair(Slot x, Slot y, double[] out) {
-		if (tonumber(y, out)) {
-			out[1] = out[0];
-			if (tonumber(x, out))
+		OptionalDouble yNum = _toNumber(y);
+		if (yNum.isPresent()) {
+			out[1] = out[0] = yNum.getAsDouble();
+			OptionalDouble xNum = _toNumber(x);
+			if (xNum.isPresent()) {
+				out[0] = xNum.getAsDouble();
 				return true;
+			}
 		}
 		return false;
 	}
@@ -3637,7 +3755,7 @@ public final class Lua {
 	private Object tryfuncTM(int func) {
 		Object tm = tagmethod(stack[func].asObject(), "__call");
 		if (!isFunction(tm))
-			throw gTypeerror(stack[func], "call");
+			throw gTypeError(stack[func], "call");
 		stackInsertAt(tm, func);
 		return tm;
 	}

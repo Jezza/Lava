@@ -328,8 +328,8 @@ final class MultiLib implements LuaJavaCallback {
 		L.checkType(1, Lua.TTABLE);
 		Object t = L.value(1);
 		String s = (String) L.getField(t, "s");
-		int i = L.toInteger(L.getField(t, "i"));
-		boolean didYield = L.toBoolean(L.getField(t, "yield"));
+		int i = Lua.toInteger(L.getField(t, "i")).orElse(0);
+		boolean didYield = Lua.toBoolean(L.getField(t, "yield"));
 
 		if (i == s.length()) {
 			// EOF signalled by empty string.
@@ -347,7 +347,7 @@ final class MultiLib implements LuaJavaCallback {
 		L.setField(t, "yield", Boolean.FALSE);
 		L.push(s.substring(i, i + 1));
 		++i;
-		L.setField(t, "i", Double.valueOf(i));
+		L.setField(t, "i", (double) i);
 		return 1;
 	}
 

@@ -30,6 +30,7 @@ package me.jezza.lava;
 import java.time.LocalDateTime;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.OptionalInt;
 import java.util.TimeZone;
 
 /**
@@ -291,15 +292,16 @@ public final class OSLib {
 
 	private static int getfield(Lua L, String key, int d) {
 		Object o = L.getField(L.value(-1), key);
-		if (Lua.isNumber(o))
-			return (int) Lua.toNumber(o);
+		OptionalInt integer = Lua.toInteger(o);
+		if (integer.isPresent())
+			return integer.getAsInt();
 		if (d < 0)
 			throw L.error("field '" + key + "' missing in date table");
 		return d;
 	}
 
 	private static void setfield(Lua L, String key, int value) {
-		L.setField(L.value(-1), key, Double.valueOf(value));
+		L.setField(L.value(-1), key, (double) value);
 	}
 
 	/**

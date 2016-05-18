@@ -85,13 +85,11 @@ final class Slot {
 	}
 
 	void setObject(Object o) {
-		if (o instanceof Slot)
-			throw new IllegalArgumentException("INCOMING STUPIDITY");
 		if (o == Lua.NIL) {
 			r = o;
 			t = Lua.TNIL;
 			b = false;
-			d = 0;
+			d = 0D;
 			return;
 		}
 		switch (t = Lua.type(o)) {

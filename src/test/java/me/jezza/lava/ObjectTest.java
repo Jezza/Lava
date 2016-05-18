@@ -11,48 +11,6 @@ import org.junit.Test;
  * @author Jezza
  */
 public class ObjectTest extends AbstractTest {
-	@Override
-	protected void populate(Lua L) {
-	}
-
-	/**
-	 * Tests basic facts about LuaTable.
-	 */
-	@Test
-	@SkipSetup
-	public void testTable() throws Exception {
-		LuaTable table = new LuaTable();
-		Assert.assertNotNull(table);
-		// Check that the type is correct, according to the API.
-		Assert.assertTrue(Lua.isTable(table));
-		Assert.assertTrue(!Lua.isNil(table));
-		Assert.assertTrue(!Lua.isBoolean(table));
-		Assert.assertTrue(!Lua.isNumber(table));
-		Assert.assertTrue(!Lua.isString(table));
-		Assert.assertTrue(!Lua.isFunction(table));
-		Assert.assertTrue(!Lua.isUserdata(table));
-
-		Assert.assertTrue(table != new LuaTable());
-	}
-
-	/**
-	 * Tests Metatable of LuaTable.
-	 */
-	@Test
-	@SkipSetup
-	public void testTableMeta() throws Exception {
-		LuaTable table = new LuaTable();
-		LuaTable meta = new LuaTable();
-
-		table.metatable(meta);
-		Assert.assertSame("Metatable stored and not returned", meta, table.metatable());
-
-		LuaTable another = new LuaTable();
-		LuaTable anotherMeta = new LuaTable();
-
-		another.metatable(anotherMeta);
-		Assert.assertTrue("Tables' metatables are the same", table.metatable() != another.metatable());
-	}
 
 	/**
 	 * Tests basic facts about LuaFunction.
@@ -77,8 +35,8 @@ public class ObjectTest extends AbstractTest {
 		Assert.assertSame("Proto stored and not returned", p, f.proto());
 
 		LuaTable e = new LuaTable();
-		f.setEnv(e);
-		Assert.assertSame("Env stored and not returned", e, f.getEnv());
+		f.env(e);
+		Assert.assertSame("Env stored and not returned", e, f.env());
 	}
 
 	/**
@@ -113,15 +71,15 @@ public class ObjectTest extends AbstractTest {
 		LuaUserdata u = new LuaUserdata(o);
 		LuaUserdata another = new LuaUserdata(o);
 
-		Assert.assertSame("Object stored and not returned", u.getUserdata(), o);
-		Assert.assertSame("Two userdata objects that were set to the same object returned different objects", u.getUserdata(), another.getUserdata());
+		Assert.assertSame("Object stored and not returned", u.userdata(), o);
+		Assert.assertSame("Two userdata objects that were set to the same object returned different objects", u.userdata(), another.userdata());
 
 		LuaTable t = new LuaTable();
-		u.setMetatable(t);
-		Assert.assertSame("Metatable set and not returned", u.getMetatable(), t);
+		u.metatable(t);
+		Assert.assertSame("Metatable set and not returned", u.metatable(), t);
 
 		LuaTable e = new LuaTable();
-		u.setEnv(e);
-		Assert.assertSame("Environment set and not returned", u.getEnv(), e);
+		u.env(e);
+		Assert.assertSame("Environment set and not returned", u.env(), e);
 	}
 }

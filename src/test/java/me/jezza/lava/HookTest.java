@@ -24,11 +24,13 @@
 package me.jezza.lava;
 
 import me.jezza.lava.annotations.SkipSetup;
+import org.junit.Ignore;
 import org.junit.Test;
 
 /**
  * @author Jezza
  */
+@Ignore("Way too long")
 public final class HookTest extends AbstractTest {
 
 	@Override

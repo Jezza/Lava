@@ -84,14 +84,15 @@ public final class LuaFunction {
 	/**
 	 * Getter for environment.
 	 */
-	LuaTable getEnv() {
+	LuaTable env() {
 		return env;
 	}
 
 	/**
 	 * Setter for environment.
 	 */
-	void setEnv(LuaTable env) {
+	LuaFunction env(LuaTable env) {
 		this.env = Objects.requireNonNull(env);
+		return this;
 	}
 }

@@ -1,6 +1,14 @@
 apply plugin: 'java'
 
-project.version = "0.1"
+project.version = "0.2"
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+	testCompile 'junit:junit:4.12'
+}
 
 jar {
 	version = project.version

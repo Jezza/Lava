@@ -40,9 +40,8 @@ final class Syntax {
 
 	private static final int FIRST_RESERVED = 257;
 
-	// WARNING: if you change the order of this enumeration,
-	// grep "ORDER RESERVED"
-	private static final int TK_AND = FIRST_RESERVED + 0;
+	// WARNING: if you change the order of this enumeration, grep "ORDER RESERVED"
+	private static final int TK_AND = FIRST_RESERVED;
 	private static final int TK_BREAK = FIRST_RESERVED + 1;
 	private static final int TK_DO = FIRST_RESERVED + 2;
 	private static final int TK_ELSE = FIRST_RESERVED + 3;
@@ -63,6 +62,7 @@ final class Syntax {
 	private static final int TK_TRUE = FIRST_RESERVED + 18;
 	private static final int TK_UNTIL = FIRST_RESERVED + 19;
 	private static final int TK_WHILE = FIRST_RESERVED + 20;
+
 	private static final int TK_CONCAT = FIRST_RESERVED + 21;
 	private static final int TK_DOTS = FIRST_RESERVED + 22;
 	private static final int TK_EQ = FIRST_RESERVED + 23;
@@ -167,11 +167,6 @@ final class Syntax {
 	 */
 	String source;
 
-	/**
-	 * locale decimal point.
-	 */
-	private char decpoint = '.';
-
 	private Syntax(Lua L, Reader z, String source) throws IOException {
 		this.L = L;
 		this.z = z;
@@ -193,31 +188,30 @@ final class Syntax {
 	// ISO-Latin-1 definitions from CLDC 1.1 Character class.
 
 	static boolean isalnum(int c) {
-		char ch = (char) c;
-		return Character.isUpperCase(ch) ||
-				Character.isLowerCase(ch) ||
-				Character.isDigit(ch);
+		return Character.isUpperCase(c) || Character.isLowerCase(c) || Character.isDigit(c);
 	}
 
 	static boolean isalpha(int c) {
-		char ch = (char) c;
-		return Character.isUpperCase(ch) ||	Character.isLowerCase(ch);
+		return Character.isUpperCase(c) || Character.isLowerCase(c);
 	}
 
 	/**
-	 * True if and only if the char (when converted from the int) is a
-	 * control character.
+	 * True if and only if the char (when converted from the int) is a control character.
 	 */
 	static boolean iscntrl(int c) {
 		return (char) c < 0x20 || c == 0x7f;
 	}
 
 	static boolean isdigit(int c) {
-		return Character.isDigit((char) c);
+		return Character.isDigit(c);
 	}
 
 	static boolean islower(int c) {
-		return Character.isLowerCase((char) c);
+		return Character.isLowerCase(c);
+	}
+
+	static boolean isupper(int c) {
+		return Character.isUpperCase(c);
 	}
 
 	/**
@@ -228,29 +222,18 @@ final class Syntax {
 	}
 
 	static boolean isspace(int c) {
-		return c == ' ' ||
-				c == '\f' ||
-				c == '\n' ||
-				c == '\r' ||
-				c == '\t';
-	}
-
-	static boolean isupper(int c) {
-		return Character.isUpperCase((char) c);
+		return c == ' ' || c == '\f' || c == '\n' || c == '\r' || c == '\t';
 	}
 
 	static boolean isxdigit(int c) {
-		return Character.isDigit((char) c) ||
-				('a' <= c && c <= 'f') ||
-				('A' <= c && c <= 'F');
+		return Character.isDigit(c) || ('a' <= c && c <= 'f') || ('A' <= c && c <= 'F');
 	}
 
 	// From llex.c
 
 	private boolean check_next(String set) throws IOException {
-		if (set.indexOf(current) < 0) {
+		if (set.indexOf(current) < 0)
 			return false;
-		}
 		save_and_next();
 		return true;
 	}
@@ -263,13 +246,10 @@ final class Syntax {
 		int old = current;
 		//# assert currIsNewline()
 		next();     // skip '\n' or '\r'
-		if (currIsNewline() && current != old) {
+		if (currIsNewline() && current != old)
 			next();   // skip '\n\r' or '\r\n'
-		}
-		if (++linenumber < 0)       // overflow
-		{
-			xSyntaxerror("chunk has too many lines");
-		}
+		if (++linenumber < 0)      // overflow
+			throw xSyntaxerror("chunk has too many lines");
 	}
 
 	private int skip_sep() throws IOException {
@@ -285,7 +265,6 @@ final class Syntax {
 	}
 
 	private void read_long_string(boolean isString, int sep) throws IOException {
-		int cont = 0;
 		save_and_next();  /* skip 2nd `[' */
 		if (currIsNewline())  /* string starts with a newline? */
 			inclinenumber();  /* skip it */
@@ -293,10 +272,7 @@ final class Syntax {
 		while (true) {
 			switch (current) {
 				case EOZ:
-					xLexerror(isString ? "unfinished long string" :
-									"unfinished long comment",
-							TK_EOS);
-					break;  /* to avoid warnings */
+					throw xLexerror(isString ? "unfinished long string" : "unfinished long comment", TK_EOS);
 				case ']':
 					if (skip_sep() == sep) {
 						save_and_next();  /* skip 2nd `]' */
@@ -365,9 +341,7 @@ final class Syntax {
 						return TK_STRING;
 					} else if (sep == -1)
 						return '[';
-					else
-						xLexerror("invalid long string delimiter", TK_STRING);
-					continue;     // avoids Checkstyle warning.
+					throw xLexerror("invalid long string delimiter", TK_STRING);
 
 				case '=':
 					next();
@@ -463,17 +437,14 @@ final class Syntax {
 			save_and_next();
 		} while (isdigit(current) || current == '.');
 		if (check_next("Ee"))       // 'E' ?
-		{
 			check_next("+-"); // optional exponent sign
-		}
-		while (isalnum(current) || current == '_') {
+		while (isalnum(current) || current == '_')
 			save_and_next();
-		}
 		// :todo: consider doing PUC-Rio's decimal point tricks.
 		try {
 			semR = Double.parseDouble(buff.toString());
 		} catch (NumberFormatException e) {
-			xLexerror("malformed number", TK_NUMBER);
+			throw xLexerror("malformed number", TK_NUMBER);
 		}
 	}
 
@@ -485,12 +456,10 @@ final class Syntax {
 		while (current != del) {
 			switch (current) {
 				case EOZ:
-					xLexerror("unfinished string", TK_EOS);
-					continue;     // avoid compiler warning
+					throw xLexerror("unfinished string", TK_EOS);
 				case '\n':
 				case '\r':
-					xLexerror("unfinished string", TK_STRING);
-					continue;     // avoid compiler warning
+					throw xLexerror("unfinished string", TK_STRING);
 				case '\\': {
 					int c;
 					next();       // do not save the '\'
@@ -565,13 +534,6 @@ final class Syntax {
 		next();
 	}
 
-	/**
-	 * Getter for source.
-	 */
-	String source() {
-		return source;
-	}
-
 	private String txtToken(int tok) {
 		switch (tok) {
 			case TK_NAME:
@@ -586,7 +548,7 @@ final class Syntax {
 	/**
 	 * Equivalent to <code>luaX_lexerror</code>.
 	 */
-	private void xLexerror(String msg, int tok) {
+	private LuaError xLexerror(String msg, int tok) {
 		msg = source + ":" + linenumber + ": " + msg;
 		if (tok != 0)
 			msg = msg + " near '" + txtToken(tok) + "'";
@@ -615,17 +577,16 @@ final class Syntax {
 	/**
 	 * Equivalent to <code>luaX_syntaxerror</code>.
 	 */
-	void xSyntaxerror(String msg) {
-		xLexerror(msg, token);
+	LuaError xSyntaxerror(String msg) {
+		throw xLexerror(msg, token);
 	}
 
 	private static String xToken2str(int token) {
 		if (token < FIRST_RESERVED) {
 			// assert token == (char)token;
-			if (iscntrl(token)) {
+			if (iscntrl(token))
 				return "char(" + token + ")";
-			}
-			return (new Character((char) token)).toString();
+			return String.valueOf((char) token);
 		}
 		return tokens[token - FIRST_RESERVED];
 	}
@@ -646,9 +607,8 @@ final class Syntax {
 	}
 
 	private void check(int c) {
-		if (token != c) {
-			error_expected(c);
-		}
+		if (token != c)
+			throw error_expected(c);
 	}
 
 	/**
@@ -656,15 +616,11 @@ final class Syntax {
 	 * @param who   the token that begins the match.
 	 * @param where the line number of <var>what</var>.
 	 */
-	private void check_match(int what, int who, int where)
-			throws IOException {
+	private void check_match(int what, int who, int where) throws IOException {
 		if (!testnext(what)) {
-			if (where == linenumber) {
-				error_expected(what);
-			} else {
-				xSyntaxerror("'" + xToken2str(what) + "' expected (to close '" +
-						xToken2str(who) + "' at line " + where + ")");
-			}
+			if (where == linenumber)
+				throw error_expected(what);
+			throw xSyntaxerror("'" + xToken2str(what) + "' expected (to close '" + xToken2str(who) + "' at line " + where + ")");
 		}
 	}
 
@@ -773,8 +729,8 @@ final class Syntax {
 		L.nCcalls++;
 	}
 
-	private void error_expected(int tok) {
-		xSyntaxerror("'" + xToken2str(tok) + "' expected");
+	private LuaError error_expected(int tok) {
+		throw xSyntaxerror("'" + xToken2str(tok) + "' expected");
 	}
 
 	private void leavelevel() {
@@ -986,11 +942,9 @@ final class Syntax {
 		// stat -> func | assignment
 		LHSAssign v = new LHSAssign();
 		primaryexp(v.v);
-		if (v.v.k == Expdesc.VCALL)      // stat -> func
-		{
+		if (v.v.k == Expdesc.VCALL) {      // stat -> func
 			fs.setargc(v.v, 1); // call statement uses no results
-		} else      // stat -> assignment
-		{
+		} else {      // stat -> assignment
 			v.prev = null;
 			assignment(v, 1);
 		}
@@ -1027,7 +981,7 @@ final class Syntax {
 		Expdesc e = new Expdesc();
 		int kind = lh.v.k;
 		if (!(Expdesc.VLOCAL <= kind && kind <= Expdesc.VINDEXED))
-			xSyntaxerror("syntax error");
+			throw xSyntaxerror("syntax error");
 		if (testnext(','))    /* assignment -> `,' primaryexp assignment */ {
 			LHSAssign nv = new LHSAssign(lh);
 			primaryexp(nv.v);
@@ -1058,12 +1012,10 @@ final class Syntax {
 		int line = linenumber;
 		switch (token) {
 			case '(':         // funcargs -> '(' [ explist1 ] ')'
-				if (line != lastline) {
-					xSyntaxerror("ambiguous syntax (function call x new statement)");
-				}
+				if (line != lastline)
+					throw xSyntaxerror("ambiguous syntax (function call x new statement)");
 				xNext();
-				if (token == ')')       // arg list is empty?
-				{
+				if (token == ')') {       // arg list is empty?
 					args.setKind(Expdesc.VVOID);
 				} else {
 					explist1(args);
@@ -1082,8 +1034,7 @@ final class Syntax {
 				break;
 
 			default:
-				xSyntaxerror("function arguments expected");
-				return;
+				throw xSyntaxerror("function arguments expected");
 		}
 		// assert (f.kind() == VNONRELOC);
 		int nparams;
@@ -1117,8 +1068,7 @@ final class Syntax {
 				singlevar(v);
 				return;
 			default:
-				xSyntaxerror("unexpected symbol");
-				return;
+				throw xSyntaxerror("unexpected symbol");
 		}
 	}
 
@@ -1166,7 +1116,7 @@ final class Syntax {
 		// stat -> RETURN explist
 		xNext();    // skip RETURN
 		// registers with returned values (first, nret)
-		int first = 0;
+		int first;
 		int nret;
 		if (block_follow(token) || token == ';') {
 			// return no values
@@ -1224,7 +1174,7 @@ final class Syntax {
 
 			case TK_DOTS:  /* vararg */
 				if (!fs.f.isVararg())
-					xSyntaxerror("cannot use \"...\" outside a vararg function");
+					throw xSyntaxerror("cannot use \"...\" outside a vararg function");
 				v.init(Expdesc.VVARARG, fs.kCodeABC(Lua.OP_VARARG, 0, 1, 0));
 				break;
 
@@ -1473,7 +1423,7 @@ final class Syntax {
 			bl = bl.previous;
 		}
 		if (bl == null)
-			xSyntaxerror("no loop to break");
+			throw xSyntaxerror("no loop to break");
 		if (upval)
 			fs.kCodeABC(Lua.OP_CLOSE, bl.nactvar, 0, 0);
 		bl.breaklist = fs.kConcat(bl.breaklist, fs.kJump());
@@ -1512,7 +1462,7 @@ final class Syntax {
 						break;
 					}
 					default:
-						xSyntaxerror("<name> or '...' expected");
+						throw xSyntaxerror("<name> or '...' expected");
 				}
 			} while ((!f.isVararg()) && testnext(','));
 		}
@@ -1542,7 +1492,7 @@ final class Syntax {
 		String msg = fs.f.linedefined == 0 ?
 				"main function has more than " + limit + " " + what :
 				"function at line " + fs.f.linedefined + " has more than " + limit + " " + what;
-		xLexerror(msg, 0);
+		throw xLexerror(msg, 0);
 	}
 
 
@@ -1565,7 +1515,7 @@ final class Syntax {
 
 
 	private void body(Expdesc e, boolean needself, int line) throws IOException {
-    /* body ->  `(' parlist `)' chunk END */
+	/* body ->  `(' parlist `)' chunk END */
 		FuncState new_fs = new FuncState(this);
 		open_func(new_fs);
 		new_fs.f.linedefined = line;
@@ -1612,7 +1562,7 @@ final class Syntax {
 	}
 
 	private boolean funcname(Expdesc v) throws IOException {
-    /* funcname -> NAME {field} [`:' NAME] */
+	/* funcname -> NAME {field} [`:' NAME] */
 		boolean needself = false;
 		singlevar(v);
 		while (token == '.')
@@ -1625,7 +1575,7 @@ final class Syntax {
 	}
 
 	private void field(Expdesc v) throws IOException {
-    /* field -> ['.' | ':'] NAME */
+	/* field -> ['.' | ':'] NAME */
 		Expdesc key = new Expdesc();
 		fs.kExp2anyreg(v);
 		xNext();  /* skip the dot or colon */
@@ -1634,7 +1584,7 @@ final class Syntax {
 	}
 
 	private void repeatstat(int line) throws IOException {
-    /* repeatstat -> REPEAT block UNTIL cond */
+	/* repeatstat -> REPEAT block UNTIL cond */
 		int repeat_init = fs.kGetlabel();
 		BlockCnt bl1 = new BlockCnt();
 		BlockCnt bl2 = new BlockCnt();
@@ -1657,7 +1607,7 @@ final class Syntax {
 	}
 
 	private int cond() throws IOException {
-    /* cond -> exp */
+	/* cond -> exp */
 		Expdesc v = new Expdesc();
 		expr(v);  /* read condition */
 		if (v.k == Expdesc.VNIL)
@@ -1676,7 +1626,7 @@ final class Syntax {
 	}
 
 	private void localstat() throws IOException {
-    /* stat -> LOCAL NAME {`,' NAME} [`=' explist1] */
+	/* stat -> LOCAL NAME {`,' NAME} [`=' explist1] */
 		int nvars = 0;
 		int nexps;
 		Expdesc e = new Expdesc();
@@ -1694,7 +1644,7 @@ final class Syntax {
 	}
 
 	private void forstat(int line) throws IOException {
-    /* forstat -> FOR (fornum | forlist) END */
+	/* forstat -> FOR (fornum | forlist) END */
 		BlockCnt bl = new BlockCnt();
 		enterblock(fs, bl, true);  /* scope for loop and control variables */
 		xNext();  /* skip `for' */
@@ -1708,14 +1658,14 @@ final class Syntax {
 				forlist(varname);
 				break;
 			default:
-				xSyntaxerror("\"=\" or \"in\" expected");
+				throw xSyntaxerror("\"=\" or \"in\" expected");
 		}
 		check_match(TK_END, TK_FOR, line);
 		leaveblock(fs);  /* loop scope (`break' jumps to this point) */
 	}
 
 	private void fornum(String varname, int line) throws IOException {
-    /* fornum -> NAME = exp1,exp1[,exp1] forbody */
+	/* fornum -> NAME = exp1,exp1[,exp1] forbody */
 		int base = fs.freereg;
 		new_localvarliteral("(for index)", 0);
 		new_localvarliteral("(for limit)", 1);
@@ -1744,15 +1694,15 @@ final class Syntax {
 
 
 	private void forlist(String indexname) throws IOException {
-    /* forlist -> NAME {,NAME} IN explist1 forbody */
+	/* forlist -> NAME {,NAME} IN explist1 forbody */
 		Expdesc e = new Expdesc();
 		int nvars = 0;
 		int base = fs.freereg;
-    /* create control variables */
+	/* create control variables */
 		new_localvarliteral("(for generator)", nvars++);
 		new_localvarliteral("(for state)", nvars++);
 		new_localvarliteral("(for control)", nvars++);
-    /* create declared variables */
+	/* create declared variables */
 		new_localvar(indexname, nvars++);
 		while (testnext(','))
 			new_localvar(str_checkname(), nvars++);
@@ -1765,7 +1715,7 @@ final class Syntax {
 
 	private void forbody(int base, int line, int nvars, boolean isnum)
 			throws IOException {
-    /* forbody -> DO block */
+	/* forbody -> DO block */
 		BlockCnt bl = new BlockCnt();
 		adjustlocalvars(3);  /* control variables */
 		checknext(TK_DO);
@@ -1784,7 +1734,7 @@ final class Syntax {
 	}
 
 	private void ifstat(int line) throws IOException {
-    /* ifstat -> IF cond THEN block {ELSEIF cond THEN block} [ELSE block] END */
+	/* ifstat -> IF cond THEN block {ELSEIF cond THEN block} [ELSE block] END */
 		int escapelist = FuncState.NO_JUMP;
 		int flist = test_then_block();  /* IF cond THEN block */
 		while (token == TK_ELSEIF) {
@@ -1888,7 +1838,6 @@ final class Syntax {
 
 	private int indexupvalue(FuncState funcstate, String name, Expdesc v) {
 		Proto f = funcstate.f;
-		int oldsize = f.upvalues.length;
 		for (int i = 0; i < f.nups; i++) {
 			int entry = funcstate.upvalues[i];
 			if (UPVAL_K(entry) == v.k && UPVAL_INFO(entry) == v.info) {

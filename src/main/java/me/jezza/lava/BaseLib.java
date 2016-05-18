@@ -27,6 +27,7 @@ package me.jezza.lava;
 import java.io.PrintStream;
 import java.io.Reader;
 import java.util.Iterator;
+import java.util.OptionalDouble;
 
 /**
  * Contains Lua's base library.  The base library is generally
@@ -192,9 +193,8 @@ public final class BaseLib {
 			int level = L.optInt(1, 1);
 			L.argCheck(level >= 0, 1, "level must be non-negative");
 			Debug ar = L.getStack(level);
-			if (ar == null) {
-				L.argError(1, "invalid level");
-			}
+			if (ar == null)
+				throw L.argError(1, "invalid level");
 			L.getInfo("f", ar);
 			o = L.value(-1);
 			if (Lua.isNil(o)) {
@@ -214,7 +214,7 @@ public final class BaseLib {
 			L.push(L.getGlobals());
 		} else {
 			LuaFunction f = (LuaFunction) o;
-			L.push(f.getEnv());
+			L.push(f.env());
 		}
 		return 1;
 	}
@@ -450,7 +450,8 @@ public final class BaseLib {
 		L.checkType(2, Lua.TTABLE);
 		Object o = getfunc(L);
 		Object first = L.value(1);
-		if (Lua.isNumber(first) && Lua.toNumber(first) == 0) {
+		OptionalDouble number = Lua.toNumber(first);
+		if (number.isPresent() && number.getAsDouble() == 0D) {
 			// :todo: change environment of current thread.
 			return 0;
 		} else if (Lua.isJavaFunction(o) || !L.setFenv(o, L.value(2))) {
@@ -485,8 +486,9 @@ public final class BaseLib {
 		{
 			L.checkAny(1);
 			Object o = L.value(1);
-			if (Lua.isNumber(o)) {
-				L.pushNumber(Lua.toNumber(o));
+			OptionalDouble number = Lua.toNumber(o);
+			if (number.isPresent()) {
+				L.pushNumber(number.getAsDouble());
 				return 1;
 			}
 		} else {
@@ -498,7 +500,7 @@ public final class BaseLib {
 				int i = Integer.parseInt(s, base);
 				L.pushNumber(i);
 				return 1;
-			} catch (NumberFormatException e_) {
+			} catch (NumberFormatException ignored) {
 			}
 		}
 		L.push(Lua.NIL);

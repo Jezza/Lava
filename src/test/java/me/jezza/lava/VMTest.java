@@ -142,14 +142,14 @@ public class VMTest extends AbstractTest {
 		Lua L = this.L;
 		// Create a Lua Java function and install it in the global 'f'.
 		LuaJavaCallback callback = L1 -> {
-			double d = Lua.toNumber(L.value(1));
+			double d = Lua.toNumber(L.value(1)).orElse(0D);
 			L.pushNumber(d * 3);
 			return 1;
 		};
 		L.rawSet(L.getGlobals(), "f", callback);
 		loadFile(L, "VMTestCall");
 		L.call(0, 1);
-		Assert.assertTrue("Result != 22", Lua.toNumber(L.value(1)) == 22);
+		Assert.assertTrue("Result != 22", Lua.toNumber(L.value(1)).orElse(0D) == 22);
 	}
 
 	/**
@@ -473,7 +473,7 @@ public class VMTest extends AbstractTest {
 	public void testLifeLua() throws Exception {
 		Lua L = this.L;
 		call(L, "VMTest.lua", "testliferule", 1);
-		double v = Lua.toNumber(L.value(-1));
+		double v = Lua.toNumber(L.value(-1)).orElse(0D);
 		System.out.println(v);
 		Assert.assertTrue("Result != 16480", v == 16480);
 	}
@@ -482,7 +482,7 @@ public class VMTest extends AbstractTest {
 	public void testLifeLuc() throws Exception {
 		Lua L = this.L;
 		call(L, "VMTest.luc", "testliferule", 1);
-		double v = Lua.toNumber(L.value(-1));
+		double v = Lua.toNumber(L.value(-1)).orElse(0D);
 		System.out.println(v);
 		Assert.assertTrue("Result != 16480", v == 16480);
 	}
@@ -498,7 +498,7 @@ public class VMTest extends AbstractTest {
 	public void testlentable() throws Exception {
 		Lua L = this.L;
 		call(L, "VMTest.lua", "testlentable", 1);
-		Assert.assertTrue("Result != 9", Lua.toNumber(L.value(-1)) == 9);
+		Assert.assertTrue("Result != 9", Lua.toNumber(L.value(-1)).orElse(0D) == 9);
 	}
 
 	@Test

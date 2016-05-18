@@ -1,4 +1,4 @@
-// $Header: //info.ravenbrook.com/project/jili/version/1.1/test/mnj/lua/Luai.java#1 $
+// $Header: //info.ravenbrook.com/project/jili/version/1.1/test/mnj/lua/Luac.java#1 $
 // Copyright (c) 2006 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // 
@@ -21,41 +21,35 @@
 // CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// Lua script interpreter for JSE environments.
-// Analogous to the lua interpreter provided by PUC-Rio
+// Lua script compiler for JSE environments.
+// Analogous to the luac compiler provided by PUC-Rio
 
 package me.jezza.lava;
 
-import java.io.BufferedInputStream;
-import java.io.FileInputStream;
-import java.io.InputStream;
+import java.io.*;
 
-public final class Luai {
-	public static void main(String[] arg) {
-		try {
-			String name = arg[0];
-			InputStream in = new BufferedInputStream(new FileInputStream(name));
+public final class Luac {
+	public static void main(String[] arg) throws Exception {
+		if (arg.length == 0)
+			throw new IllegalArgumentException("A file name must be provided.");
+		String name = arg[0];
 
-			Lua L = new Lua();
-			BaseLib.open(L);
-			PackageLib.open(L);
-			MathLib.open(L);
-			OSLib.open(L);
-			StringLib.open(L);
-			TableLib.open(L);
-
+		Lua L;
+		try (InputStream in = new BufferedInputStream(new FileInputStream(name))) {
+			L = new Lua();
 			int status = L.load(in, "@" + name);
-			in.close();
-			if (status != 0) {
-				throw new Exception("Error compiling " + name + ": " +
-						L.value(1));
-			}
-			status = L.pcall(0, Lua.MULTRET, new AddWhere());
-			if (status != 0) {
-				System.out.println(L.value(-1));
-			}
-		} catch (Exception e) {
-			e.printStackTrace();
+			if (status != 0)
+				throw new Exception("Failed while compiling '" + name + "': " + L.value(1));
+		}
+		StringBuilder output = new StringBuilder(name.length() + 8);
+		if (name.endsWith(".lua")) {
+			output.append(name.substring(0, name.indexOf('.')));
+		} else {
+			output.append(name);
+		}
+		output.append(".luc");
+		try (OutputStream out = new FileOutputStream(output.toString())) {
+			Lua.dump(out, L.value(1));
 		}
 	}
 }

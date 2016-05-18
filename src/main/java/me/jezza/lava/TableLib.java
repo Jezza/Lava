@@ -122,7 +122,7 @@ public final class TableLib {
 		while (keys.hasNext()) {
 			Object o = keys.next();
 			if (Lua.type(o) == Lua.TNUMBER) {
-				double v = Lua.toNumber(o);
+				double v = Lua.toNumber(o).orElse(0D);
 				if (v > max)
 					max = v;
 			}

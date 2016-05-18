@@ -75,7 +75,7 @@ final class Debug {
 	 */
 	void setSource(String source) {
 		this.source = source;
-		this.shortsrc = Lua.oChunkid(source);
+		this.shortsrc = Lua.oChunkId(source);
 	}
 
 	/**

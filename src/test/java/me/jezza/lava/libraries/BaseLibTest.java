@@ -65,9 +65,10 @@ public final class BaseLibTest extends AbstractTest {
 	}
 
 	@Test
-	@Expected(5)
+//	@Expected(5)
 	@Name("testtonumber")
 	public void testToNumber() throws Exception {
+		expected(5);
 	}
 
 	@Test

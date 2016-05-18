@@ -1,4 +1,4 @@
-// $Header: //info.ravenbrook.com/project/jili/version/1.1/test/mnj/lua/Luac.java#1 $
+// $Header: //info.ravenbrook.com/project/jili/version/1.1/test/mnj/lua/Luai.java#1 $
 // Copyright (c) 2006 Nokia Corporation and/or its subsidiary(-ies).
 // All rights reserved.
 // 
@@ -21,31 +21,39 @@
 // CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// Lua script compiler for JSE environments.
-// Analogous to the luac compiler provided by PUC-Rio
+// Lua script interpreter for JSE environments.
+// Analogous to the lua interpreter provided by PUC-Rio
 
 package me.jezza.lava;
 
-import java.io.*;
+import java.io.BufferedInputStream;
+import java.io.FileInputStream;
+import java.io.InputStream;
 
-public final class Luac {
-	public static void main(String[] arg) {
-		try {
-			String name = arg[0];
-			InputStream in = new BufferedInputStream(new FileInputStream(name));
-			Lua L = new Lua();
-			int status = L.load(in, "@" + name);
-			in.close();
+public final class Luai {
+	public static void main(String[] arg) throws Exception {
+		if (arg.length == 0)
+			throw new IllegalArgumentException("Need to provide a file name");
+		String name = arg[0];
+
+		Lua L;
+		int status;
+		try (InputStream in = new BufferedInputStream(new FileInputStream(name))) {
+			L = new Lua();
+			BaseLib.open(L);
+			PackageLib.open(L);
+			MathLib.open(L);
+			OSLib.open(L);
+			StringLib.open(L);
+			TableLib.open(L);
+
+			status = L.load(in, "@" + name);
 			if (status != 0)
-				throw new Exception("Error compiling " + name + ": " + L.value(1));
-			String outputName = name.replaceAll("\\.lua$", ".lc");
-			if (outputName.equals(name))
-				outputName += ".lc";
-			OutputStream out = new FileOutputStream(outputName);
-			Lua.dump(out, L.value(1));
-			out.close();
-		} catch (Exception e) {
-			e.printStackTrace();
+				throw new Exception("Failed to load '" + name + "': " + L.value(1));
 		}
+
+		status = L.pcall(0, Lua.MULTRET, Lua.ADD_STACK_TRACE);
+		if (status != 0)
+			System.out.println(L.value(-1));
 	}
 }

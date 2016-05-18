@@ -57,7 +57,7 @@ public final class LuaUserdata {
 	 * @return the userdata that was passed to the constructor of this
 	 * instance.
 	 */
-	Object getUserdata() {
+	Object userdata() {
 		return userdata;
 	}
 
@@ -66,7 +66,7 @@ public final class LuaUserdata {
 	 *
 	 * @return the metatable.
 	 */
-	LuaTable getMetatable() {
+	LuaTable metatable() {
 		return metatable;
 	}
 
@@ -75,8 +75,9 @@ public final class LuaUserdata {
 	 *
 	 * @param metatable The metatable.
 	 */
-	void setMetatable(LuaTable metatable) {
+	LuaUserdata metatable(LuaTable metatable) {
 		this.metatable = metatable;
+		return this;
 	}
 
 	/**
@@ -84,7 +85,7 @@ public final class LuaUserdata {
 	 *
 	 * @return The environment.
 	 */
-	LuaTable getEnv() {
+	LuaTable env() {
 		return env;
 	}
 
@@ -93,7 +94,8 @@ public final class LuaUserdata {
 	 *
 	 * @param env The environment.
 	 */
-	void setEnv(LuaTable env) {
+	LuaUserdata env(LuaTable env) {
 		this.env = env;
+		return this;
 	}
 }

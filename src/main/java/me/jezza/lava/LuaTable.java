@@ -40,13 +40,10 @@ import java.util.Map.Entry;
 public final class LuaTable {
 	private static final Object[] EMPTY = new Object[0];
 
-	private static final int MAX_BITS = 26;
-	private static final int MAX_ARRAY_SIZE = 1 << MAX_BITS;
-
 	private static final int MIN_HASH_SIZE = 3;
 
 	/**
-	 *
+	 * The internal {@link HashMap} that the table uses when the key isn't an index.
 	 */
 	private final Map<Object, Object> map;
 
@@ -332,11 +329,11 @@ public final class LuaTable {
 	 */
 	void put(Lua L, Object key, Object value) {
 		if (key == Lua.NIL)
-			throw L.gRunerror("table index is nil");
+			throw L.gRunError("table index is nil");
 		if (key instanceof Double) {
 			double d = (Double) key;
 			if (Double.isNaN(d))
-				throw L.gRunerror("table index is NaN");
+				throw L.gRunError("table index is NaN");
 			int k = (int) d;
 			if (k == d && k >= 1 && k <= expansionRate) {
 				if (k > array.length)
@@ -352,7 +349,7 @@ public final class LuaTable {
 		if (key.t == Lua.TNUMBER) {
 			double d = key.d;
 			if (Double.isNaN(d))
-				throw L.gRunerror("table index is NaN");
+				throw L.gRunError("table index is NaN");
 			int k = (int) d;
 			if (k == d && k >= 1 && k <= expansionRate) {
 				if (k > array.length)
@@ -363,7 +360,7 @@ public final class LuaTable {
 		}
 		Object k = key.asObject();
 		if (k == Lua.NIL)
-			throw L.gRunerror("table index is nil");
+			throw L.gRunError("table index is nil");
 		_put(k, value);
 	}
 
