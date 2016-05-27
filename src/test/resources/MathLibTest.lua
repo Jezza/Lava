@@ -28,6 +28,15 @@ function test1()
   assert(math.sin(5) < 0)
   assert(math.tan(1) > 1)
 
+  assert(math.acos(1) == 0)
+  assert(math.acos(0) > 0)
+
+  assert(math.asin(1) > 0)
+  assert(math.asin(0) == 0)
+
+  assert(math.atan(1) > 0)
+  assert(math.atan(0) == 0)
+
   assert(math.abs(math.rad(180) - math.pi) < .1)
   assert(math.abs(math.deg(math.pi/2) - 90) < 1)
 end
@@ -46,6 +55,12 @@ function test2()
   assert(a == 3)
   assert(b == 0.5)
 
+  assert(math.log(1) == 0)
+  assert(math.log(10) > 2)
+  assert(math.log(100) > 4)
+  assert(math.log(10, 2) > 3)
+  assert(math.log(10, 10) == 1)
+
   assert(math.max(3,2,1,5) == 5)
   assert(math.min(3,2,1,5) == 1)
 end
@@ -54,4 +69,25 @@ function test3()
   assert(math.pow(2, 2) > 2)
   -- 0.693... is the natural logarithm of 2.
   assert(math.abs(math.exp(0.69314718055994529) - 2) < 0.1)
+end
+
+function test4()
+  assert(math.tointeger(1) == 1)
+  assert(math.tointeger(10) == 10)
+  assert(math.tointeger(88.2) == nil)
+  assert(math.tointeger('88.2') == nil)
+  assert(math.tointeger("88.3216841") == nil)
+  assert(math.tointeger("asdasasdsd") == nil)
+
+  assert(math.type(10) == "integer")
+  assert(math.type(15) == "integer")
+  assert(math.type(10.5) == "float")
+  assert(math.type(15.5) == "float")
+  assert(math.type("11813") == nil)
+
+  assert(math.ult(1,1) == false)
+  assert(math.ult(1,21) == true)
+  assert(math.ult(221,21) == false)
+  assert(math.ult(-2,21) == false)
+  assert(math.ult(-2,-21) == false)
 end

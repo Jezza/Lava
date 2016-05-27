@@ -188,7 +188,7 @@ public abstract class AbstractTest {
 	}
 
 	protected LuaJavaCallback errorFunction() {
-		return new AddWhere();
+		return Lua.ADD_STACK_TRACE;
 	}
 }
 
@@ -236,24 +236,5 @@ final class MethodRule extends TestWatcher {
 	@Override
 	public String toString() {
 		return className + '.' + methodName + "()";
-	}
-}
-
-final class AddWhere implements LuaJavaCallback {
-
-	@Override
-	public int luaFunction(Lua L) {
-		boolean any = false;
-		for (int i = 1; i <= 3; ++i) {
-			String s = L.where(i);
-			if (!s.isEmpty()) {
-				if (any)
-					s = s + " > ";
-				any = true;
-				L.insert(s, -1);
-				L.concat(2);
-			}
-		}
-		return 1;
 	}
 }

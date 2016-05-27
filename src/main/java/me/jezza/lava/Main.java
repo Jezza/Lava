@@ -1,13 +1,64 @@
+/**
+ * Copyright (c) 2006 Nokia Corporation and/or its subsidiary(-ies).
+ * All rights reserved.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining
+ * a copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sublicense, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject
+ * to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR
+ * ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+ * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 package me.jezza.lava;
 
 /**
+ * TODO Remove this class, it's only temporary so I can run some quick code benchmarks without ruining a class.
+ *
  * @author Jezza
  */
-public class Main {
+public final class Main {
 
 	private static final int UPPER_LIMIT = 50;
 
 	public static void main(String[] args) throws Exception {
+		Lua L = new Lua();
+
+		LuaTable t = new LuaTable();
+		LuaTable first = new LuaTable();
+		LuaTable second = new LuaTable();
+		LuaTable third = new LuaTable();
+		L.rawSet(t, "first", first);
+		L.rawSet(first, "second", second);
+		L.rawSet(second, "third", third);
+		L.findTable(t, "first.second.third", 2);
+		assert(third == L.value(-1));
+
+//		Lua L = new Lua();
+//		int status = L.doString("io.write('asd')");
+//		if (status != 0)
+//			System.out.println(L.value(-1));
+
+//		LuaTable t = new LuaTable();
+//		t.put(33, "initial");
+//		System.out.println(t);
+//		for (int i = 1; i <= 39; i++) {
+//			t.put(i, Integer.toString(i));
+//			System.out.println(t);
+//		}
+
+
 //		expansionTest("x << 1                ", x -> x << 1);
 //		expansionTest("x + (x >> 1)          ", x -> Math.max(x + (x >> 1), 2));
 //		expansionTest("x + (x >> 1) + 1      ", x -> x + (x >> 1) + 1);

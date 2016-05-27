@@ -1,7 +1,7 @@
-/*  $Header: //info.ravenbrook.com/project/jili/version/1.1/code/mnj/lua/Loader.java#1 $
+/**
  * Copyright (c) 2006 Nokia Corporation and/or its subsidiary(-ies).
  * All rights reserved.
- * 
+ * <p>
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -9,10 +9,10 @@
  * distribute, sublicense, and/or sell copies of the Software, and to
  * permit persons to whom the Software is furnished to do so, subject
  * to the following conditions:
- * 
+ * <p>
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
- * 
+ * <p>
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
@@ -21,12 +21,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-
 package me.jezza.lava;
 
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 
 /**
  * Loads Lua 5.1 binary chunks.
@@ -68,17 +68,11 @@ public final class Loader {
 	 * @param name The name of the chunk.
 	 */
 	Loader(InputStream in, String name) {
-		if (null == in) {
+		if (null == in)
 			throw new NullPointerException();
-		}
 		this.in = in;
-		// The name is treated slightly.  See lundump.c in the PUC-Rio
-		// source for details.
-		if (name.startsWith("@") || name.startsWith("=")) {
-			this.name = name.substring(1);
-		} else {
-			this.name = name;
-		}
+		// The name is treated slightly.  See lundump.c in the PUC-Rio source for details.
+		this.name = name.charAt(0) == '@' || name.charAt(0) == '=' ? name.substring(1) : name;
 	}
 
 	/**
@@ -87,8 +81,8 @@ public final class Loader {
 	 * @throws IOException if chunk is malformed or unacceptable.
 	 */
 	Proto undump() throws IOException {
-		this.header();
-		return this.function(null);
+		header();
+		return function(null);
 	}
 
 
@@ -103,16 +97,19 @@ public final class Loader {
 	 * @throws EOFException when the stream is exhausted too early.
 	 * @throws IOException  when the underlying stream does.
 	 */
-	private void block(byte[] b) throws IOException {
+	private void read(byte[] b) throws IOException {
 		if (in.read(b) != b.length)
 			throw new EOFException();
 	}
 
 	/**
-	 * Undumps a byte as an 8 bit unsigned number.  Returns
-	 * an int to accommodate the range.
+	 * Undumps a byte as an 8 bit unsigned number.
+	 * Note: returns an int to accommodate the range.
+	 *
+	 * @return - The unsigned byte that was read.
+	 * @throws IOException - If End of File was unexpectedly reached.
 	 */
-	private int byteLoad() throws IOException {
+	private int readUByte() throws IOException {
 		int c = in.read();
 		if (c == -1)
 			throw new EOFException();
@@ -120,19 +117,29 @@ public final class Loader {
 	}
 
 	/**
-	 * Undumps the code for a <code>Proto</code>.  The code is an array of
-	 * VM instructions.
+	 * Undumps an int.  This method swabs accordingly.
+	 * size_t and Instruction need swabbing too, but the code
+	 * simply uses this method to load size_t and Instruction.
+	 */
+	private int readInt() throws IOException {
+		// :int:size  Here we assume an int is 4 bytes.
+		read(intbuf);
+		// Caution: byte is signed so "&0xff" converts to unsigned value.
+		if (bigendian)
+			return ((intbuf[0] & 0xff) << 24) | ((intbuf[1] & 0xff) << 16) | ((intbuf[2] & 0xff) << 8) | (intbuf[3] & 0xff);
+		return ((intbuf[3] & 0xff) << 24) | ((intbuf[2] & 0xff) << 16) | ((intbuf[1] & 0xff) << 8) | (intbuf[0] & 0xff);
+	}
+
+	/**
+	 * Undumps the code for a <code>Proto</code>.
+	 * The code is an array of VM instructions.
 	 */
 	private int[] code() throws IOException {
-		int n = intLoad();
+		int n = readInt();
 		int[] code = new int[n];
-
-		for (int i = 0; i < n; ++i) {
-			// :Instruction:size  Here we assume that a dumped Instruction is
-			// the same size as a dumped int.
-			code[i] = intLoad();
-		}
-
+		// :Instruction:size  Here we assume that a dumped Instruction is the same size as a dumped int.
+		for (int i = 0; i < n; ++i)
+			code[i] = readInt();
 		return code;
 	}
 
@@ -143,7 +150,7 @@ public final class Loader {
 	 * <code>LoadConstants</code>.
 	 */
 	private Slot[] constant() throws IOException {
-		int n = intLoad();
+		int n = readInt();
 		Slot[] k = new Slot[n];
 
 		// Load each constant one by one.  We use the following values for
@@ -163,14 +170,13 @@ public final class Loader {
 		// worth doing since that doesn't require a global table.
 		//
 		for (int i = 0; i < n; ++i) {
-			int t = byteLoad();
-			switch (t) {
+			switch (readUByte()) {
 				case 0: // LUA_TNIL
 					k[i] = new Slot(Lua.NIL);
 					break;
 
 				case 1: // LUA_TBOOLEAN
-					int b = byteLoad();
+					int b = readUByte();
 					// assert b >= 0;
 					if (b > 1)
 						throw new IOException();
@@ -200,32 +206,25 @@ public final class Loader {
 	 */
 	private void debug(Proto proto) throws IOException {
 		// lineinfo
-		int n = intLoad();
+		int n = readInt();
 		int[] lineinfo = new int[n];
 
 		for (int i = 0; i < n; ++i)
-			lineinfo[i] = intLoad();
+			lineinfo[i] = readInt();
 
 		// locvars
-		n = intLoad();
+		n = readInt();
 		LocVar[] locvar = new LocVar[n];
-		for (int i = 0; i < n; ++i) {
-			String s = string();
-			int start = intLoad();
-			int end = intLoad();
-			locvar[i] = new LocVar(s, start, end);
-		}
+		for (int i = 0; i < n; ++i)
+			locvar[i] = new LocVar(string(), readInt(), readInt());
 
 		// upvalue (names)
-		n = intLoad();
+		n = readInt();
 		String[] upvalue = new String[n];
-		for (int i = 0; i < n; ++i) {
+		for (int i = 0; i < n; ++i)
 			upvalue[i] = string();
-		}
 
 		proto.debug(lineinfo, locvar, upvalue);
-
-		return;
 	}
 
 	/**
@@ -236,27 +235,14 @@ public final class Loader {
 	 * @throws IOException when binary is malformed.
 	 */
 	private Proto function(String parentSource) throws IOException {
-		String source;
-		int linedefined;
-		int lastlinedefined;
-		int nups;
-		int numparams;
-		int varargByte;
-		boolean vararg;
-		int maxstacksize;
-		int[] code;
-		Slot[] constant;
-		Proto[] proto;
-
-		source = this.string();
-		if (null == source) {
+		String source = string();
+		if (source == null)
 			source = parentSource;
-		}
-		linedefined = this.intLoad();
-		lastlinedefined = this.intLoad();
-		nups = this.byteLoad();
-		numparams = this.byteLoad();
-		varargByte = this.byteLoad();
+		int linedefined = this.readInt();
+		int lastlinedefined = this.readInt();
+		int nups = this.readUByte();
+		int numparams = this.readUByte();
+		int varargByte = this.readUByte();
 		// "is_vararg" is a 3-bit field, with the following bit meanings
 		// (see "lobject.h"):
 		// 1 - VARARG_HASARG
@@ -280,26 +266,24 @@ public final class Loader {
 		// here in the loader.
 		//
 		// That means that the legal values for this field ar 0,1,2,3.
-		if (varargByte < 0 || varargByte > 3) {
+		if (varargByte < 0 || varargByte > 3)
 			throw new IOException();
-		}
-		vararg = (0 != varargByte);
-		maxstacksize = this.byteLoad();
-		code = this.code();
-		constant = this.constant();
-		proto = this.proto(source);
-		Proto newProto = new Proto(constant, code, proto, nups,
-				numparams, vararg, maxstacksize);
+		boolean vararg = 0 != varargByte;
+		int maxStackSize = readUByte();
+		int[] code = code();
+		Slot[] constant = constant();
+		Proto[] proto = proto(source);
+		Proto newProto = new Proto(constant, code, proto, nups, numparams, vararg, maxStackSize);
 		newProto.setSource(source);
 		newProto.setLinedefined(linedefined);
 		newProto.setLastlinedefined(lastlinedefined);
 
-		this.debug(newProto);
+		debug(newProto);
 		// :todo: call code verifier
 		return newProto;
 	}
 
-	private static final int HEADERSIZE = 12;
+	private static final int HEADER_SIZE = 12;
 
 	/**
 	 * A chunk header that is correct.  Except for the endian byte, at
@@ -308,6 +292,8 @@ public final class Loader {
 	 * Default access so that {@link Lua#load} can read the first entry.
 	 * On no account should anyone except {@link #header} modify
 	 * this array.
+	 *
+	 * TODO Look up the first byte. I don't think it's supposed to be an octal, but I could be wrong.
 	 */
 	static final byte[] HEADER = new byte[]
 			{
@@ -344,71 +330,15 @@ public final class Loader {
 	 * @throws IOException when header is malformed or not suitable.
 	 */
 	private void header() throws IOException {
-		byte[] buf = new byte[HEADERSIZE];
-		int n;
-
-		block(buf);
+		byte[] buf = new byte[HEADER_SIZE];
+		read(buf);
 
 		// poke the HEADER's endianness byte and compare.
-		HEADER[6] = buf[6];
-
-		if (buf[6] < 0 || buf[6] > 1 || !arrayEquals(HEADER, buf)) {
+		byte byteOrderMark = buf[6];
+		HEADER[6] = byteOrderMark;
+		if (byteOrderMark < 0 || byteOrderMark > 1 || !arrayEquals(HEADER, buf))
 			throw new IOException();
-		}
-		bigendian = (buf[6] == 0);
-	}
-
-	/**
-	 * Undumps an int.  This method swabs accordingly.
-	 * size_t and Instruction need swabbing too, but the code
-	 * simply uses this method to load size_t and Instruction.
-	 */
-	private int intLoad() throws IOException {
-		// :int:size  Here we assume an int is 4 bytes.
-		block(intbuf);
-
-		int i;
-		// Caution: byte is signed so "&0xff" converts to unsigned value.
-		if (bigendian) {
-			i = ((intbuf[0] & 0xff) << 24) | ((intbuf[1] & 0xff) << 16) |
-					((intbuf[2] & 0xff) << 8) | (intbuf[3] & 0xff);
-		} else {
-			i = ((intbuf[3] & 0xff) << 24) | ((intbuf[2] & 0xff) << 16) |
-					((intbuf[1] & 0xff) << 8) | (intbuf[0] & 0xff);
-		}
-		return i;
-
-    /* minimum footprint version?
-	int result = 0 ;
-    for (int shift = 0 ; shift < 32 ; shift+=8)
-    {
-      int byt = byteLoad () ;
-      if (bigendian)
-        result = (result << 8) | byt ;
-      else
-        result |= byt << shift ;
-    }
-    return result ;
-    */
-
-    /* another version?
-	if (bigendian)
-    {
-      int result = byteLoad() << 24 ;
-      result |= byteLoad () << 16 ;
-      result |= byteLoad () << 8 ;
-      result |= byteLoad () ;
-      return result;
-    }
-    else
-    {
-      int result = byteLoad() ;
-      result |= byteLoad () << 8 ;
-      result |= byteLoad () << 16 ;
-      result |= byteLoad () << 24 ;
-      return result ;
-    }
-    */
+		bigendian = byteOrderMark == 0;
 	}
 
 	/**
@@ -416,7 +346,7 @@ public final class Loader {
 	 */
 	private double number() throws IOException {
 		// :lua_Number:size  Here we assume that the size is 8.
-		block(longbuf);
+		read(longbuf);
 		// Big-endian architectures store doubles with the sign bit first;
 		// little-endian is the other way around.
 		long l = 0;
@@ -438,37 +368,30 @@ public final class Loader {
 	 * the first half.
 	 */
 	private Proto[] proto(String source) throws IOException {
-		int n = intLoad();
+		int n = readInt();
 		Proto[] p = new Proto[n];
-
-		for (int i = 0; i < n; ++i) {
+		for (int i = 0; i < n; ++i)
 			p[i] = function(source);
-		}
 		return p;
 	}
 
 	/**
-	 * Undumps a {@link String} or <code>null</code>.  As per
-	 * <code>LoadString</code> in
-	 * PUC-Rio's lundump.c.  Strings are converted from the binary
-	 * using the UTF-8 encoding, using the {@link
-	 * java.lang.String#String(byte[], String) String(byte[], String)}
-	 * constructor.
+	 * Undumps a {@link String} or <code>null</code>.
+	 * As per <code>LoadString</code> in PUC-Rio's lundump.c.
+	 * Strings are converted from the binary using the UTF-8 encoding,
+	 * using the {@link java.lang.String#String(byte[], java.nio.charset.Charset) String(byte[], java.nio.charset.Charset)} constructor.
 	 */
 	private String string() throws IOException {
 		// :size_t:size we assume that size_t is same size as int.
-		int size = intLoad();
-		if (size == 0) {
+		int size = readInt();
+		if (size == 0)
 			return null;
-		}
-
 		byte[] buf = new byte[size - 1];
-		block(buf);
+		read(buf);
 		// Discard trailing NUL byte
 		if (in.read() == -1)
 			throw new EOFException();
-
-		return (new String(buf, "UTF-8")).intern();
+		return new String(buf, StandardCharsets.UTF_8).intern();
 	}
 
 	/**
@@ -476,13 +399,12 @@ public final class Loader {
 	 * do with this.
 	 */
 	private static boolean arrayEquals(byte[] x, byte[] y) {
-		if (x.length != y.length) {
+		int length = x.length;
+		if (length != y.length)
 			return false;
-		}
-		for (int i = 0; i < x.length; ++i) {
-			if (x[i] != y[i]) {
+		for (int i = 0; i < length; ++i) {
+			if (x[i] != y[i])
 				return false;
-			}
 		}
 		return true;
 	}

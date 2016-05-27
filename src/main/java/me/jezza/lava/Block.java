@@ -23,51 +23,13 @@
  */
 package me.jezza.lava;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.Reader;
-import java.io.StringReader;
-
 /**
- * Takes a {@link Reader} and converts to an {@link InputStream} by
- * reversing the transformation performed by <code>string.dump</code>.
- * This class is used by {@link BaseLib}'s load in order to
- * load binary chunks.
+ * Nodes for block list (list of active blocks)
  */
-final class ReaderInputStream extends InputStream {
-	private final Reader reader;
-
-	ReaderInputStream(Reader reader) {
-		this.reader = reader;
-	}
-
-	ReaderInputStream(String input) {
-		this(new StringReader(input));
-	}
-
-	@Override
-	public boolean markSupported() {
-		return reader.markSupported();
-	}
-
-	@Override
-	public void mark(int readAheadLimit) {
-		try {
-			reader.mark(readAheadLimit);
-		} catch (Exception ignored) {
-		}
-	}
-
-	@Override
-	public void reset() throws IOException {
-		reader.reset();
-	}
-
-	@Override
-	public int read() throws IOException {
-		int c = reader.read();
-		if (c == -1)
-			return c;
-		return c & 0xff;
-	}
+final class Block {
+	Block previous;  /* chain */
+	int breaklist;      /* list of jumps out of this loop */
+	int nactvar;        /* # active locals outside the breakable structure */
+	boolean upval;      /* true if some variable in the block is an upvalue */
+	boolean isbreakable;/* true if `block' is a loop */
 }

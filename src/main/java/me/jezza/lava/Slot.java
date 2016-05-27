@@ -1,6 +1,47 @@
+/**
+ * Copyright (c) 2006 Nokia Corporation and/or its subsidiary(-ies).
+ * All rights reserved.
+ * <p>
+ * Permission is hereby granted, free of charge, to any person obtaining
+ * a copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sublicense, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject
+ * to the following conditions:
+ * <p>
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * <p>
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR
+ * ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+ * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 package me.jezza.lava;
 
 /**
+ * TODO: Think about abstracting the Slot one more level out, and make it use the same instance for NIL, and BOOLEAN.
+ * As there are only two possible BOOLEAN values, true and false, obviously, and there's only 1 NIL.
+ * No other values can really be a constant like that. Unless you include doubles, but I think it would only be worth it with whole numbers, and even then, I can't really think of a nice middle ground.
+ * So, I think doubles might not be worth it. Userdata, and Tables definitely aren't.
+ * Strings, quite possibly.
+ * As you have an internalised value for each string that you create.
+ * I think that might be amazing for consistency with the PUC-Rio, as all strings are the same instance.
+ * So making a pool of all strings as slots would be for the best.
+ * I think the biggest hurdle for implementing this system is definitely going to be the access that is given to the rest of Lava.
+ * As the fields are accessed directly, this means I'm going to have to:
+ * A) Remove all of those accesses, and see if a getter method for each would do it justice, and
+ * B) Add some factory method that produces the Slots and make sure whenever a slot is written to, or created, it goes through that, so we can swap out the values with constant slots.
+ * <p>
+ * So, values that I think can be made constants:
+ * NIL
+ * BOOLEAN
+ * STRING - As I said, we could use a map, and internalise the strings, as well as the slots. Win-win.
+ *
  * @author Jezza
  */
 final class Slot {

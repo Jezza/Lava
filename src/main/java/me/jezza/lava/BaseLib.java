@@ -1,7 +1,7 @@
-/*  $Header: //info.ravenbrook.com/project/jili/version/1.1/code/mnj/lua/BaseLib.java#1 $
+/**
  * Copyright (c) 2006 Nokia Corporation and/or its subsidiary(-ies).
  * All rights reserved.
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -9,10 +9,10 @@
  * distribute, sublicense, and/or sell copies of the Software, and to
  * permit persons to whom the Software is furnished to do so, subject
  * to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
@@ -21,7 +21,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-
 package me.jezza.lava;
 
 import java.io.PrintStream;
@@ -84,6 +83,7 @@ public final class BaseLib {
 		r(L, "print", BaseLib::print);
 		r(L, "rawequal", BaseLib::rawequal);
 		r(L, "rawget", BaseLib::rawget);
+		r(L, "rawlen", BaseLib::rawlen);
 		r(L, "rawset", BaseLib::rawset);
 		r(L, "select", BaseLib::select);
 		r(L, "setfenv", BaseLib::setfenv);
@@ -414,6 +414,16 @@ public final class BaseLib {
 	}
 
 	/**
+	 * Implements rawlen.
+	 */
+	private static int rawlen(Lua L) {
+		int t = L.type(1);
+		L.argCheck(t == Lua.TTABLE || t == Lua.TSTRING, 1, "table or string expected");
+		L.pushNumber(Lua.objLen(L.value(1)));
+		return 1;
+	}
+
+	/**
 	 * Implements rawset.
 	 */
 	private static int rawset(Lua L) {
@@ -482,8 +492,7 @@ public final class BaseLib {
 	 */
 	private static int tonumber(Lua L) {
 		int base = L.optInt(2, 10);
-		if (base == 10)     // standard conversion
-		{
+		if (base == 10) {   // standard conversion
 			L.checkAny(1);
 			Object o = L.value(1);
 			OptionalDouble number = Lua.toNumber(o);
@@ -492,10 +501,9 @@ public final class BaseLib {
 				return 1;
 			}
 		} else {
-			String s = L.checkString(1);
 			L.argCheck(2 <= base && base <= 36, 2, "base out of range");
-			// :todo: consider stripping space and sharing some code with
-			// Lua.vmTostring
+			String s = L.checkString(1);
+			// :todo: consider stripping space and sharing some code with Lua.vmTostring
 			try {
 				int i = Integer.parseInt(s, base);
 				L.pushNumber(i);
@@ -512,12 +520,11 @@ public final class BaseLib {
 	 */
 	private static int tostring(Lua L) {
 		L.checkAny(1);
-		Object o = L.value(1);
 
-		if (L.callMeta(1, "__tostring"))    // is there a metafield?
-		{
+		if (L.callMeta(1, "__tostring"))  // is there a metafield?
 			return 1; // use its value
-		}
+
+		Object o = L.value(1);
 		switch (L.type(1)) {
 			case Lua.TNUMBER:
 				L.push(L.toString(o));

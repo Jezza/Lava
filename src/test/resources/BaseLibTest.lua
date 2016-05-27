@@ -111,6 +111,15 @@ function testrawget()
   local t = {a='foo'}
   return rawget(t, 'a')=='foo', rawget(t, 'foo')==nil
 end
+function testrawlen()
+  local s = '123456789'
+  local ts = rawlen(s)
+  print(ts)
+  local t = {};
+  t[1] = 'foo';
+  t[2] = 'foo';
+  return rawlen(s) == 9, rawlen(t) == 2
+end
 function testrawset()
   local t = {}
   rawset(t, 'b', 'bar')

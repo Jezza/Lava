@@ -4,7 +4,7 @@ import me.jezza.lava.AbstractTest;
 import me.jezza.lava.BaseLib;
 import me.jezza.lava.Lua;
 import me.jezza.lava.MathLib;
-import me.jezza.lava.annotations.Expected;
+import me.jezza.lava.annotations.Call;
 import me.jezza.lava.annotations.Library;
 import org.junit.Assert;
 import org.junit.Test;
@@ -19,10 +19,10 @@ import org.junit.Test;
  */
 public final class MathLibTest extends AbstractTest {
 	private static final String[] DEFINED = {
-			"abs", "ceil", "cos", "deg", "exp", "floor",
-			"fmod", "max", "min", "modf", "pow", "rad",
-			"random", "randomseed", "sin", "sqrt", "tan",
-			"pi", "huge"
+			"abs", "acos", "asin", "atan", "ceil", "cos",
+			"deg", "exp", "floor", "fmod", "log", "max",
+			"min", "modf", "pow", "rad", "random",
+			"randomseed", "sin", "sqrt", "tan", "maxinteger", "mininteger", "pi", "huge"
 	};
 
 	@Override
@@ -51,18 +51,22 @@ public final class MathLibTest extends AbstractTest {
 	}
 
 	@Test
-	@Expected(0)
+	@Call
 	public void test1() throws Exception {
 	}
 
 	@Test
-	@Expected(0)
+	@Call
 	public void test2() throws Exception {
 	}
 
 	@Test
-	@Expected(0)
+	@Call
 	public void test3() throws Exception {
 	}
 
+	@Test
+	@Call
+	public void test4() throws Exception {
+	}
 }

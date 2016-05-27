@@ -1,7 +1,7 @@
-/*  $Header: //info.ravenbrook.com/project/jili/version/1.1/code/mnj/lua/MathLib.java#1 $
+/**
  * Copyright (c) 2006 Nokia Corporation and/or its subsidiary(-ies).
  * All rights reserved.
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -9,10 +9,10 @@
  * distribute, sublicense, and/or sell copies of the Software, and to
  * permit persons to whom the Software is furnished to do so, subject
  * to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
@@ -21,9 +21,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-
 package me.jezza.lava;
 
+import java.util.OptionalDouble;
 import java.util.Random;
 
 /**
@@ -47,23 +47,32 @@ public final class MathLib {
 		LuaTable t = L.register("math");
 
 		r(L, t, "abs", MathLib::abs);
+		r(L, t, "acos", MathLib::acos);
+		r(L, t, "asin", MathLib::asin);
+		r(L, t, "atan", MathLib::atan);
 		r(L, t, "ceil", MathLib::ceil);
 		r(L, t, "cos", MathLib::cos);
 		r(L, t, "deg", MathLib::deg);
 		r(L, t, "exp", MathLib::exp);
 		r(L, t, "floor", MathLib::floor);
 		r(L, t, "fmod", MathLib::fmod);
+		r(L, t, "log", MathLib::log);
 		r(L, t, "max", MathLib::max);
 		r(L, t, "min", MathLib::min);
 		r(L, t, "modf", MathLib::modf);
-		r(L, t, "pow", MathLib::pow);
+		r(L, t, "pow", MathLib::pow); // Non-standard LUA function, research more.
 		r(L, t, "rad", MathLib::rad);
 		r(L, t, "random", MathLib::random);
 		r(L, t, "randomseed", MathLib::randomseed);
 		r(L, t, "sin", MathLib::sin);
 		r(L, t, "sqrt", MathLib::sqrt);
 		r(L, t, "tan", MathLib::tan);
+		r(L, t, "tointeger", MathLib::tointeger);
+		r(L, t, "type", MathLib::type);
+		r(L, t, "ult", MathLib::ult);
 
+		L.setField(t, "maxinteger", (double) Long.MAX_VALUE);
+		L.setField(t, "mininteger", (double) Long.MIN_VALUE);
 		L.setField(t, "pi", Math.PI);
 		L.setField(t, "huge", Double.POSITIVE_INFINITY);
 	}
@@ -84,6 +93,21 @@ public final class MathLib {
 
 	private static int abs(Lua L) {
 		L.pushNumber(Math.abs(L.checkNumber(1)));
+		return 1;
+	}
+
+	private static int acos(Lua L) {
+		L.pushNumber(Math.acos(L.checkNumber(1)));
+		return 1;
+	}
+
+	private static int asin(Lua L) {
+		L.pushNumber(Math.asin(L.checkNumber(1)));
+		return 1;
+	}
+
+	private static int atan(Lua L) {
+		L.pushNumber(Math.atan(L.checkNumber(1)));
 		return 1;
 	}
 
@@ -114,6 +138,21 @@ public final class MathLib {
 
 	private static int fmod(Lua L) {
 		L.pushNumber(L.checkNumber(1) % L.checkNumber(2));
+		return 1;
+	}
+
+	private static int log(Lua L) {
+		double v = L.checkNumber(1);
+		if (L.isNoneOrNil(2)) {
+			L.pushNumber(Math.log(v));
+		} else {
+			double base = L.checkNumber(2);
+			if (base == 10D) {
+				L.pushNumber(Math.log10(v));
+			} else {
+				L.pushNumber(Math.log(v) / Math.log(base));
+			}
+		}
 		return 1;
 	}
 
@@ -206,6 +245,66 @@ public final class MathLib {
 
 	private static int tan(Lua L) {
 		L.pushNumber(Math.tan(L.checkNumber(1)));
+		return 1;
+	}
+
+	/**
+	 * Implements tointeger.
+	 */
+	private static int tointeger(Lua L) {
+		// Is the check even worth it?
+		int t = L.type(1);
+		if (t != Lua.TNUMBER && t != Lua.TSTRING) {
+			L.pushNil();
+			return 1;
+		}
+		OptionalDouble opt = Lua.toNumber(L.value(1));
+		if (opt.isPresent()) {
+			double v = opt.getAsDouble();
+			if (v == (int) v) {
+				L.pushNumber(v);
+			} else {
+				L.pushNil();
+			}
+		} else {
+			L.pushNil();
+		}
+		return 1;
+	}
+
+	/**
+	 * Implements type.
+	 * TODO, Quite possibly just going to be a temporary solution as the numbers that can enter the stack are doubles.
+	 * I will probably, at some point, rewrite that part of the stack, so only specific values can enter it.
+	 * This means custom implementation for numbers and strings, assuming I don't just delegate to the java version.
+	 * If I create my own versions of these types, it will give me a LOT of control over what can enter the stack.
+	 */
+	private static int type(Lua L) {
+		if (L.type(1) == Lua.TNUMBER) {
+			OptionalDouble opt = Lua.toNumber(L.value(1));
+			if (opt.isPresent()) {
+				double v = opt.getAsDouble();
+				if (v == (int) v) {
+					L.pushLiteral("integer");
+				} else {
+					L.pushLiteral("float");
+				}
+			} else {
+				L.pushNil();
+			}
+		} else {
+			L.pushNil();
+		}
+		return 1;
+	}
+
+	/**
+	 *
+	 * @param L - The Lua thread that the function was called on.
+	 * @return - how many results were pushed onto the stack.
+	 */
+	private static int ult(Lua L) {
+		L.pushBoolean(Integer.compareUnsigned(L.checkInt(1), L.checkInt(2)) < 0);
 		return 1;
 	}
 }

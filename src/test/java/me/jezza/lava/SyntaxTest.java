@@ -30,7 +30,7 @@ public class SyntaxTest extends AbstractTest {
 	public void testSyntax1() throws Exception {
 		System.out.println("Syntax1");
 		Lua L = this.L;
-		L.load(Lua.stringReader(""), "Syntax1");
+		L.loadString("", "Syntax1");
 		L.call(0, 0);
 	}
 

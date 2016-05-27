@@ -1,7 +1,7 @@
-/*  $Header: //info.ravenbrook.com/project/jili/version/1.1/code/mnj/lua/Syntax.java#1 $
+/**
  * Copyright (c) 2006 Nokia Corporation and/or its subsidiary(-ies).
  * All rights reserved.
- * 
+ * <p>
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -9,10 +9,10 @@
  * distribute, sublicense, and/or sell copies of the Software, and to
  * permit persons to whom the Software is furnished to do so, subject
  * to the following conditions:
- * 
+ * <p>
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
- * 
+ * <p>
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
@@ -21,7 +21,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-
 package me.jezza.lava;
 
 import java.io.IOException;
@@ -238,18 +237,18 @@ final class Syntax {
 		return true;
 	}
 
-	private boolean currIsNewline() {
+	private boolean newline() {
 		return current == '\n' || current == '\r';
 	}
 
 	private void inclinenumber() throws IOException {
 		int old = current;
-		//# assert currIsNewline()
+		//# assert newline()
 		next();     // skip '\n' or '\r'
-		if (currIsNewline() && current != old)
+		if (newline() && current != old)
 			next();   // skip '\n\r' or '\r\n'
 		if (++linenumber < 0)      // overflow
-			throw xSyntaxerror("chunk has too many lines");
+			throw xSyntaxError("chunk has too many lines");
 	}
 
 	private int skip_sep() throws IOException {
@@ -261,12 +260,12 @@ final class Syntax {
 			save_and_next();
 			count++;
 		}
-		return (current == s) ? count : (-count) - 1;
+		return current == s ? count : -count - 1;
 	}
 
 	private void read_long_string(boolean isString, int sep) throws IOException {
 		save_and_next();  /* skip 2nd `[' */
-		if (currIsNewline())  /* string starts with a newline? */
+		if (newline())  /* string starts with a newline? */
 			inclinenumber();  /* skip it */
 		loop:
 		while (true) {
@@ -289,22 +288,23 @@ final class Syntax {
 					break;
 
 				default:
-					if (isString) save_and_next();
-					else next();
+					if (isString)
+						save_and_next();
+					else
+						next();
 			}
 		} /* loop */
 		if (isString) {
-			String rawtoken = buff.toString();
+			String raw = buff.toString();
 			int trim_by = 2 + sep;
-			semS = rawtoken.substring(trim_by, rawtoken.length() - trim_by);
+			semS = raw.substring(trim_by, raw.length() - trim_by);
 		}
 	}
 
 
 	/**
-	 * Lex a token and return it.  The semantic info for the token is
-	 * stored in <code>this.semR</code> or <code>this.semS</code> as
-	 * appropriate.
+	 * Lex a token and return it.
+	 * The semantic info for the token is stored in <code>this.semR</code> or <code>this.semS</code> as appropriate.
 	 */
 	private int llex() throws IOException {
 		buff.setLength(0);
@@ -318,7 +318,7 @@ final class Syntax {
 					next();
 					if (current != '-')
 						return '-';
-		  /* else is a comment */
+		  			/* else is a comment */
 					next();
 					if (current == '[') {
 						int sep = skip_sep();
@@ -329,8 +329,8 @@ final class Syntax {
 							continue;
 						}
 					}
-		  /* else short comment */
-					while (!currIsNewline() && current != EOZ)
+					/* else short comment */
+					while (!newline() && current != EOZ)
 						next();
 					continue;
 
@@ -397,7 +397,7 @@ final class Syntax {
 					return TK_EOS;
 				default:
 					if (isspace(current)) {
-						// assert !currIsNewline();
+						// assert !newline();
 						next();
 					} else if (isdigit(current)) {
 						read_numeral();
@@ -551,7 +551,7 @@ final class Syntax {
 	private LuaError xLexerror(String msg, int tok) {
 		msg = source + ":" + linenumber + ": " + msg;
 		if (tok != 0)
-			msg = msg + " near '" + txtToken(tok) + "'";
+			msg += " near '" + txtToken(tok) + "'";
 		L.pushString(msg);
 		throw L.dThrow(Lua.ERRSYNTAX, msg);
 	}
@@ -561,8 +561,7 @@ final class Syntax {
 	 */
 	private void xNext() throws IOException {
 		lastline = linenumber;
-		if (lookahead != TK_EOS)    // is there a look-ahead token?
-		{
+		if (lookahead != TK_EOS) {   // is there a look-ahead token?
 			token = lookahead;        // Use this one,
 			tokenR = lookaheadR;
 			tokenS = lookaheadS;
@@ -577,7 +576,7 @@ final class Syntax {
 	/**
 	 * Equivalent to <code>luaX_syntaxerror</code>.
 	 */
-	LuaError xSyntaxerror(String msg) {
+	LuaError xSyntaxError(String msg) {
 		throw xLexerror(msg, token);
 	}
 
@@ -608,7 +607,7 @@ final class Syntax {
 
 	private void check(int c) {
 		if (token != c)
-			throw error_expected(c);
+			throw unexpectedSyntax(c);
 	}
 
 	/**
@@ -619,8 +618,8 @@ final class Syntax {
 	private void check_match(int what, int who, int where) throws IOException {
 		if (!testnext(what)) {
 			if (where == linenumber)
-				throw error_expected(what);
-			throw xSyntaxerror("'" + xToken2str(what) + "' expected (to close '" + xToken2str(who) + "' at line " + where + ")");
+				throw unexpectedSyntax(what);
+			throw xSyntaxError("'" + xToken2str(what) + "' expected (to close '" + xToken2str(who) + "' at line " + where + ")");
 		}
 	}
 
@@ -729,12 +728,12 @@ final class Syntax {
 		L.nCcalls++;
 	}
 
-	private LuaError error_expected(int tok) {
-		throw xSyntaxerror("'" + xToken2str(tok) + "' expected");
-	}
-
 	private void leavelevel() {
 		L.nCcalls--;
+	}
+
+	private LuaError unexpectedSyntax(int tok) {
+		throw xSyntaxError("'" + xToken2str(tok) + "' expected");
 	}
 
 
@@ -981,7 +980,7 @@ final class Syntax {
 		Expdesc e = new Expdesc();
 		int kind = lh.v.k;
 		if (!(Expdesc.VLOCAL <= kind && kind <= Expdesc.VINDEXED))
-			throw xSyntaxerror("syntax error");
+			throw xSyntaxError("syntax error");
 		if (testnext(','))    /* assignment -> `,' primaryexp assignment */ {
 			LHSAssign nv = new LHSAssign(lh);
 			primaryexp(nv.v);
@@ -1013,7 +1012,7 @@ final class Syntax {
 		switch (token) {
 			case '(':         // funcargs -> '(' [ explist1 ] ')'
 				if (line != lastline)
-					throw xSyntaxerror("ambiguous syntax (function call x new statement)");
+					throw xSyntaxError("ambiguous syntax (function call x new statement)");
 				xNext();
 				if (token == ')') {       // arg list is empty?
 					args.setKind(Expdesc.VVOID);
@@ -1034,7 +1033,7 @@ final class Syntax {
 				break;
 
 			default:
-				throw xSyntaxerror("function arguments expected");
+				throw xSyntaxError("function arguments expected");
 		}
 		// assert (f.kind() == VNONRELOC);
 		int nparams;
@@ -1068,7 +1067,7 @@ final class Syntax {
 				singlevar(v);
 				return;
 			default:
-				throw xSyntaxerror("unexpected symbol");
+				throw xSyntaxError("unexpected symbol");
 		}
 	}
 
@@ -1174,7 +1173,7 @@ final class Syntax {
 
 			case TK_DOTS:  /* vararg */
 				if (!fs.f.isVararg())
-					throw xSyntaxerror("cannot use \"...\" outside a vararg function");
+					throw xSyntaxError("cannot use \"...\" outside a vararg function");
 				v.init(Expdesc.VVARARG, fs.kCodeABC(Lua.OP_VARARG, 0, 1, 0));
 				break;
 
@@ -1375,25 +1374,25 @@ final class Syntax {
 		return op;
 	}
 
-	private void enterblock(FuncState f, BlockCnt bl, boolean isbreakable) {
-		bl.breaklist = FuncState.NO_JUMP;
-		bl.isbreakable = isbreakable;
-		bl.nactvar = f.nactvar;
-		bl.upval = false;
-		bl.previous = f.bl;
-		f.bl = bl;
+	private static void enterblock(FuncState f, Block block, boolean isbreakable) {
+		block.breaklist = FuncState.NO_JUMP;
+		block.isbreakable = isbreakable;
+		block.nactvar = f.nactvar;
+		block.upval = false;
+		block.previous = f.block;
+		f.block = block;
 		//# assert f.freereg == f.nactvar
 	}
 
 	private void leaveblock(FuncState f) {
-		BlockCnt bl = f.bl;
-		f.bl = bl.previous;
+		Block bl = f.block;
+		f.block = bl.previous;
 		removevars(bl.nactvar);
 		if (bl.upval)
 			f.kCodeABC(Lua.OP_CLOSE, bl.nactvar, 0, 0);
-	/* loops have no body */
-		//# assert (!bl.isbreakable) || (!bl.upval)
-		//# assert bl.nactvar == f.nactvar
+		/* loops have no body */
+		//# assert (!block.isbreakable) || (!block.upval)
+		//# assert block.nactvar == f.nactvar
 		f.freereg = f.nactvar;  /* free registers */
 		f.kPatchtohere(bl.breaklist);
 	}
@@ -1407,23 +1406,22 @@ final class Syntax {
 
 
 	private void block() throws IOException {
-	/* block -> chunk */
-		BlockCnt bl = new BlockCnt();
-		enterblock(fs, bl, false);
+		/* block -> chunk */
+		enterblock(fs, new Block(), false);
 		chunk();
-		//# assert bl.breaklist == FuncState.NO_JUMP
+		//# assert block.breaklist == FuncState.NO_JUMP
 		leaveblock(fs);
 	}
 
 	private void breakstat() {
-		BlockCnt bl = fs.bl;
+		Block bl = fs.block;
 		boolean upval = false;
 		while (bl != null && !bl.isbreakable) {
 			upval |= bl.upval;
 			bl = bl.previous;
 		}
 		if (bl == null)
-			throw xSyntaxerror("no loop to break");
+			throw xSyntaxError("no loop to break");
 		if (upval)
 			fs.kCodeABC(Lua.OP_CLOSE, bl.nactvar, 0, 0);
 		bl.breaklist = fs.kConcat(bl.breaklist, fs.kJump());
@@ -1462,7 +1460,7 @@ final class Syntax {
 						break;
 					}
 					default:
-						throw xSyntaxerror("<name> or '...' expected");
+						throw xSyntaxError("<name> or '...' expected");
 				}
 			} while ((!f.isVararg()) && testnext(','));
 		}
@@ -1549,10 +1547,10 @@ final class Syntax {
 
 	private void pushclosure(FuncState func, Expdesc v) {
 		Proto f = fs.f;
-		f.ensureProtos(L, fs.np);
+		f.ensureProtos(L, fs.nProto);
 		Proto ff = func.f;
-		f.p[fs.np++] = ff;
-		v.init(Expdesc.VRELOCABLE, fs.kCodeABx(Lua.OP_CLOSURE, 0, fs.np - 1));
+		f.p[fs.nProto++] = ff;
+		v.init(Expdesc.VRELOCABLE, fs.kCodeABx(Lua.OP_CLOSURE, 0, fs.nProto - 1));
 		for (int i = 0; i < ff.nups; i++) {
 			int upvalue = func.upvalues[i];
 			int o = (UPVAL_K(upvalue) == Expdesc.VLOCAL) ? Lua.OP_MOVE :
@@ -1586,8 +1584,8 @@ final class Syntax {
 	private void repeatstat(int line) throws IOException {
 	/* repeatstat -> REPEAT block UNTIL cond */
 		int repeat_init = fs.kGetlabel();
-		BlockCnt bl1 = new BlockCnt();
-		BlockCnt bl2 = new BlockCnt();
+		Block bl1 = new Block();
+		Block bl2 = new Block();
 		enterblock(fs, bl1, true);  /* loop block */
 		enterblock(fs, bl2, false);  /* scope block */
 		xNext();  /* skip REPEAT */
@@ -1645,7 +1643,7 @@ final class Syntax {
 
 	private void forstat(int line) throws IOException {
 	/* forstat -> FOR (fornum | forlist) END */
-		BlockCnt bl = new BlockCnt();
+		Block bl = new Block();
 		enterblock(fs, bl, true);  /* scope for loop and control variables */
 		xNext();  /* skip `for' */
 		String varname = str_checkname();  /* first variable name */
@@ -1658,7 +1656,7 @@ final class Syntax {
 				forlist(varname);
 				break;
 			default:
-				throw xSyntaxerror("\"=\" or \"in\" expected");
+				throw xSyntaxError("\"=\" or \"in\" expected");
 		}
 		check_match(TK_END, TK_FOR, line);
 		leaveblock(fs);  /* loop scope (`break' jumps to this point) */
@@ -1716,7 +1714,7 @@ final class Syntax {
 	private void forbody(int base, int line, int nvars, boolean isnum)
 			throws IOException {
 	/* forbody -> DO block */
-		BlockCnt bl = new BlockCnt();
+		Block bl = new Block();
 		adjustlocalvars(3);  /* control variables */
 		checknext(TK_DO);
 		int prep = isnum ? fs.kCodeAsBx(Lua.OP_FORPREP, base, FuncState.NO_JUMP) : fs.kJump();
@@ -1755,7 +1753,7 @@ final class Syntax {
 	}
 
 	private int test_then_block() throws IOException {
-    /* test_then_block -> [IF | ELSEIF] cond THEN block */
+	/* test_then_block -> [IF | ELSEIF] cond THEN block */
 		xNext();  /* skip IF or ELSEIF */
 		int condexit = cond();
 		checknext(TK_THEN);
@@ -1764,8 +1762,8 @@ final class Syntax {
 	}
 
 	private void whilestat(int line) throws IOException {
-    /* whilestat -> WHILE cond DO block END */
-		BlockCnt bl = new BlockCnt();
+	/* whilestat -> WHILE cond DO block END */
+		Block bl = new Block();
 		xNext();  /* skip WHILE */
 		int whileinit = fs.kGetlabel();
 		int condexit = cond();

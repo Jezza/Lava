@@ -1,7 +1,7 @@
-/*  $Header: //info.ravenbrook.com/project/jili/version/1.1/code/mnj/lua/FuncState.java#1 $
+/**
  * Copyright (c) 2006 Nokia Corporation and/or its subsidiary(-ies).
  * All rights reserved.
- * 
+ * <p>
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -9,10 +9,10 @@
  * distribute, sublicense, and/or sell copies of the Software, and to
  * permit persons to whom the Software is furnished to do so, subject
  * to the following conditions:
- * 
+ * <p>
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
- * 
+ * <p>
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
@@ -21,7 +21,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-
 package me.jezza.lava;
 
 import java.util.HashMap;
@@ -67,7 +66,7 @@ final class FuncState {
 	/**
 	 * chain of current blocks
 	 */
-	BlockCnt bl;  // = null;
+	Block block;  // = null;
 
 	/**
 	 * next position to code.
@@ -92,12 +91,12 @@ final class FuncState {
 	/**
 	 * number of elements in <var>k</var>.
 	 */
-	int nk;       // = 0;
+	int nConstants;       // = 0;
 
 	/**
 	 * number of elements in <var>p</var>.
 	 */
-	int np;       // = 0;
+	int nProto;       // = 0;
 
 	/**
 	 * number of elements in <var>locvars</var>.
@@ -136,13 +135,13 @@ final class FuncState {
 	void close() {
 		f.closeCode(pc);
 		f.closeLineinfo(pc);
-		f.trimConstants(nk);
-		f.closeP(np);
+		f.trimConstants(nConstants);
+		f.closeP(nProto);
 		f.closeLocvars(nlocvars);
 		f.closeUpvalues();
 		boolean checks = L.gCheckcode(f);
 		//# assert checks
-		//# assert bl == null
+		//# assert block == null
 	}
 
 	/**
@@ -163,7 +162,7 @@ final class FuncState {
 		int newstack = freereg + n;
 		if (newstack > f.maxstacksize()) {
 			if (newstack >= Lua.MAXSTACK) {
-				ls.xSyntaxerror("function or expression too complex");
+				ls.xSyntaxError("function or expression too complex");
 			}
 			f.setMaxstacksize(newstack);
 		}
@@ -488,9 +487,9 @@ final class FuncState {
 		if (v != null) // :todo: assert
 			return v;
 		// constant not found; create a new entry
-		f.constantAppend(nk, hash);
-		h.put(hash, nk);
-		return nk++;
+		f.constantAppend(nConstants, hash);
+		h.put(hash, nConstants);
+		return nConstants++;
 	}
 
 	private void codearith(int op, Expdesc e1, Expdesc e2) {
@@ -901,7 +900,7 @@ final class FuncState {
 		int offset = dest - (at + 1);
 		//# assert dest != NO_JUMP
 		if (Math.abs(offset) > Lua.MAXARG_sBx)
-			ls.xSyntaxerror("control structure too long");
+			throw ls.xSyntaxError("control structure too long");
 		f.code[at] = Lua.SETARG_sBx(jmp, offset);
 	}
 
@@ -950,7 +949,7 @@ final class FuncState {
 				break;
 			}
 			default: {
-        /* invalid var kind to store */
+		/* invalid var kind to store */
 				//# assert false
 				break;
 			}
@@ -976,23 +975,22 @@ final class FuncState {
 			case Expdesc.VTRUE:
 			case Expdesc.VFALSE:
 			case Expdesc.VNIL:
-				if (nk <= Lua.MAXINDEXRK)    /* constant fit in RK operand? */ {
+				if (nConstants <= Lua.MAXINDEXRK)    /* constant fit in RK operand? */ {
 					e.info = (e.k == Expdesc.VNIL) ? nilK() :
 							(e.k == Expdesc.VKNUM) ? kNumberK(e.nval) :
 									boolK(e.k == Expdesc.VTRUE);
 					e.k = Expdesc.VK;
 					return e.info | Lua.BITRK;
-				} else break;
+				}
+				break;
 
 			case Expdesc.VK:
 				if (e.info <= Lua.MAXINDEXRK)  /* constant fit in argC? */
 					return e.info | Lua.BITRK;
-				else break;
-
 			default:
 				break;
 		}
-    /* not a constant in the right range: put it in a register */
+    	/* not a constant in the right range: put it in a register */
 		return kExp2anyreg(e);
 	}
 
@@ -1152,7 +1150,7 @@ final class FuncState {
 	}
 
 	void markupval(int level) {
-		BlockCnt b = this.bl;
+		Block b = this.block;
 		while (b != null && b.nactvar > level)
 			b = b.previous;
 		if (b != null)

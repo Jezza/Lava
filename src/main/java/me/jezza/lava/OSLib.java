@@ -1,7 +1,7 @@
-/*  $Header: //info.ravenbrook.com/project/jili/version/1.1/code/mnj/lua/OSLib.java#1 $
+/**
  * Copyright (c) 2006 Nokia Corporation and/or its subsidiary(-ies).
  * All rights reserved.
- * 
+ * <p>
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -9,10 +9,10 @@
  * distribute, sublicense, and/or sell copies of the Software, and to
  * permit persons to whom the Software is furnished to do so, subject
  * to the following conditions:
- * 
+ * <p>
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
- * 
+ * <p>
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
@@ -21,13 +21,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-
-// REFERENCES
-// [C1990] "ISO Standard: Programming languages - C"; ISO 9899:1990;
-
 package me.jezza.lava;
 
-import java.time.LocalDateTime;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.OptionalInt;
@@ -36,9 +31,13 @@ import java.util.TimeZone;
 /**
  * The OS Library.  Can be opened into a {@link Lua} state by invoking
  * the {@link #open} method.
+ *
+ * TODO, move away from the Calender system, and into the new Java 8 time api stuffs.
  */
 public final class OSLib {
 	private static final long T0 = System.currentTimeMillis();
+	private static final int EXIT_SUCCESS = 0;
+	private static final int EXIT_FAILURE = -1;
 
 	/**
 	 * Opens the library into the given Lua state.  This registers
@@ -52,7 +51,9 @@ public final class OSLib {
 		r(L, t, "clock", OSLib::clock);
 		r(L, t, "date", OSLib::date);
 		r(L, t, "difftime", OSLib::difftime);
+		r(L, t, "exit", OSLib::exit);
 		r(L, t, "setlocale", OSLib::setlocale);
+		r(L, t, "getenv", OSLib::getenv);
 		r(L, t, "time", OSLib::time);
 	}
 
@@ -75,8 +76,7 @@ public final class OSLib {
 	 * return the amount of wall clock time since this class was loaded.
 	 */
 	private static int clock(Lua L) {
-		double time = ((double) System.currentTimeMillis() - T0) / 1000;
-		L.pushNumber(time);
+		L.pushNumber((System.currentTimeMillis() - T0) / 1000D);
 		return 1;
 	}
 
@@ -92,7 +92,6 @@ public final class OSLib {
 		}
 
 		String s = L.optString(1, "%c");
-		LocalDateTime now = LocalDateTime.now();
 		TimeZone tz = TimeZone.getDefault();
 		if (s.startsWith("!")) {
 			tz = TimeZone.getTimeZone("GMT");
@@ -230,15 +229,33 @@ public final class OSLib {
 	 * Implements difftime.
 	 */
 	private static int difftime(Lua L) {
-		L.pushNumber((L.checkNumber(1) - L.optNumber(2, 0)) / 1000);
+		L.pushNumber((L.checkNumber(1) - L.checkNumber(2)) / 1000D);
 		return 1;
 	}
 
-	// Incredibly, the spec doesn't give a numeric value and range for
-	// Calendar.JANUARY through to Calendar.DECEMBER.
 	/**
-	 * Converts from 0-11 to required Calendar value.  DO NOT MODIFY THIS
-	 * ARRAY.
+	 * Implements exit.
+	 */
+	private static int exit(Lua L) {
+		final int status;
+		int type = L.type(1);
+		if (type == Lua.TBOOLEAN) {
+			status = L.checkBoolean(1) ? EXIT_SUCCESS : EXIT_FAILURE;
+		} else {
+			status = L.optInt(1, EXIT_SUCCESS);
+		}
+		// The second parameter doesn't really do anything, but it's been added for completion.
+		if (L.optBoolean(2, false))
+			L.close();
+		System.exit(status);
+		return 0;
+	}
+
+	/**
+	 * Incredibly, the spec doesn't give a numeric value and range for Calendar.JANUARY through to Calendar.DECEMBER.
+	 * Converts from 0-11 to required Calendar value.
+	 * <p>
+	 * DO NOT MODIFY THIS ARRAY.
 	 */
 	private static final int[] MONTH =
 			{
@@ -260,10 +277,24 @@ public final class OSLib {
 	 * Implements setlocale.
 	 */
 	private static int setlocale(Lua L) {
+		// TODO Actually implement this...
 		if (L.isNoneOrNil(1)) {
 			L.pushString("");
 		} else {
 			L.pushNil();
+		}
+		return 1;
+	}
+
+	/**
+	 * Implements getenv.
+	 */
+	private static int getenv(Lua L) {
+		String property = System.getProperty(L.checkString(1));
+		if (property == null) {
+			L.pushNil();
+		} else {
+			L.pushString(property);
 		}
 		return 1;
 	}

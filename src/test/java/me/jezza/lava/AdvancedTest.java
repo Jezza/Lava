@@ -21,7 +21,7 @@ public final class AdvancedTest extends AbstractTest {
 	@Override
 	protected void call(Lua L, String file, String name, int n) {
 		loadFile(L, name);
-		int status = L.pcall(0, 0, new AddWhere());
+		int status = L.pcall(0, 0, Lua.ADD_STACK_TRACE);
 		if (status != 0)
 			System.out.println(L.toString(L.value(-1)));
 	}

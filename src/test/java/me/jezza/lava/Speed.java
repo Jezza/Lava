@@ -24,8 +24,9 @@
 package me.jezza.lava;
 
 final class Speed {
+
 	public static void main(String[] arg) {
-		System.out.println(Speed.report());
+		System.out.println(report());
 	}
 
 	static final String[] scripts = {
@@ -47,7 +48,7 @@ final class Speed {
 			b.append(script);
 			b.append(": ");
 			b.append(t);
-			b.append(" : ");
+			b.append(" ns or ");
 			b.append(t / 1000000000D);
 			b.append(" seconds.");
 			b.append('\n');
@@ -77,7 +78,7 @@ final class Speed {
 
 		long start = System.nanoTime();
 		L.loadFile("/speed/" + name + ".lua");
-		int status = L.pcall(0, 0, new AddWhere());
+		int status = L.pcall(0, 0, Lua.ADD_STACK_TRACE);
 		if (status != 0)
 			System.out.println(L.value(-1));
 		return System.nanoTime() - start;

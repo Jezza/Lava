@@ -28,7 +28,7 @@ import org.junit.Test;
 public final class BaseLibTest extends AbstractTest {
 	private static final String[] DEFINED = {
 			"_VERSION", "_G", "ipairs", "pairs", "print",
-			"rawequal", "rawget", "rawset", "select",
+			"rawequal", "rawget", "rawlen", "rawset", "select",
 			"tonumber", "tostring", "type", "unpack"
 	};
 
@@ -117,6 +117,12 @@ public final class BaseLibTest extends AbstractTest {
 	@Expected(2)
 	@Name("testrawget")
 	public void testRawget() throws Exception {
+	}
+
+	@Test
+	@Expected(2)
+	@Name("testrawlen")
+	public void testRawlen() throws Exception {
 	}
 
 	@Test

@@ -1,3 +1,26 @@
+/**
+ * Copyright (c) 2006 Nokia Corporation and/or its subsidiary(-ies).
+ * All rights reserved.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining
+ * a copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sublicense, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject
+ * to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR
+ * ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+ * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 package me.jezza.lava;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -10,7 +33,7 @@ import java.io.OutputStream;
 /**
  * @author Jezza
  */
-final class DumpWriter extends DataOutputStream {
+final class Dump extends DataOutputStream {
 
 	/**
 	 * Creates a new data output stream to write data to the specified
@@ -21,7 +44,7 @@ final class DumpWriter extends DataOutputStream {
 	 *            use.
 	 * @see FilterOutputStream#out
 	 */
-	DumpWriter(OutputStream out) {
+	private Dump(OutputStream out) {
 		super(out);
 	}
 
@@ -32,12 +55,12 @@ final class DumpWriter extends DataOutputStream {
 	 * header defined in Loader.java.  It has to fix the endianness byte
 	 * first.
 	 */
-	void dumpHeader() throws IOException {
+	private void dumpHeader() throws IOException {
 		Loader.HEADER[6] = 0;
 		write(Loader.HEADER);
 	}
 
-	void dumpFunction(Proto f, String p) throws IOException {
+	private void dumpFunction(Proto f, String p) throws IOException {
 		String source = f.source;
 		writeString(source != null && source.equals(p) ? source : null);
 		writeInt(f.linedefined);
@@ -141,7 +164,7 @@ final class DumpWriter extends DataOutputStream {
 	}
 
 	static void proto(OutputStream writer, Proto f) throws IOException {
-		DumpWriter d = new DumpWriter(writer);
+		Dump d = new Dump(writer);
 		d.dumpHeader();
 		d.dumpFunction(f, null);
 		d.flush();
