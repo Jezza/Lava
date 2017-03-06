@@ -69,3 +69,5 @@ $RECYCLE.BIN/
 # Gradle
 /build
 .gradle
+
+/classes

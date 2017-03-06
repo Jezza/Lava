@@ -742,8 +742,7 @@ final class Syntax {
 	 */
 	static Proto parser(Lua L, Reader in, String name) throws IOException {
 		Syntax ls = new Syntax(L, in, name);
-		FuncState fs = new FuncState(ls);
-		ls.open_func(fs);
+		FuncState fs = ls.open_func();
 		fs.f.setIsVararg();
 		ls.xNext();
 		ls.chunk();
@@ -1514,8 +1513,7 @@ final class Syntax {
 
 	private void body(Expdesc e, boolean needself, int line) throws IOException {
 	/* body ->  `(' parlist `)' chunk END */
-		FuncState new_fs = new FuncState(this);
-		open_func(new_fs);
+		FuncState new_fs = open_func();
 		new_fs.f.linedefined = line;
 		checknext('(');
 		if (needself) {
@@ -1614,13 +1612,15 @@ final class Syntax {
 		return v.f;
 	}
 
-	private void open_func(FuncState funcstate) {
+	private FuncState open_func() {
+		FuncState funcstate = new FuncState(this);
 		funcstate.f = new Proto(source, 2);  /* registers 0/1 are always valid */
 		funcstate.ls = this;
 		funcstate.L = L;
 
 		funcstate.prev = this.fs;   /* linked list of funcstates */
 		this.fs = funcstate;
+		return funcstate;
 	}
 
 	private void localstat() throws IOException {

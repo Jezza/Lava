@@ -429,8 +429,8 @@ public final class Lua {
 	}
 
 	/**
-	 * Closes a Lua state.  In this implementation, this method does
-	 * nothing.
+	 * Closes a Lua state.
+	 * In this implementation, this method does nothing.
 	 */
 	public void close() {
 		// TODO Probably want to do something along the lines of stopping all execution, clearing the stack, etc.
@@ -1796,17 +1796,13 @@ public final class Lua {
 	 * Get a field (event) from an Lua value's metatable.  Returns Lua
 	 * <code>nil</code> if there is either no metatable or no field.
 	 *
-	 * @param o     Lua value to get metafield for.
-	 * @param event name of metafield (event).
+	 * @param o     Lua value to get meta-field for.
+	 * @param event name of meta-field (event).
 	 * @return the field from the metatable, or nil.
 	 */
 	public Object getMetafield(Object o, String event) {
 		LuaTable mt = getMetatable(o);
 		return mt != null ? mt.get(event) : NIL;
-	}
-
-	boolean isNoneOrNil(int narg) {
-		return type(narg) <= TNIL;
 	}
 
 	/**
@@ -1829,8 +1825,8 @@ public final class Lua {
 	}
 
 	/**
-	 * Loads a Lua chunk from a string.  Pushes compiled chunk, or error
-	 * message, onto stack.
+	 * Loads a Lua chunk from a string.
+	 * Pushes compiled chunk, or error message, onto stack.
 	 *
 	 * @param s         the string to load.
 	 * @param chunkName the name of the chunk.
@@ -1840,12 +1836,16 @@ public final class Lua {
 		return load(stringReader(s), chunkName);
 	}
 
+	boolean isNoneOrNil(int narg) {
+		return type(narg) <= TNIL;
+	}
+
 	/**
 	 * Retrieves an optional boolean.
 	 * Raises error if non-boolean is supplied.
 	 *
 	 * @param narg argument index.
-	 * @param def default value for boolean.
+	 * @param def  default value for boolean.
 	 * @return the boolean
 	 */
 	public boolean optBoolean(int narg, boolean def) {
@@ -1892,7 +1892,7 @@ public final class Lua {
 	 *
 	 * @return the new table
 	 */
-	LuaTable register(String name) {
+	public LuaTable register(String name) {
 		findTable(getRegistry(), LOADED, 1);
 		Object loaded = value(-1);
 		pop(1);
@@ -2056,7 +2056,7 @@ public final class Lua {
 					funcinfo(ar, f);
 					break;
 				case 'l':
-					ar.setCurrentline((ci != null) ? currentline(ci) : -1);
+					ar.setCurrentline(ci != null ? currentline(ci) : -1);
 					break;
 				case 'f':       // handled by getInfo
 					break;
@@ -2070,24 +2070,19 @@ public final class Lua {
 
 	private int currentline(CallInfo ci) {
 		int pc = currentpc(ci);
-		if (pc < 0) {
+		if (pc < 0)
 			return -1;        // only active Lua functions have current-line info
-		} else {
-			Object faso = stack[ci.function()].r;
-			LuaFunction f = (LuaFunction) faso;
-			return f.proto().getline(pc);
-		}
+		LuaFunction f = (LuaFunction) stack[ci.function()].r;
+		return f.proto().getline(pc);
 	}
 
 	private int currentpc(CallInfo ci) {
-		if (!isLua(ci))     // function is not a Lua function?
-		{
+		// function is not a Lua function?
+		if (!isLua(ci))
 			return -1;
-		}
-		if (ci == ci()) {
+		if (ci == ci())
 			ci.setSavedpc(savedpc);
-		}
-		return pcRel(ci.savedpc());
+		return ci.savedpc() - 1;
 	}
 
 	private void funcinfo(Debug ar, Object cl) {
@@ -2110,10 +2105,6 @@ public final class Lua {
 	 */
 	private boolean isLua(CallInfo callinfo) {
 		return stack[callinfo.function()].r instanceof LuaFunction;
-	}
-
-	private static int pcRel(int pc) {
-		return pc - 1;
 	}
 
 	//////////////////////////////////////////////////////////////////////
@@ -2478,7 +2469,7 @@ public final class Lua {
 	}
 
 	/**
-	 * Equivalent of macro GET_OPCODE
+	 * Equivalent of macro SET_OPCODE
 	 */
 	static int SET_OPCODE(int i, int op) {
 		// POS_OP == 0 (shift amount)
@@ -2814,6 +2805,7 @@ public final class Lua {
 
 				switch (OPCODE(i)) {
 					case OP_MOVE:
+						//	stack_set(base + a, stack[base + ARGB(i)]);
 						stack[base + a].setObject(stack[base + ARGB(i)]);
 						continue;
 					case OP_LOADK:

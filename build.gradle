@@ -1,10 +1,14 @@
-apply plugin: 'java'
-
-project.version = "0.2"
-
 repositories {
     mavenCentral()
 }
+
+apply plugin: 'java'
+apply plugin: 'maven'
+apply plugin: 'signing'
+
+group = "com.github.jezza"
+archivesBaseName = "lava"
+version = "0.2"
 
 dependencies {
 	testCompile 'junit:junit:4.12'
@@ -12,16 +16,72 @@ dependencies {
 
 jar {
 	version = project.version
-	classifier = "dev"
 }
 
-// Source jar
-task srcJar(type: Jar) {
-	from sourceSets.main.allSource
-	version = project.version
-	classifier = "src"
+signing {
+    sign configurations.archives
+}
+
+javadoc {
+	failOnError = false
+}
+
+task javadocJar(type: Jar) {
+    classifier = 'javadoc'
+    from javadoc
+}
+
+task sourcesJar(type: Jar) {
+    classifier = 'sources'
+    from sourceSets.main.allSource
 }
 
 artifacts {
-    archives srcJar
+    archives javadocJar, sourcesJar
+}
+
+uploadArchives {
+	repositories {
+		mavenDeployer {
+			beforeDeployment {
+				MavenDeployment deployment -> signing.signPom(deployment)
+			}
+			
+			repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
+				authentication(userName: ossrhUsername, password: ossrhPassword)
+			}
+			
+			snapshotRepository(url: "https://oss.sonatype.org/content/repositories/snapshots/") {
+				authentication(userName: ossrhUsername, password: ossrhPassword)
+			}
+			
+			pom.project {
+				name 'Lava'
+				packaging 'jar'
+				description 'A lua runtime embeddable into a JVM runtime.'
+				url 'https://github.com/Jezza/Lava'
+				
+				scm {
+					url 'https://github.com/Jezza/Lava'
+					connection 'scm:git:git://github.com/Jezza/Lava.git'
+					developerConnection 'scm:git:git@github.com:Jezza/Lava.git'
+				}
+				
+				licenses {
+					license {
+						name 'GNU Lesser General Public License v3 (LGPL-3.0)'
+						url 'https://www.gnu.org/licenses/lgpl-3.0.txt'
+					}
+				}
+				
+				developers {
+					developer {
+						id 'jezza'
+						name 'Jezza'
+						email 'jeremy.a.barrow@gmail.com'
+					}
+				}
+			}
+		}
+	}
 }

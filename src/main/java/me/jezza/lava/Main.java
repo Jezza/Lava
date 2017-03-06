@@ -34,16 +34,23 @@ public final class Main {
 
 	public static void main(String[] args) throws Exception {
 		Lua L = new Lua();
+		BaseLib.open(L);
 
-		LuaTable t = new LuaTable();
-		LuaTable first = new LuaTable();
-		LuaTable second = new LuaTable();
-		LuaTable third = new LuaTable();
-		L.rawSet(t, "first", first);
-		L.rawSet(first, "second", second);
-		L.rawSet(second, "third", third);
-		L.findTable(t, "first.second.third", 2);
-		assert(third == L.value(-1));
+		String tailCall = "function foo (n)if n > 0 then return foo(n - 1) end return n;end print(foo(999999999999999999999999999));";
+
+		L.doString(tailCall);
+
+
+
+//		LuaTable t = new LuaTable();
+//		LuaTable first = new LuaTable();
+//		LuaTable second = new LuaTable();
+//		LuaTable third = new LuaTable();
+//		L.rawSet(t, "first", first);
+//		L.rawSet(first, "second", second);
+//		L.rawSet(second, "third", third);
+//		L.findTable(t, "first.second.third", 2);
+//		assert(third == L.value(-1));
 
 //		Lua L = new Lua();
 //		int status = L.doString("io.write('asd')");
