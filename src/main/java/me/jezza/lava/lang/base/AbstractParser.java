@@ -50,7 +50,6 @@ public abstract class AbstractParser {
 	public final boolean lookAhead(int type) throws IOException {
 		long start = System.nanoTime();
 		try {
-
 			return current().type == type;
 		} finally {
 			LOOKAHEAD.add(System.nanoTime() - start);

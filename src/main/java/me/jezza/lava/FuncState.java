@@ -122,10 +122,11 @@ final class FuncState {
 	 * Constructor.  Much of this is taken from <code>open_func</code> in
 	 * <code>lparser.c</code>.
 	 */
-	FuncState(Syntax ls) {
+	FuncState(Syntax ls, FuncState fs) {
 		f = new Proto(ls.source, 2); // default value for maxstacksize=2
 		L = ls.L;
 		this.ls = ls;
+		prev = fs;
 		//    prev = ls.linkfs(this);
 	}
 

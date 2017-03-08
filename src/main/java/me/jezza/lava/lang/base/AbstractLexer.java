@@ -79,27 +79,31 @@ public abstract class AbstractLexer {
 	}
 
 
-	private static final Times INIT = new Times("init", 1);
+//	private static final Times INIT = new Times("init", 1);
 
 	private void init(int[] input) throws IOException {
-		long start = System.nanoTime();
-		char[] readBuffer = this.readBuffer;
-		for (int i = 0, l = input.length; i < l; i++) {
-			int count = in.read(readBuffer, 0, 1);
-			if (count == EOS) {
-				input[i] = EOS;
-				in.close();
-				in = null;
-				INIT.add(System.nanoTime() - start);
-				return;
-			} else {
-				input[i] = readBuffer[0];
-			}
+//		long start = System.nanoTime();
+		int l = input.length;
+		char[] readBuffer = new char[l];
+		int count = in.read(readBuffer, 0, l);
+		if (count == EOS) {
+			input[0] = EOS;
+			in.close();
+			in = null;
+		} else if (count != l) {
+			for (int i = 0; i < count; i++)
+				input[i] = readBuffer[i];
+			input[count] = EOS;
+			in.close();
+			in = null;
+		} else {
+			for (int i = 0; i < l; i++)
+				input[i] = readBuffer[i];
 		}
-		INIT.add(System.nanoTime() - start);
+//		INIT.add(System.nanoTime() - start);
 	}
 
-	private static final Times ADVANCE = new Times("advance", 2048);
+	private static final Times ADVANCE = new Times("advance", 4096);
 
 	protected final int advance() throws IOException {
 		long start = System.nanoTime();
@@ -111,6 +115,7 @@ public abstract class AbstractLexer {
 		}
 		int c = input[index];
 		if (in != null) {
+			char[] readBuffer = this.readBuffer;
 			if (in.read(readBuffer, 0, 1) != EOS) {
 				input[index] = readBuffer[0];
 			} else {

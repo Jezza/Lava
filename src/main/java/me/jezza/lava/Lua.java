@@ -1892,7 +1892,7 @@ public final class Lua {
 	 *
 	 * @return the new table
 	 */
-	public LuaTable register(String name) {
+	LuaTable register(String name) {
 		findTable(getRegistry(), LOADED, 1);
 		Object loaded = value(-1);
 		pop(1);

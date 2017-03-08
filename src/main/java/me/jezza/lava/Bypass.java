@@ -8,11 +8,11 @@ import sun.misc.Unsafe;
 /**
  * @author Jezza
  */
-final class Bypass {
+public final class Bypass {
 
-	static final Lookup LOOKUP;
+	public static final Lookup LOOKUP;
 
-	static final Unsafe UNSAFE;
+	public static final Unsafe UNSAFE;
 
 	static {
 		try {
