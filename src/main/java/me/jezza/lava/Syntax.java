@@ -25,6 +25,7 @@ package me.jezza.lava;
 
 import java.io.IOException;
 import java.io.Reader;
+import java.io.StringReader;
 import java.util.HashMap;
 
 
@@ -752,6 +753,24 @@ final class Syntax {
 		//# assert fs.f.nups == 0
 		//# assert ls.fs == null
 		return fs.f;
+	}
+
+	public static void main(String[] args) throws IOException {
+
+		Lua L = new Lua();
+		StringReader reader = new StringReader("(1 + 5 + 4)");
+//		FileReader reader = new FileReader(new File("C:\\Users\\Jezza\\Desktop\\JavaProjects\\Lava\\src\\test\\resources\\all.lua"));
+		long start = System.nanoTime();
+		Syntax syntax = new Syntax(L, reader, "Testing");
+		while (syntax.token != TK_EOS){
+			syntax.xNext();
+			System.out.println(syntax.buff);
+		}
+		long end = System.nanoTime();
+
+
+		Proto proto = parser(L, reader, "chunkName");
+		System.out.println(end - start);
 	}
 
 	private void removevars(int tolevel) {
@@ -1613,14 +1632,7 @@ final class Syntax {
 	}
 
 	private FuncState open_func() {
-		FuncState funcstate = new FuncState(this);
-		funcstate.f = new Proto(source, 2);  /* registers 0/1 are always valid */
-		funcstate.ls = this;
-		funcstate.L = L;
-
-		funcstate.prev = this.fs;   /* linked list of funcstates */
-		this.fs = funcstate;
-		return funcstate;
+		return fs = new FuncState(this, fs);
 	}
 
 	private void localstat() throws IOException {
@@ -1808,12 +1820,12 @@ final class Syntax {
 		adjustlocalvars(1);
 		body(b, false, linenumber);
 		fs.kStorevar(v, b);
-    /* debug information will only see the variable after this point! */
+	/* debug information will only see the variable after this point! */
 		fs.getlocvar(fs.nactvar - 1).startpc = fs.pc;
 	}
 
 	private void yindex(Expdesc v) throws IOException {
-    /* index -> '[' expr ']' */
+	/* index -> '[' expr ']' */
 		xNext();  /* skip the '[' */
 		expr(v);
 		fs.kExp2val(v);
