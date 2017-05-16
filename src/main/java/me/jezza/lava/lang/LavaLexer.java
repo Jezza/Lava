@@ -5,7 +5,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
-import java.util.Arrays;
 
 import me.jezza.lava.Times;
 import me.jezza.lava.lang.base.AbstractLexer;
@@ -15,8 +14,7 @@ import me.jezza.lava.lang.interfaces.Lexer;
  * @author Jezza
  */
 public final class LavaLexer extends AbstractLexer implements Lexer {
-	private static final int DEFAULT_LOOKAHEAD = 5_000;
-//	private static final int DEFAULT_LOOKAHEAD = 1;
+	private static final int BUFFER_SIZE = 2048;
 
 	private final StringBuilder text;
 
@@ -25,26 +23,26 @@ public final class LavaLexer extends AbstractLexer implements Lexer {
 	}
 
 	protected LavaLexer(String input) {
-		super(input, DEFAULT_LOOKAHEAD);
+		super(input, BUFFER_SIZE);
 	}
 
 	protected LavaLexer(File file) throws FileNotFoundException {
-		super(file, DEFAULT_LOOKAHEAD);
+		super(file, BUFFER_SIZE);
 	}
 
 	protected LavaLexer(InputStream in) {
-		super(in, DEFAULT_LOOKAHEAD);
+		super(in, BUFFER_SIZE);
 	}
 
 	protected LavaLexer(Reader in) {
-		super(in, DEFAULT_LOOKAHEAD);
+		super(in, BUFFER_SIZE);
 	}
 
-	private static final Times NEXT = new Times("NEXT", 2048);
-	private static final Times WHITESPACE = new Times("WHITESPACE", 2048);
-	private static final Times NAMESPACE = new Times("NAMESPACE", 2048);
-
-	private static final Times EXTRA = new Times("EXTRA", 2048);
+//	private static final Times NEXT = new Times("NEXT", 2048);
+//	private static final Times WHITESPACE = new Times("WHITESPACE", 2048);
+//	private static final Times NAMESPACE = new Times("NAMESPACE", 2048);
+//
+//	private static final Times EXTRA = new Times("EXTRA", 2048);
 
 	@Override
 	public Token next() throws IOException {
@@ -200,85 +198,59 @@ public final class LavaLexer extends AbstractLexer implements Lexer {
 		return Character.isAlphabetic(c) || c == '_';
 	}
 
-	private static final Times NUMBER = new Times("NUMBER", 2048);
+//	private static final Times NUMBER = new Times("NUMBER", 2048);
 
 	private Token readNumber(int[] pos, int start) throws IOException {
-//		if (pos.length > 1) {
-//			return token(Tokens.FLT, "1.1", pos);
-//		}
-//		long start2 = System.nanoTime();
+//		long star2t = System.nanoTime();
 //		try {
-		StringBuilder text = this.text;
-		// Reset buffer
+			StringBuilder text = this.text;
+			// Reset buffer
 //			if (text.length() > 0)
-		text.setLength(0);
+			text.setLength(0);
 
-		// Prep
-		text.append((char) start);
-		int c = peek();
-		boolean hex = start == '0' && (c == 'x' || c == 'X');
-		int first = hex ? 'P' : 'E';
-		int second = hex ? 'p' : 'e';
-		// Read number from text
-		while (true) {
-//			if (hex ? c == 'P' || c == 'p' : c == 'E' || c == 'e') {
-			if (c == first || c == second) {
-				text.append((char) c);
-				advance();
-				c = peek();
-				if (c == '+' || c == '-')
-					text.append((char) c);
-			}
-			if (Character.isDigit(c) || c == '.') {
-				text.append((char) c);
-				advance();
+			// Prep
+			text.append((char) start);
+			int c = peek();
+			boolean hex = start == '0' && (c == 'x' || c == 'X');
+			final int first;
+			final int second;
+			if (hex) {
+				first = 'P';
+				second = 'p';
 			} else {
-				break;
+				first = 'E';
+				second = 'e';
 			}
-			c = peek();
-		}
-//		String number = text.toString();
-//		final double v;
-//		try {
-//			v = Double.parseDouble(number);
-//		} catch (NumberFormatException e) {
-//			throw new IllegalStateException("Malformed number near: " + Arrays.toString(pos));
-//		}
-//		if (isWhole(v)) {
-//			int whole = (int) v;
-//			// TODO: 06/03/2017 Use integer value in token
-//			return token(Tokens.INT, text.toString(), pos);
-//		}
-//		// TODO: 06/03/2017 Use double value in token
-//		return token(Tokens.FLT, text.toString(), pos);
+			boolean integer = true;
+			// Read number from text
+			while (true) {
+				if (c == first || c == second) {
+					integer = false;
+					text.append((char) c);
+					advance();
+					c = peek();
+					if (c == '+' || c == '-')
+						text.append((char) c);
+				}
+				if (Character.isDigit(c)) {
+					text.append((char) c);
+					advance();
+				} else if (c == '.') {
+					integer = false;
+					text.append((char) c);
+					advance();
+				} else {
+					break;
+				}
+				c = peek();
+			}
+			return token(integer ? Tokens.INT : Tokens.FLT, text.toString(), pos);
 //		} finally {
-//			NUMBER.add(System.nanoTime() - start2);
+//			NUMBER.add(System.nanoTime() - star2t);
 //		}
-		return number(text.toString());
 	}
 
-	private Token number(String number) {
-		final double v;
-		try {
-			v = Double.parseDouble(number);
-		} catch (NumberFormatException e) {
-			throw new IllegalStateException("Malformed number near: " + Arrays.toString(pos));
-		}
-		if (isWhole(v)) {
-			int whole = (int) v;
-			// TODO: 06/03/2017 Use integer value in token
-			return token(Tokens.INT, text.toString(), pos);
-		}
-		// TODO: 06/03/2017 Use double value in token
-		return token(Tokens.FLT, text.toString(), pos);
-	}
-
-
-	private static boolean isWhole(double value) {
-		return !Double.isNaN(value) && !Double.isInfinite(value) && value == Math.rint(value);
-	}
-
-	private static final Times STRING = new Times("STRING", 2048);
+//	private static final Times STRING = new Times("STRING", 2048);
 
 	private Token readString(int[] pos, int style) throws IOException {
 //		long start = System.nanoTime();
@@ -346,7 +318,7 @@ public final class LavaLexer extends AbstractLexer implements Lexer {
 //		}
 	}
 
-	private static final Times LONG_STRING = new Times("LONG_STRING", 2048);
+//	private static final Times LONG_STRING = new Times("LONG_STRING", 2048);
 
 	private Token readLongString(int[] pos, boolean isString, int count) throws IOException {
 		StringBuilder text = this.text;
@@ -371,7 +343,7 @@ public final class LavaLexer extends AbstractLexer implements Lexer {
 //		}
 	}
 
-	private static final Times SEP = new Times("SEP", 2048);
+//	private static final Times SEP = new Times("SEP", 2048);
 
 	private int skipSeparator(int expecting) throws IOException {
 //		long start = System.nanoTime();
@@ -397,19 +369,27 @@ public final class LavaLexer extends AbstractLexer implements Lexer {
 	}
 
 	public static void main(String[] args) throws IOException {
-//		Lexer lexer = new LavaLexer(new File("C:\\Users\\Jezza\\Desktop\\JavaProjects\\Lava\\src\\test\\resources\\all.lua"));
-		long start = System.nanoTime();
-		Lexer lexer = new LavaLexer("(1+5+4)");
+		System.out.println("Started");
+		Lexer lexer = new LavaLexer(new File("C:\\Users\\Jezza\\Desktop\\JavaProjects\\Lava\\src\\test\\resources\\all.lua"));
+//		Lexer lexer = new LavaLexer("(1 + 5 + 4)");
+//		long ss = System.nanoTime();
+//		lexer.next();
+//		long ee = System.nanoTime();
+//		System.out.println(ee - ss);
+		final long start = System.nanoTime();
+		int count = 0;
 		Token t;
-		long s = System.nanoTime();
+//		long s = System.nanoTime();
 		while ((t = lexer.next()) != Token.EOS) {
-			long e = System.nanoTime();
-			EXTRA.add(e - s);
-			s = e;
+			count++;
+//			long e = System.nanoTime();
+//			EXTRA.add(e - s);
+//			s = e;
 		}
-		long end = System.nanoTime();
-		EXTRA.add(end - s);
+		final long end = System.nanoTime();
+//		EXTRA.add(end - s);
 		System.out.println(end - start);
+		System.out.println("Count: " + count);
 
 		Times.print();
 	}

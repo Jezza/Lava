@@ -8,168 +8,158 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.StringReader;
-
-import me.jezza.lava.Times;
+import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
 
 /**
  * A very basic abstract lexer that provides a very good base to use.
- * (There are better and more efficient ways for Lexers that only need a lookahead of 1)
  *
  * @author Jezza
  */
 public abstract class AbstractLexer {
-	private static final int DEFAULT_LOOKAHEAD = 1;
+	private static final int DEFAULT_BUFFER_SIZE = 2048;
 
-	private static final int COLUMN_START = 1;
-	private static final int ROW_START = 1;
+	private static final int START_COLUMN = 1;
+	private static final int START_ROW = 1;
+
+	private static final int MODE_IMMEDIATE_KILL = 3;
+	private static final int MODE_DRAIN = 2;
+	private static final int MODE_READ = 1;
+	private static final int MODE_UNINITIALISED = 0;
 
 	private static final int EOS = -1;
 
-	private static final int UNINITIALISED = -1;
-
 	private Reader in;
 
-	private int index;
+	private final CharBuffer buffer;
 
-	private final int[] inputBuffer;
-	private final char[] readBuffer;
+	private final int length;
 
 	protected final int[] pos;
 
+	private int mode;
+
 	protected AbstractLexer(final String input) {
-		this(new StringReader(input), DEFAULT_LOOKAHEAD);
+		this(new StringReader(input), DEFAULT_BUFFER_SIZE);
 	}
 
-	protected AbstractLexer(final String input, int lookahead) {
-		this(new StringReader(input), lookahead);
+	protected AbstractLexer(final String input, int bufferSize) {
+		this(new StringReader(input), bufferSize);
 	}
 
 	protected AbstractLexer(final File file) throws FileNotFoundException {
-		this(new FileReader(file), DEFAULT_LOOKAHEAD);
+		this(new FileReader(file), DEFAULT_BUFFER_SIZE, ByteBuffer.allocateDirect(DEFAULT_BUFFER_SIZE).asCharBuffer());
 	}
 
-	protected AbstractLexer(final File file, int lookahead) throws FileNotFoundException {
-		this(new FileReader(file), lookahead);
+	protected AbstractLexer(final File file, int bufferSize) throws FileNotFoundException {
+		this(new FileReader(file), bufferSize, ByteBuffer.allocateDirect(bufferSize).asCharBuffer());
 	}
 
 	protected AbstractLexer(final InputStream in) {
-		this(new InputStreamReader(in), DEFAULT_LOOKAHEAD);
+		this(new InputStreamReader(in), DEFAULT_BUFFER_SIZE);
 	}
 
-	protected AbstractLexer(final InputStream in, int lookahead) {
-		this(new InputStreamReader(in), lookahead);
+	protected AbstractLexer(final InputStream in, int bufferSize) {
+		this(new InputStreamReader(in), bufferSize);
 	}
 
 	protected AbstractLexer(final Reader in) {
-		this(in, DEFAULT_LOOKAHEAD);
+		this(in, DEFAULT_BUFFER_SIZE);
 	}
 
-	protected AbstractLexer(final Reader in, int lookahead) {
+	protected AbstractLexer(final Reader in, int bufferSize) {
+		this(in, bufferSize, CharBuffer.allocate(bufferSize));
+	}
+
+	protected AbstractLexer(final Reader in, int bufferSize, CharBuffer buffer) {
 		if (in == null)
 			throw new NullPointerException("Input cannot be null.");
-		if (lookahead < 1)
-			throw new IllegalArgumentException("Lookahead must be > 0");
+		if (buffer == null)
+			throw new NullPointerException("Buffer cannot be null.");
+		if (bufferSize < 1)
+			throw new IllegalArgumentException("Buffer size must be > 0");
 		this.in = in;
-		inputBuffer = new int[lookahead];
-		readBuffer = new char[1];
-		index = UNINITIALISED;
-		pos = new int[2];
-		pos[0] = COLUMN_START;
-		pos[1] = ROW_START;
+		this.buffer = buffer;
+		length = bufferSize;
+		mode = MODE_UNINITIALISED;
+		pos = new int[]{START_COLUMN, START_ROW};
 	}
 
+//	private static final Times CHUNK = new Times("nextChunk", 1);
 
-//	private static final Times INIT = new Times("init", 1);
-
-	private void init(int[] input) throws IOException {
+	private void nextChunk() throws IOException {
 //		long start = System.nanoTime();
-		int l = input.length;
-		char[] readBuffer = new char[l];
-		int count = in.read(readBuffer, 0, l);
+		int count = in.read(buffer);
 		if (count == EOS) {
-			input[0] = EOS;
+			buffer.limit(buffer.position() + length);
 			in.close();
 			in = null;
-		} else if (count != l) {
-			for (int i = 0; i < count; i++)
-				input[i] = readBuffer[i];
-			input[count] = EOS;
+			mode = MODE_IMMEDIATE_KILL;
+			buffer.position(0);
+		} else if (count != length) {
+			buffer.position(0);
+			buffer.limit(count);
 			in.close();
 			in = null;
+			mode = MODE_DRAIN;
 		} else {
-			for (int i = 0; i < l; i++)
-				input[i] = readBuffer[i];
+			buffer.position(0);
 		}
-//		INIT.add(System.nanoTime() - start);
+//		CHUNK.add(System.nanoTime() - start);
 	}
 
-	private static final Times ADVANCE = new Times("advance", 4096);
+//	private static final Times ADVANCE = new Times("advance", 4096);
 
 	protected final int advance() throws IOException {
-		long start = System.nanoTime();
-		int[] input = this.inputBuffer;
-		int index = this.index;
-		if (index == UNINITIALISED) {
-			index = 0;
-			init(input);
+//		long start = System.nanoTime();
+		if (mode == MODE_UNINITIALISED) {
+			mode = MODE_READ;
+			nextChunk();
+		} else if (mode == MODE_IMMEDIATE_KILL) {
+			return -1;
 		}
-		int c = input[index];
-		if (in != null) {
-			char[] readBuffer = this.readBuffer;
-			if (in.read(readBuffer, 0, 1) != EOS) {
-				input[index] = readBuffer[0];
+		final int c = buffer.get();
+		final int remaining = buffer.remaining();
+		if (remaining == 0) {
+			if (in != null) {
+				buffer.position(0);
+				nextChunk();
 			} else {
-				input[index] = EOS;
-				in.close();
-				in = null;
+				mode = MODE_IMMEDIATE_KILL;
 			}
-		} else if (c == EOS) {
-			ADVANCE.add(System.nanoTime() - start);
-			return EOS;
 		}
 		if (c == '\n') {
-			pos[0]++;
-			pos[1] = ROW_START;
-		} else if (c != '\r') {
+			pos[0] = START_COLUMN;
 			pos[1]++;
+		} else if (c != '\r') {
+			pos[0]++;
 		}
-		this.index = (index + 1) % input.length;
-		ADVANCE.add(System.nanoTime() - start);
+//		ADVANCE.add(System.nanoTime() - start);
 		return c;
 	}
 
 	protected final String inputBuffer() {
-		int[] input = this.inputBuffer;
-		StringBuilder b = new StringBuilder(input.length + 4);
-		b.append('[');
-		for (int i = 0, l = input.length, p = index % l; i < l; i++) {
-			int c = input[i];
-			if (c != EOS) {
-				if (i == p)
-					b.append('(');
-				if (Character.isWhitespace(c)) {
-					b.append('{').append(c).append('}');
-				} else {
-					b.appendCodePoint(c);
-				}
-				if (i == p)
-					b.append(')');
-			} else
-				b.append("{EOS}");
-		}
-		b.append(']');
-		return b.toString();
+		return buffer.toString();
 	}
 
-	protected final int peek() {
-		return inputBuffer[index];
+	protected final int peek() throws IOException {
+		if (mode == MODE_IMMEDIATE_KILL)
+			return -1;
+		else if (mode == MODE_UNINITIALISED)
+			nextChunk();
+		return buffer.get(buffer.position());
 	}
 
-	protected final int peek(int offset) {
-		return peekRaw((index + offset) % inputBuffer.length);
-	}
-
-	protected final int peekRaw(int index) {
-		return inputBuffer[index];
-	}
+//	protected final int peek(int offset) throws IOException {
+//		if (mode == MODE_IMMEDIATE_KILL)
+//			return -1;
+//		else if (mode == MODE_UNINITIALISED)
+//			nextChunk();
+//		if (offset > length)
+//			throw new IllegalStateException("Can't lookahead greater than the buffer size");
+////		int position = buffer.position();
+//		int result = buffer.get(buffer.position() + offset);
+////		buffer.position(position);
+//		return result;
+//	}
 }
