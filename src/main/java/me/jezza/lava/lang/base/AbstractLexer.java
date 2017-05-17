@@ -9,8 +9,6 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.StringReader;
 
-import me.jezza.lava.Times;
-
 /**
  * A very basic abstract lexer that provides a very good base to use.
  * (There are better and more efficient ways for Lexers that only need a lookahead of 1)
@@ -103,10 +101,10 @@ public abstract class AbstractLexer {
 //		INIT.add(System.nanoTime() - start);
 	}
 
-	private static final Times ADVANCE = new Times("advance", 4096);
+//	private static final Times ADVANCE = new Times("advance", 4096);
 
 	protected final int advance() throws IOException {
-		long start = System.nanoTime();
+//		long start = System.nanoTime();
 		int[] input = this.inputBuffer;
 		int index = this.index;
 		if (index == UNINITIALISED) {
@@ -124,7 +122,7 @@ public abstract class AbstractLexer {
 				in = null;
 			}
 		} else if (c == EOS) {
-			ADVANCE.add(System.nanoTime() - start);
+//			ADVANCE.add(System.nanoTime() - start);
 			return EOS;
 		}
 		if (c == '\n') {
@@ -134,7 +132,7 @@ public abstract class AbstractLexer {
 			pos[1]++;
 		}
 		this.index = (index + 1) % input.length;
-		ADVANCE.add(System.nanoTime() - start);
+//		ADVANCE.add(System.nanoTime() - start);
 		return c;
 	}
 

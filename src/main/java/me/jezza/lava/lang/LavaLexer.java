@@ -40,11 +40,11 @@ public final class LavaLexer extends AbstractLexer implements Lexer {
 		super(in, DEFAULT_LOOKAHEAD);
 	}
 
-	private static final Times NEXT = new Times("NEXT", 2048);
-	private static final Times WHITESPACE = new Times("WHITESPACE", 2048);
-	private static final Times NAMESPACE = new Times("NAMESPACE", 2048);
+//	private static final Times NEXT = new Times("NEXT", 2048);
+//	private static final Times WHITESPACE = new Times("WHITESPACE", 2048);
+//	private static final Times NAMESPACE = new Times("NAMESPACE", 2048);
 
-	private static final Times EXTRA = new Times("EXTRA", 2048);
+//	private static final Times EXTRA = new Times("EXTRA", 2048);
 
 	@Override
 	public Token next() throws IOException {
@@ -200,7 +200,7 @@ public final class LavaLexer extends AbstractLexer implements Lexer {
 		return Character.isAlphabetic(c) || c == '_';
 	}
 
-	private static final Times NUMBER = new Times("NUMBER", 2048);
+//	private static final Times NUMBER = new Times("NUMBER", 2048);
 
 	private Token readNumber(int[] pos, int start) throws IOException {
 //		if (pos.length > 1) {
@@ -278,7 +278,7 @@ public final class LavaLexer extends AbstractLexer implements Lexer {
 		return !Double.isNaN(value) && !Double.isInfinite(value) && value == Math.rint(value);
 	}
 
-	private static final Times STRING = new Times("STRING", 2048);
+//	private static final Times STRING = new Times("STRING", 2048);
 
 	private Token readString(int[] pos, int style) throws IOException {
 //		long start = System.nanoTime();
@@ -346,7 +346,7 @@ public final class LavaLexer extends AbstractLexer implements Lexer {
 //		}
 	}
 
-	private static final Times LONG_STRING = new Times("LONG_STRING", 2048);
+//	private static final Times LONG_STRING = new Times("LONG_STRING", 2048);
 
 	private Token readLongString(int[] pos, boolean isString, int count) throws IOException {
 		StringBuilder text = this.text;
@@ -371,7 +371,7 @@ public final class LavaLexer extends AbstractLexer implements Lexer {
 //		}
 	}
 
-	private static final Times SEP = new Times("SEP", 2048);
+//	private static final Times SEP = new Times("SEP", 2048);
 
 	private int skipSeparator(int expecting) throws IOException {
 //		long start = System.nanoTime();
@@ -397,19 +397,22 @@ public final class LavaLexer extends AbstractLexer implements Lexer {
 	}
 
 	public static void main(String[] args) throws IOException {
-//		Lexer lexer = new LavaLexer(new File("C:\\Users\\Jezza\\Desktop\\JavaProjects\\Lava\\src\\test\\resources\\all.lua"));
+		Lexer lexer = new LavaLexer(new File("C:\\Users\\Jezza\\Desktop\\JavaProjects\\Lava\\src\\test\\resources\\all.lua"));
 		long start = System.nanoTime();
-		Lexer lexer = new LavaLexer("(1+5+4)");
+//		Lexer lexer = new LavaLexer("(1+5+4)");
 		Token t;
+		int count = 0;
 		long s = System.nanoTime();
 		while ((t = lexer.next()) != Token.EOS) {
-			long e = System.nanoTime();
-			EXTRA.add(e - s);
-			s = e;
+//			long e = System.nanoTime();
+//			EXTRA.add(e - s);
+//			s = e;
+			count++;
 		}
 		long end = System.nanoTime();
-		EXTRA.add(end - s);
+//		EXTRA.add(end - s);
 		System.out.println(end - start);
+		System.out.println(count);
 
 		Times.print();
 	}
