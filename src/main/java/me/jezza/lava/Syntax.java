@@ -23,9 +23,10 @@
  */
 package me.jezza.lava;
 
+import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.Reader;
-import java.io.StringReader;
 import java.util.HashMap;
 
 
@@ -758,13 +759,12 @@ final class Syntax {
 	public static void main(String[] args) throws IOException {
 
 		Lua L = new Lua();
-		StringReader reader = new StringReader("(1 + 5 + 4)");
-//		FileReader reader = new FileReader(new File("C:\\Users\\Jezza\\Desktop\\JavaProjects\\Lava\\src\\test\\resources\\all.lua"));
+//		StringReader reader = new StringReader("(1 + 5 + 4)");
+		FileReader reader = new FileReader(new File("C:\\Users\\Jezza\\Desktop\\JavaProjects\\Lava\\src\\test\\resources\\all.lua"));
 		long start = System.nanoTime();
 		Syntax syntax = new Syntax(L, reader, "Testing");
 		while (syntax.token != TK_EOS){
 			syntax.xNext();
-			System.out.println(syntax.buff);
 		}
 		long end = System.nanoTime();
 

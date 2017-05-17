@@ -5,7 +5,7 @@ import sun.misc.Unsafe;
 /**
  * @author Jezza
  */
-final class RawStack {
+final class UnsafeStack {
 	private static final Unsafe UNSAFE = Bypass.UNSAFE;
 
 	private static final byte BOOLEAN_TAIL = 1;
@@ -32,7 +32,7 @@ final class RawStack {
 	private Object[] data;
 	private int index;
 
-	RawStack(long initialSize) {
+	UnsafeStack(long initialSize) {
 		if (initialSize <= 0)
 			throw new IllegalStateException("Size cannot be 0 or negative.");
 		current = base = UNSAFE.allocateMemory(initialSize);
@@ -199,7 +199,7 @@ final class RawStack {
 	}
 
 	public static void main(String[] args) {
-		RawStack stack = new RawStack(1);
+		UnsafeStack stack = new UnsafeStack(1);
 		stack.push(5);
 		System.out.println(stack.popInt());
 

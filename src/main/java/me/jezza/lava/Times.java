@@ -42,7 +42,7 @@ public final class Times {
 		long min = base.getMin();
 		double average = base.getAverage();
 		List<Long> copy = new ArrayList<>(data);
-		copy.sort(Long::compareTo);
+		copy.sort(Comparator.naturalOrder());
 		long median = count > 0 ? copy.get(count / 2) : 0;
 
 		return Strings.format(name + "{{}{}|Sum:{}ms, Min:{}ms, Max:{}ms, Average:{}ms, Median:{}ms}", count, count > initialSize ? "|OVER:" + initialSize : "", String.format("%.4f", sum / 1_000_000D), String.format("%.4f", min / 1_000_000D), String.format("%.4f", max / 1_000_000D), String.format("%.4f", average / 1_000_000D), String.format("%.4f", median / 1_000_000D));

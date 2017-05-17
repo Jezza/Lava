@@ -15,7 +15,7 @@ import me.jezza.lava.Bypass;
 /**
  * @author Jezza
  */
-public final class Interpreter {
+public final class OldInterpreter {
 	enum Ops {
 		CONST,
 		LOAD,
@@ -33,12 +33,12 @@ public final class Interpreter {
 		private final String debug;
 
 		public CS(String debug) {
-			super(methodType(void.class, Interpreter.class, int.class));
+			super(methodType(void.class, OldInterpreter.class, int.class));
 			this.debug = debug;
 			setTarget(FALLBACK.bindTo(this));
 		}
 
-		private void fallback(Interpreter interpreter, int ops) throws Throwable {
+		private void fallback(OldInterpreter interpreter, int ops) throws Throwable {
 			System.out.println("dispatch: " + debug + " to " + Ops.values()[ops]);
 
 			MethodHandle dispatch = INSTR_TABLE[ops];
@@ -51,7 +51,7 @@ public final class Interpreter {
 			INSTR_TABLE[ops].invokeExact(interpreter);
 		}
 
-		private static boolean test(Interpreter unused, int ops, int expected) {
+		private static boolean test(OldInterpreter unused, int ops, int expected) {
 			return ops == expected;
 		}
 
@@ -61,8 +61,8 @@ public final class Interpreter {
 		static {
 			Lookup lookup = Bypass.LOOKUP;
 			try {
-				FALLBACK = lookup.findVirtual(CS.class, "fallback", methodType(void.class, Interpreter.class, int.class));
-				TEST = lookup.findStatic(CS.class, "test", methodType(boolean.class, Interpreter.class, int.class, int.class));
+				FALLBACK = lookup.findVirtual(CS.class, "fallback", methodType(void.class, OldInterpreter.class, int.class));
+				TEST = lookup.findStatic(CS.class, "test", methodType(boolean.class, OldInterpreter.class, int.class, int.class));
 			} catch (NoSuchMethodException | IllegalAccessException e) {
 				throw new AssertionError(e);
 			}
@@ -70,7 +70,7 @@ public final class Interpreter {
 			MethodHandle[] table = new MethodHandle[ops.length];
 			Arrays.setAll(table, i -> {
 				try {
-					return lookup.findVirtual(Interpreter.class, ops[i].name(), methodType(void.class));
+					return lookup.findVirtual(OldInterpreter.class, ops[i].name(), methodType(void.class));
 				} catch (NoSuchMethodException | IllegalAccessException e) {
 					throw new AssertionError(e);
 				}
@@ -93,7 +93,7 @@ public final class Interpreter {
 	final int[] stack;
 	final int[] locals;
 
-	public Interpreter(int[] instrs, int maxStack, int maxLocals) {
+	public OldInterpreter(int[] instrs, int maxStack, int maxLocals) {
 		this.instrs = instrs;
 		this.stack = new int[maxStack];
 		this.locals = new int[maxLocals];
@@ -165,7 +165,7 @@ public final class Interpreter {
 	}
 
 	private static void test(int[] codes) throws Throwable {
-		Interpreter interpreter = new Interpreter(codes, 2, 2);
+		OldInterpreter interpreter = new OldInterpreter(codes, 2, 2);
 		int result = interpreter.execute();
 		if (result != 10) {
 			throw new AssertionError();
