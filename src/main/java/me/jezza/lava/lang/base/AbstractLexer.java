@@ -96,7 +96,7 @@ public abstract class AbstractLexer {
 			in = null;
 			mode = MODE_IMMEDIATE_KILL;
 			buffer.position(0);
-		} else if (count != length) {
+		} else if (buffer.remaining() > 0) {
 			buffer.position(0);
 			buffer.limit(count);
 			in.close();
