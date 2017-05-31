@@ -71,3 +71,4 @@ $RECYCLE.BIN/
 .gradle
 
 /classes
+/out

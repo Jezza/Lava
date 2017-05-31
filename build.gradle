@@ -8,7 +8,7 @@ apply plugin: 'signing'
 
 group = "com.github.jezza"
 archivesBaseName = "lava"
-version = "0.2"
+version = "0.3"
 
 dependencies {
 	testCompile 'junit:junit:4.12'

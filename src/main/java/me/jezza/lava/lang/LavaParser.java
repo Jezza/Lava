@@ -32,19 +32,19 @@ public final class LavaParser extends AbstractParser {
 	public void start() throws IOException {
 		FunctionScope scope = openScope();
 		scope.set(FunctionScope.VARARGS, true);
-		parseChunk();
+		chunk();
 	}
 
 	public FunctionScope openScope() {
 		return active = new FunctionScope(active);
 	}
 
-	public void parseChunk() throws IOException {
+	public void chunk() throws IOException {
+		// chunk -> { stat [';'] }
 		boolean last = false;
 		context.enterLevel();
-		Token current = current();
-		while (!last && blockFollowing(current)) {
-			last = parseStatement();
+		while (!last && blockFollowing(current())) {
+			last = statement(current());
 			match(';');
 //			active.
 		}
@@ -64,22 +64,30 @@ public final class LavaParser extends AbstractParser {
 		}
 	}
 
-
-	public boolean parseStatement() throws IOException {
-		return parseStatement(current());
-	}
-
-	private boolean parseStatement(Token current) throws IOException {
+	private boolean statement(Token current) throws IOException {
 		switch (current.type) {
 			case Tokens.IF:
 				parseIf(current);
 				return false;
+			case Tokens.WHILE:
+				return false;
+			case Tokens.DO:
+				return false;
+			case Tokens.FOR:
+				return false;
+			case Tokens.REPEAT:
+				return false;
+			case Tokens.FUNCTION:
+				return false;
+			case Tokens.LOCAL:
+				return false;
+			case Tokens.RETURN:
+				return true;
+			case Tokens.BREAK:
+				return true;
+			default:
+				return false;
 		}
-		return false;
-	}
-
-	public void parseIf() throws IOException {
-		parseIf(current());
 	}
 
 	private void parseIf(Token current) throws IOException {

@@ -196,7 +196,7 @@ public final class OldInterpreter {
 
 		Builder builder = LongStream.builder();
 		long start;
-		for (int i = 0; i < 1; i++) {
+		for (int i = 0; i < 2; i++) {
 			start = System.nanoTime();
 			test(codes);
 			builder.accept(System.nanoTime() - start);

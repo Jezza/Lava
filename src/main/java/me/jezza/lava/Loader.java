@@ -68,7 +68,7 @@ public final class Loader {
 	 * @param name The name of the chunk.
 	 */
 	Loader(InputStream in, String name) {
-		if (null == in)
+		if (in == null)
 			throw new NullPointerException();
 		this.in = in;
 		// The name is treated slightly.  See lundump.c in the PUC-Rio source for details.
@@ -82,7 +82,7 @@ public final class Loader {
 	 */
 	Proto undump() throws IOException {
 		header();
-		return function(null);
+		return readFunction(null);
 	}
 
 
@@ -134,7 +134,7 @@ public final class Loader {
 	 * Undumps the code for a <code>Proto</code>.
 	 * The code is an array of VM instructions.
 	 */
-	private int[] code() throws IOException {
+	private int[] readCode() throws IOException {
 		int n = readInt();
 		int[] code = new int[n];
 		// :Instruction:size  Here we assume that a dumped Instruction is the same size as a dumped int.
@@ -188,7 +188,7 @@ public final class Loader {
 					break;
 
 				case 4: // LUA_TSTRING
-					k[i] = new Slot(string());
+					k[i] = new Slot(readString());
 					break;
 
 				default:
@@ -216,13 +216,13 @@ public final class Loader {
 		n = readInt();
 		LocVar[] locvar = new LocVar[n];
 		for (int i = 0; i < n; ++i)
-			locvar[i] = new LocVar(string(), readInt(), readInt());
+			locvar[i] = new LocVar(readString(), readInt(), readInt());
 
 		// upvalue (names)
 		n = readInt();
 		String[] upvalue = new String[n];
 		for (int i = 0; i < n; ++i)
-			upvalue[i] = string();
+			upvalue[i] = readString();
 
 		proto.debug(lineinfo, locvar, upvalue);
 	}
@@ -234,8 +234,8 @@ public final class Loader {
 	 * @param parentSource Name of parent source "file".
 	 * @throws IOException when binary is malformed.
 	 */
-	private Proto function(String parentSource) throws IOException {
-		String source = string();
+	private Proto readFunction(String parentSource) throws IOException {
+		String source = readString();
 		if (source == null)
 			source = parentSource;
 		int linedefined = this.readInt();
@@ -270,7 +270,7 @@ public final class Loader {
 			throw new IOException();
 		boolean vararg = 0 != varargByte;
 		int maxStackSize = readUByte();
-		int[] code = code();
+		int[] code = readCode();
 		Slot[] constant = constant();
 		Proto[] proto = proto(source);
 		Proto newProto = new Proto(constant, code, proto, nups, numparams, vararg, maxStackSize);
@@ -371,7 +371,7 @@ public final class Loader {
 		int n = readInt();
 		Proto[] p = new Proto[n];
 		for (int i = 0; i < n; ++i)
-			p[i] = function(source);
+			p[i] = readFunction(source);
 		return p;
 	}
 
@@ -381,7 +381,7 @@ public final class Loader {
 	 * Strings are converted from the binary using the UTF-8 encoding,
 	 * using the {@link java.lang.String#String(byte[], java.nio.charset.Charset) String(byte[], java.nio.charset.Charset)} constructor.
 	 */
-	private String string() throws IOException {
+	private String readString() throws IOException {
 		// :size_t:size we assume that size_t is same size as int.
 		int size = readInt();
 		if (size == 0)

@@ -25,7 +25,7 @@ public final class FunctionScope {
 	}
 
 	public boolean is(int flags) {
-		return (this.flags & flags) != 0;
+		return (this.flags & flags) == flags;
 	}
 
 }

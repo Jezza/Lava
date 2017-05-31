@@ -35,10 +35,14 @@ public final class Main {
 	public static void main(String[] args) throws Exception {
 		Lua L = new Lua();
 		BaseLib.open(L);
+		MathLib.open(L);
+		L.register("lol", _L -> {
+			System.out.println("Hello!");
+			L.pushBoolean(true);
+			return 1;
+		});
 
-		String tailCall = "function foo (n)if n > 0 then return foo(n - 1) end return n;end print(foo(999999999999999999999999999));";
-
-		L.doString(tailCall);
+		L.doString("function lol(x) function lol(x)print(x);end lol(x);end lol(\"asd\", \"1234\");");
 
 
 
@@ -72,11 +76,6 @@ public final class Main {
 //		expansionTest("x + (x >> 1)          ", x -> x + (x >> 1));
 //		expansionTest("x + 1 + (x + 1 >> 1)  ", x -> x + 1 + (x + 1 >> 1));
 //		expansionTest("x * 2 + 1             ", x -> x * 2 + 1);
-
-		try {
-			Thread.sleep(100);
-		} catch (InterruptedException ignored) {
-		}
 	}
 
 	public static void expansionTest(String name, IntTransform transform) {
