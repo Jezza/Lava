@@ -45,9 +45,9 @@ public abstract class AbstractParser {
 		return match;
 	}
 
-	private static final Times LOOKAHEAD = new Times("lookAhead", 22);
+	private static final Times LOOKAHEAD = new Times("lookahead", 22);
 
-	public final boolean lookAhead(int type) throws IOException {
+	public final boolean lookahead(int type) throws IOException {
 		long start = System.nanoTime();
 		try {
 			return current().type == type;

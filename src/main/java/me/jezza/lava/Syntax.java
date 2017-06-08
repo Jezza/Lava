@@ -23,10 +23,9 @@
  */
 package me.jezza.lava;
 
-import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.Reader;
+import java.io.StringReader;
 import java.util.HashMap;
 
 
@@ -719,7 +718,7 @@ final class Syntax {
 	}
 
 	private void codestring(Expdesc e, String s) {
-		e.init(Expdesc.VK, fs.kStringK(s));
+		e.init(Expdesc.V_CONSTANT, fs.kStringK(s));
 	}
 
 	private void checkname(Expdesc e) throws IOException {
@@ -759,17 +758,16 @@ final class Syntax {
 	public static void main(String[] args) throws IOException {
 
 		Lua L = new Lua();
-//		StringReader reader = new StringReader("(1 + 5 + 4)");
-		FileReader reader = new FileReader(new File("C:\\Users\\Jezza\\Desktop\\JavaProjects\\Lava\\src\\test\\resources\\all.lua"));
+		StringReader reader = new StringReader("local files = {[\"A.lua\"] = \"\"}");
+//		FileReader reader = new FileReader(new File("C:\\Users\\Jezza\\Desktop\\JavaProjects\\Lava\\src\\test\\resources\\all.lua"));
+//		Syntax syntax = new Syntax(L, reader, "Testing");
+//		while (syntax.token != TK_EOS){
+//			syntax.xNext();
+//		}
+
 		long start = System.nanoTime();
-		Syntax syntax = new Syntax(L, reader, "Testing");
-		while (syntax.token != TK_EOS){
-			syntax.xNext();
-		}
-		long end = System.nanoTime();
-
-
 		Proto proto = parser(L, reader, "chunkName");
+		long end = System.nanoTime();
 		System.out.println(end - start);
 	}
 
@@ -1169,7 +1167,7 @@ final class Syntax {
 		//              constructor | FUNCTION body | primaryexp
 		switch (token) {
 			case TK_NUMBER:
-				v.init(Expdesc.VKNUM, 0);
+				v.init(Expdesc.V_CONSTANT_NUMBER, 0);
 				v.nval = tokenR;
 				break;
 
@@ -1178,15 +1176,15 @@ final class Syntax {
 				break;
 
 			case TK_NIL:
-				v.init(Expdesc.VNIL, 0);
+				v.init(Expdesc.V_NIL, 0);
 				break;
 
 			case TK_TRUE:
-				v.init(Expdesc.VTRUE, 0);
+				v.init(Expdesc.V_TRUE, 0);
 				break;
 
 			case TK_FALSE:
-				v.init(Expdesc.VFALSE, 0);
+				v.init(Expdesc.V_FALSE, 0);
 				break;
 
 			case TK_DOTS:  /* vararg */
@@ -1590,7 +1588,7 @@ final class Syntax {
 	}
 
 	private void field(Expdesc v) throws IOException {
-	/* field -> ['.' | ':'] NAME */
+		/* field -> ['.' | ':'] NAME */
 		Expdesc key = new Expdesc();
 		fs.kExp2anyreg(v);
 		xNext();  /* skip the dot or colon */
@@ -1625,8 +1623,8 @@ final class Syntax {
 	/* cond -> exp */
 		Expdesc v = new Expdesc();
 		expr(v);  /* read condition */
-		if (v.k == Expdesc.VNIL)
-			v.k = Expdesc.VFALSE;  /* `falses' are all equal here */
+		if (v.k == Expdesc.V_NIL)
+			v.k = Expdesc.V_FALSE;  /* `falses' are all equal here */
 		fs.kGoiftrue(v);
 		return v.f;
 	}

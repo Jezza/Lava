@@ -1,7 +1,7 @@
 /**
  * Copyright (c) 2006 Nokia Corporation and/or its subsidiary(-ies).
  * All rights reserved.
- *
+ * <p>
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -9,10 +9,10 @@
  * distribute, sublicense, and/or sell copies of the Software, and to
  * permit persons to whom the Software is furnished to do so, subject
  * to the following conditions:
- *
+ * <p>
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
- *
+ * <p>
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
@@ -28,23 +28,23 @@ package me.jezza.lava;
  */
 final class Expdesc {
 
-	static final int VVOID = 0;           // no value
-	static final int VNIL = 1;
-	static final int VTRUE = 2;
-	static final int VFALSE = 3;
-	static final int VK = 4;              // info = index into 'k'
-	static final int VKNUM = 5;           // nval = numerical value
-	static final int VLOCAL = 6;          // info = local register
-	static final int VUPVAL = 7;          // info = index into 'upvalues'
-	static final int VGLOBAL = 8;         // info = index of table;
+	static final int VVOID = 0;             // no value
+	static final int V_NIL = 1;
+	static final int V_TRUE = 2;
+	static final int V_FALSE = 3;
+	static final int V_CONSTANT = 4;        // info = index into 'k'
+	static final int V_CONSTANT_NUMBER = 5; // nval = numerical value
+	static final int VLOCAL = 6;            // info = local register
+	static final int VUPVAL = 7;            // info = index into 'upvalues'
+	static final int VGLOBAL = 8;           // info = index of table;
 	// aux = index of global name in 'k'
-	static final int VINDEXED = 9;        // info = table register
+	static final int VINDEXED = 9;          // info = table register
 	// aux = index register (or 'k')
-	static final int VJMP = 10;           // info = instruction pc
-	static final int VRELOCABLE = 11;     // info = instruction pc
-	static final int VNONRELOC = 12;      // info = result register
-	static final int VCALL = 13;          // info = instruction pc
-	static final int VVARARG = 14;        // info = instruction pc
+	static final int VJMP = 10;             // info = instruction pc
+	static final int VRELOCABLE = 11;       // info = instruction pc
+	static final int VNONRELOC = 12;        // info = result register
+	static final int VCALL = 13;            // info = instruction pc
+	static final int VVARARG = 14;          // info = instruction pc
 
 	int k;        // one of V* enums above
 	int info;

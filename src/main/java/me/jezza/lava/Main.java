@@ -42,7 +42,10 @@ public final class Main {
 			return 1;
 		});
 
-		L.doString("function lol(x) function lol(x)print(x);end lol(x);end lol(\"asd\", \"1234\");");
+		L.doString("local table = {" +
+				"test = \"\"," +
+				"\"ehelo\"" +
+				"}; print(table)");
 
 
 

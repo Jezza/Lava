@@ -6,47 +6,40 @@ package me.jezza.lava.lang;
 public final class Tokens {
 	public static final int EOS = -1;
 
-	public static final int AND = 257;
-	public static final int BREAK = 258;
-	public static final int DO = 259;
-	public static final int ELSE = 260;
-	public static final int ELSEIF = 261;
-	public static final int END = 262;
-	public static final int FALSE = 263;
-	public static final int FOR = 264;
-	public static final int FUNCTION = 265;
-	public static final int GOTO = 266;
-	public static final int IF = 267;
-	public static final int IN = 268;
-	public static final int LOCAL = 269;
-	public static final int NIL = 270;
-	public static final int NOT = 271;
-	public static final int OR = 272;
-	public static final int REPEAT = 273;
-	public static final int RETURN = 274;
-	public static final int THEN = 275;
-	public static final int TRUE = 276;
-	public static final int UNTIL = 277;
-	public static final int WHILE = 278;
+	public static final int NAMESPACE = 65;
+	public static final int AND = 66;
+	public static final int BREAK = 67;
+	public static final int DO = 68;
+	public static final int ELSE = 69;
+	public static final int ELSEIF = 70;
+	public static final int END = 71;
+	public static final int FALSE = 72;
+	public static final int FOR = 73;
+	public static final int FUNCTION = 74;
+	public static final int GOTO = 75;
+	public static final int IF = 76;
+	public static final int IN = 77;
+	public static final int LOCAL = 78;
+	public static final int NIL = 79;
+	public static final int NOT = 80;
+	public static final int OR = 81;
+	public static final int REPEAT = 82;
+	public static final int RETURN = 83;
+	public static final int THEN = 84;
+	public static final int TRUE = 85;
+	public static final int UNTIL = 86;
+	public static final int WHILE = 87;
 
-	public static final int IDIV = 279;
-	public static final int CONCAT = 280;
-	public static final int DOTS = 281;
-	public static final int EQ = 282;
-	public static final int GE = 283;
-	public static final int LE = 284;
-	public static final int NE = 285;
+	public static final int CONCAT = 88;
+	public static final int DOTS = 89;
+	public static final int EQ = 90;
+	public static final int GE = 97;
+	public static final int LE = 98;
+	public static final int NE = 99;
 
-	public static final int SHL = 286;
-	public static final int SHR = 287;
-
-	public static final int DBCOLON = 288;
-//	public static final int EOS = 289;
-
-	public static final int FLT = 290;
-	public static final int INT = 291;
-	public static final int NAME = 292;
-	public static final int STRING = 293;
+	public static final int FLOAT = 100;
+	public static final int INTEGER = 101;
+	public static final int STRING = 102;
 
 	private Tokens() {
 		throw new IllegalStateException();
@@ -101,8 +94,6 @@ public final class Tokens {
 			case WHILE:
 				return "WHILE";
 				//
-			case IDIV:
-				return "IDIV";
 			case CONCAT:
 				return "CONCAT";
 			case DOTS:
@@ -115,18 +106,12 @@ public final class Tokens {
 				return "LE";
 			case NE:
 				return "NE";
-			case SHL:
-				return "SHL";
-			case SHR:
-				return "SHR";
-			case DBCOLON:
-				return "DBCOLON";
-			case FLT:
-				return "FLT";
-			case INT:
-				return "INT";
-			case NAME:
-				return "NAME";
+			case FLOAT:
+				return "FLOAT";
+			case INTEGER:
+				return "INTEGER";
+			case NAMESPACE:
+				return "NAMESPACE";
 			case STRING:
 				return "STRING";
 			default:

@@ -154,6 +154,8 @@ public final class LavaLexer extends AbstractLexer implements Lexer {
 									return token(Tokens.FOR, s, pos);
 								case "function":
 									return token(Tokens.FUNCTION, s, pos);
+								case "goto":
+									return token(Tokens.GOTO, s, pos);
 								case "if":
 									return token(Tokens.IF, s, pos);
 								case "in":
@@ -179,7 +181,7 @@ public final class LavaLexer extends AbstractLexer implements Lexer {
 								case "while":
 									return token(Tokens.WHILE, s, pos);
 								default:
-									return token(Tokens.NAME, s, pos);
+									return token(Tokens.NAMESPACE, s, pos);
 							}
 //						} finally {
 //							NAMESPACE.add(System.nanoTime() - startW);
@@ -244,7 +246,7 @@ public final class LavaLexer extends AbstractLexer implements Lexer {
 			}
 			c = peek();
 		}
-		return token(integer ? Tokens.INT : Tokens.FLT, text.toString(), pos);
+		return token(integer ? Tokens.INTEGER : Tokens.FLOAT, text.toString(), pos);
 //		} finally {
 //			NUMBER.add(System.nanoTime() - star2t);
 //		}

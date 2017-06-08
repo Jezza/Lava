@@ -11,8 +11,6 @@ import me.jezza.lava.lang.Token;
 import me.jezza.lava.lang.Tokens;
 import me.jezza.lava.lang.base.AbstractParser;
 import me.jezza.lava.lang.interfaces.Lexer;
-import me.jezza.lava.runtime.Interpreter.ByteCodeWriter;
-import me.jezza.lava.runtime.Interpreter.ConstantPool;
 import me.jezza.lava.runtime.Interpreter.LuaChunk;
 import me.jezza.lava.runtime.Interpreter.Ops;
 
@@ -62,14 +60,14 @@ public final class Language {
 				switch (token.type) {
 					case Tokens.FUNCTION: {
 						consume(Tokens.FUNCTION);
-						String name = consume(Tokens.NAME).text;
+						String name = consume(Tokens.NAMESPACE).text;
 						ConstantPool functionLocals = new ConstantPool();
 						consume('(');
 						int count = 0;
 						if (!match(')')) {
 							do {
 								count++;
-								functionLocals.add(consume(Tokens.NAME).text);
+								functionLocals.add(consume(Tokens.NAMESPACE).text);
 							} while (match(','));
 							consume(')');
 						}
@@ -95,15 +93,15 @@ public final class Language {
 					case '@': {
 						Token pointer = consume('@');
 						Token next = current();
-						if (pointer.row == next.row && next.type == Tokens.NAME) {
+						if (pointer.row == next.row && next.type == Tokens.NAMESPACE) {
 							debug = true;
 							continue parse;
 						}
 						break;
 					}
-					case Tokens.NAME: {
+					case Tokens.NAMESPACE: {
 						int paramCount = 0;
-						String name = consume(Tokens.NAME).text;
+						String name = consume(Tokens.NAMESPACE).text;
 						switch (current().type) {
 							case '(': {
 								consume('(');
@@ -116,15 +114,15 @@ public final class Language {
 												w.write1(Ops.CONST1, pool.add(argument.text));
 												break;
 											}
-											case Tokens.FLT: {
+											case Tokens.FLOAT: {
 												w.write1(Ops.CONST1, pool.add(Double.parseDouble(argument.text)));
 												break;
 											}
-											case Tokens.INT: {
+											case Tokens.INTEGER: {
 												w.write1(Ops.CONST1, pool.add(Integer.parseInt(argument.text)));
 												break;
 											}
-											case Tokens.NAME: {
+											case Tokens.NAMESPACE: {
 												int add = locals.add(argument.text);
 												w.write2(Ops.PUSH, add);
 												break;

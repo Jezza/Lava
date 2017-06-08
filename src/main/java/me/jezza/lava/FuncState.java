@@ -292,7 +292,7 @@ final class FuncState {
 
 
 	private boolean isnumeral(Expdesc e) {
-		return e.k == Expdesc.VKNUM &&
+		return e.k == Expdesc.V_CONSTANT_NUMBER &&
 				e.t == NO_JUMP &&
 				e.f == NO_JUMP;
 	}
@@ -407,10 +407,10 @@ final class FuncState {
 	 * Equivalent to luaK_prefix.
 	 */
 	void kPrefix(int op, Expdesc e) {
-		Expdesc e2 = new Expdesc(Expdesc.VKNUM, 0);
+		Expdesc e2 = new Expdesc(Expdesc.V_CONSTANT_NUMBER, 0);
 		switch (op) {
 			case Syntax.OPR_MINUS:
-				if (e.kind() == Expdesc.VK) {
+				if (e.kind() == Expdesc.V_CONSTANT) {
 					kExp2anyreg(e);
 				}
 				codearith(Lua.OP_UNM, e, e2);
@@ -552,15 +552,15 @@ final class FuncState {
 	private void codenot(Expdesc e) {
 		kDischargevars(e);
 		switch (e.k) {
-			case Expdesc.VNIL:
-			case Expdesc.VFALSE:
-				e.k = Expdesc.VTRUE;
+			case Expdesc.V_NIL:
+			case Expdesc.V_FALSE:
+				e.k = Expdesc.V_TRUE;
 				break;
 
-			case Expdesc.VK:
-			case Expdesc.VKNUM:
-			case Expdesc.VTRUE:
-				e.k = Expdesc.VFALSE;
+			case Expdesc.V_CONSTANT:
+			case Expdesc.V_CONSTANT_NUMBER:
+			case Expdesc.V_TRUE:
+				e.k = Expdesc.V_FALSE;
 				break;
 
 			case Expdesc.VJMP:
@@ -603,20 +603,20 @@ final class FuncState {
 	private void discharge2reg(Expdesc e, int reg) {
 		kDischargevars(e);
 		switch (e.k) {
-			case Expdesc.VNIL:
+			case Expdesc.V_NIL:
 				kNil(reg, 1);
 				break;
 
-			case Expdesc.VFALSE:
-			case Expdesc.VTRUE:
-				kCodeABC(Lua.OP_LOADBOOL, reg, (e.k == Expdesc.VTRUE ? 1 : 0), 0);
+			case Expdesc.V_FALSE:
+			case Expdesc.V_TRUE:
+				kCodeABC(Lua.OP_LOADBOOL, reg, (e.k == Expdesc.V_TRUE ? 1 : 0), 0);
 				break;
 
-			case Expdesc.VK:
+			case Expdesc.V_CONSTANT:
 				kCodeABx(Lua.OP_LOADK, reg, e.info);
 				break;
 
-			case Expdesc.VKNUM:
+			case Expdesc.V_CONSTANT_NUMBER:
 				kCodeABx(Lua.OP_LOADK, reg, kNumberK(e.nval));
 				break;
 
@@ -961,9 +961,9 @@ final class FuncState {
 	/**
 	 * Equivalent to <code>luaK_indexed</code>.
 	 */
-	void kIndexed(Expdesc t, Expdesc k) {
-		t.aux = kExp2RK(k);
-		t.k = Expdesc.VINDEXED;
+	void kIndexed(Expdesc v, Expdesc k) {
+		v.aux = kExp2RK(k);
+		v.k = Expdesc.VINDEXED;
 	}
 
 	/**
@@ -972,20 +972,20 @@ final class FuncState {
 	int kExp2RK(Expdesc e) {
 		kExp2val(e);
 		switch (e.k) {
-			case Expdesc.VKNUM:
-			case Expdesc.VTRUE:
-			case Expdesc.VFALSE:
-			case Expdesc.VNIL:
+			case Expdesc.V_CONSTANT_NUMBER:
+			case Expdesc.V_TRUE:
+			case Expdesc.V_FALSE:
+			case Expdesc.V_NIL:
 				if (nConstants <= Lua.MAXINDEXRK)    /* constant fit in RK operand? */ {
-					e.info = (e.k == Expdesc.VNIL) ? nilK() :
-							(e.k == Expdesc.VKNUM) ? kNumberK(e.nval) :
-									boolK(e.k == Expdesc.VTRUE);
-					e.k = Expdesc.VK;
+					e.info = (e.k == Expdesc.V_NIL) ? nilK() :
+							(e.k == Expdesc.V_CONSTANT_NUMBER) ? kNumberK(e.nval) :
+									boolK(e.k == Expdesc.V_TRUE);
+					e.k = Expdesc.V_CONSTANT;
 					return e.info | Lua.BITRK;
 				}
 				break;
 
-			case Expdesc.VK:
+			case Expdesc.V_CONSTANT:
 				if (e.info <= Lua.MAXINDEXRK)  /* constant fit in argC? */
 					return e.info | Lua.BITRK;
 			default:
@@ -1020,12 +1020,12 @@ final class FuncState {
 		int lj;  /* pc of last jump */
 		kDischargevars(e);
 		switch (e.k) {
-			case Expdesc.VNIL:
-			case Expdesc.VFALSE:
+			case Expdesc.V_NIL:
+			case Expdesc.V_FALSE:
 				lj = NO_JUMP;  /* always false; do nothing */
 				break;
 
-			case Expdesc.VTRUE:
+			case Expdesc.V_TRUE:
 				lj = kJump();  /* always jump */
 				break;
 
@@ -1049,13 +1049,13 @@ final class FuncState {
 		int lj;  /* pc of last jump */
 		kDischargevars(e);
 		switch (e.k) {
-			case Expdesc.VK:
-			case Expdesc.VKNUM:
-			case Expdesc.VTRUE:
+			case Expdesc.V_CONSTANT:
+			case Expdesc.V_CONSTANT_NUMBER:
+			case Expdesc.V_TRUE:
 				lj = NO_JUMP;  /* always true; do nothing */
 				break;
 
-			case Expdesc.VFALSE:
+			case Expdesc.V_FALSE:
 				lj = kJump();  /* always jump */
 				break;
 

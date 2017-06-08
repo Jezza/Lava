@@ -1733,7 +1733,7 @@ public final class Lua {
 	 */
 	public int doString(String s) {
 		int status = load(Lua.stringReader(s), s);
-		return status != 0 ? status : pcall(0, MULTRET, null);
+		return status != 0 ? status : pcall(0, MULTRET, ADD_STACK_TRACE);
 	}
 
 	private int fileError(String what, String fname, Exception e) {
