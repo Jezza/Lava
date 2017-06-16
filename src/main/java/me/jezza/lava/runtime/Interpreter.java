@@ -95,6 +95,8 @@ public final class Interpreter {
 					} catch (NoSuchMethodException | IllegalAccessException e) {
 						throw new AssertionError(e);
 					}
+				} else {
+					handles.add(null);
 				}
 			}
 			INSTR_TABLE = handles.toArray(new MethodHandle[0]);
@@ -142,7 +144,6 @@ public final class Interpreter {
 	}
 
 	void stackShrink(StackFrame frame, int count) {
-		// Null out elements that no longer have an associated frame.
 		while (--count >= 0)
 			stack[frame.top--] = null;
 //		frame.top -= count;
@@ -274,11 +275,6 @@ public final class Interpreter {
 		int from = frame.base + frame.decode2();
 		stackPush(frame, stack[from]);
 		dispatchNext(MOV_MH, frame);
-	}
-
-	private void PRINT(StackFrame frame) throws Throwable {
-		stackPop(frame);
-//		System.out.println(stackPop(frame));
 	}
 
 	private void CALL(StackFrame frame) throws Throwable {
