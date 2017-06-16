@@ -4,6 +4,10 @@ package me.jezza.lava.runtime;
  * @author Jezza
  */
 
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 import java.lang.reflect.Field;
 
 /**
@@ -27,6 +31,12 @@ import java.lang.reflect.Field;
  * </blockquote>
  */
 public final class OpCodes {
+
+	@Target(ElementType.FIELD)
+	@Retention(RetentionPolicy.RUNTIME)
+	public @interface Implemented {
+	}
+
 	/**
 	 * <b>CONST1: (1)</b>
 	 * <p>
@@ -44,6 +54,7 @@ public final class OpCodes {
 	 *     Note: if you wish to load a constant that has an index greater than 1 byte, use CONST2.<br>
 	 * </blockquote>
 	 */
+	@Implemented
 	public static final byte CONST1 = 0;
 
 	/**
@@ -63,11 +74,83 @@ public final class OpCodes {
 	 *     Load a constant onto the stack from the constant pool as identified by the index (indexbyte1 << 8 + indexbyte2)<br>
 	 * </blockquote>
 	 */
+	@Implemented
 	public static final byte CONST2 = 1;
+
+	/**
+	 * <b>CONST_NIL: (0)</b>
+	 * <p>
+	 * <b>Other Bytes:</b>
+	 * <ol>
+	 *     <li>N/A</li>
+	 * </ol>
+	 * <b>Stack:</b>
+	 * <blockquote>
+	 *     [] -> [nil]
+	 * </blockquote>
+	 * <b>Description:</b>
+	 * <blockquote>
+	 *     Load a nil reference onto the stack<br>
+	 * </blockquote>
+	 */
+	@Implemented
 	public static final byte CONST_NIL = 2;
+
+	/**
+	 * <b>CONST_TRUE: (0)</b>
+	 * <p>
+	 * <b>Other Bytes:</b>
+	 * <ol>
+	 *     <li>N/A</li>
+	 * </ol>
+	 * <b>Stack:</b>
+	 * <blockquote>
+	 *     [] -> [true]
+	 * </blockquote>
+	 * <b>Description:</b>
+	 * <blockquote>
+	 *     Load true onto the stack<br>
+	 * </blockquote>
+	 */
+	@Implemented
 	public static final byte CONST_TRUE = 3;
+
+	/**
+	 * <b>CONST_FALSE: (0)</b>
+	 * <p>
+	 * <b>Other Bytes:</b>
+	 * <ol>
+	 *     <li>N/A</li>
+	 * </ol>
+	 * <b>Stack:</b>
+	 * <blockquote>
+	 *     [] -> [false]
+	 * </blockquote>
+	 * <b>Description:</b>
+	 * <blockquote>
+	 *     Load false onto the stack<br>
+	 * </blockquote>
+	 */
+	@Implemented
 	public static final byte CONST_FALSE = 4;
 
+	/**
+	 * <b>LOAD_FUNCTION: (1)</b>
+	 * <p>
+	 * <b>Other Bytes:</b>
+	 * <ol>
+	 *     <li>indexbyte</li>
+	 * </ol>
+	 * <b>Stack:</b>
+	 * <blockquote>
+	 *     [] -> [function]
+	 * </blockquote>
+	 * <b>Description:</b>
+	 * <blockquote>
+	 *     Load a function onto the stack from the constant pool identified by the given index<br>
+	 *     This function also prepares the function's upvalues.<br>
+	 * </blockquote>
+	 */
 	public static final byte LOAD_FUNCTION = 5;
 
 	public static final byte MOV = 6;
@@ -91,7 +174,23 @@ public final class OpCodes {
 
 	public static final byte SELF = 17;
 
-
+	/**
+	 * <b>ADD: (0)</b>
+	 * <p>
+	 * <b>Other Bytes:</b>
+	 * <ol>
+	 *     <li>indexbyte</li>
+	 * </ol>
+	 * <b>Stack:</b>
+	 * <blockquote>
+	 *     [value1, value2] -> [result]
+	 * </blockquote>
+	 * <b>Description:</b>
+	 * <blockquote>
+	 *     Pops two values off of the stack, adds them, and places the resulting value back on the stack.<br>
+	 * </blockquote>
+	 */
+	@Implemented
 	public static final byte ADD = 18;
 	public static final byte SUB = 19;
 	public static final byte MUL = 20;

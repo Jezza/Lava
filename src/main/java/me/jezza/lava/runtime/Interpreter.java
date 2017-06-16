@@ -7,11 +7,17 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.invoke.MutableCallSite;
-import java.util.Arrays;
+import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.LongStream;
 import java.util.stream.LongStream.Builder;
+
+import me.jezza.lava.lang.emitter.ByteCodeWriter;
+import me.jezza.lava.lang.emitter.ConstantPool;
+import me.jezza.lava.runtime.OpCodes.Implemented;
 
 /**
  * @author Jezza
@@ -19,26 +25,27 @@ import java.util.stream.LongStream.Builder;
 public final class Interpreter {
 
 	private static final boolean DEBUG_MODE = true;
+	private static final Object NIL = null;
 
-	enum Ops {
-		CONST1,
-		CONST2,
+//	enum Ops {
+//		CONST1,
+//		CONST2,
 //		LOADF,
-
-		GETGLOBAL,
-		ADD,
-		POP,
-		DUP,
-		PUSH,
-
-		// stop instructions
-		CALL,
-		PRINT,
-		DEBUG,
-		GOTO,
-		IFNZ,
-		RET
-	}
+//
+//		GETGLOBAL,
+//		ADD,
+//		POP,
+//		DUP,
+//		PUSH,
+//
+//		// stop instructions
+//		CALL,
+//		PRINT,
+//		DEBUG,
+//		GOTO,
+//		IFNZ,
+//		RET
+//	}
 
 	static class CS extends MutableCallSite {
 		CS() {
@@ -46,10 +53,12 @@ public final class Interpreter {
 			setTarget(FALLBACK.bindTo(this));
 		}
 
-		private void fallback(Interpreter interpreter, StackFrame frame, byte ops) throws Throwable {
-			MethodHandle dispatch = INSTR_TABLE[ops];
+		private void fallback(Interpreter interpreter, StackFrame frame, byte op) throws Throwable {
+			MethodHandle dispatch = INSTR_TABLE[op];
+			if (dispatch == null)
+				throw new IllegalStateException("Opcode not yet implemented: " + op);
 
-			MethodHandle test = MethodHandles.insertArguments(TEST, 3, ops);
+			MethodHandle test = MethodHandles.insertArguments(TEST, 3, op);
 			MethodHandle target = MethodHandles.dropArguments(dispatch, 2, byte.class);
 			MethodHandle guard = MethodHandles.guardWithTest(test, target, getTarget());
 			setTarget(guard);
@@ -57,8 +66,8 @@ public final class Interpreter {
 			dispatch.invokeExact(interpreter, frame);
 		}
 
-		private static boolean test(Interpreter interpreter, StackFrame frame, byte ops, byte expected) {
-			return ops == expected;
+		private static boolean test(Interpreter interpreter, StackFrame frame, byte op, byte expected) {
+			return op == expected;
 		}
 
 		static final MethodHandle FALLBACK, TEST;
@@ -74,27 +83,21 @@ public final class Interpreter {
 			} catch (NoSuchMethodException | IllegalAccessException e) {
 				throw new AssertionError(e);
 			}
-			Ops[] ops = Ops.values();
-			MethodHandle[] table = new MethodHandle[ops.length];
-			Arrays.setAll(table, i -> {
-				try {
-					return lookup.in(Interpreter.class).findVirtual(Interpreter.class, ops[i].name(), methodType(void.class, StackFrame.class));
-				} catch (NoSuchMethodException | IllegalAccessException e) {
-					throw new AssertionError(e);
+
+			// TEMP
+			Field[] fields = OpCodes.class.getDeclaredFields();
+			List<MethodHandle> handles = new ArrayList<>();
+			for (Field field : fields) {
+				if (field.isAnnotationPresent(Implemented.class)) {
+					try {
+						handles.add(lookup.in(Interpreter.class)
+								.findVirtual(Interpreter.class, field.getName(), methodType(void.class, StackFrame.class)));
+					} catch (NoSuchMethodException | IllegalAccessException e) {
+						throw new AssertionError(e);
+					}
 				}
-			});
-//			Field[] fields = OpCodes.class.getDeclaredFields();
-//			MethodHandle[] table = new MethodHandle[fields.length];
-//			for (int i = 0, l = fields.length; i < l; i++) {
-//				String name = fields[i].getName().substring(3).toLowerCase();
-//				try {
-//					table[i] = lookup.findVirtual(VM.class, name, methodType(void.class));
-//				} catch (NoSuchMethodException | IllegalAccessException e) {
-//					throw new AssertionError(e);
-//				}
-//			}
-//			INSTR_TABLE = table;
-			INSTR_TABLE = table;
+			}
+			INSTR_TABLE = handles.toArray(new MethodHandle[0]);
 		}
 	}
 
@@ -205,6 +208,9 @@ public final class Interpreter {
 
 	private static final MethodHandle CONST1_MH = dispatcher();
 	private static final MethodHandle CONST2_MH = dispatcher();
+	private static final MethodHandle CONST_NIL_MH = dispatcher();
+	private static final MethodHandle CONST_TRUE_MH = dispatcher();
+	private static final MethodHandle CONST_FALSE_MH = dispatcher();
 	private static final MethodHandle GETGLOBAL_MH = dispatcher();
 	private static final MethodHandle ADD_MH = dispatcher();
 	private static final MethodHandle POP_MH = dispatcher();
@@ -221,6 +227,28 @@ public final class Interpreter {
 		int value = frame.decode2();
 		stackPush(frame, frame.constants[value]);
 		dispatchNext(CONST2_MH, frame);
+	}
+
+	private void CONST_NIL(StackFrame frame) throws Throwable {
+		stackPush(frame, NIL);
+		dispatchNext(CONST_NIL_MH, frame);
+	}
+
+	private void CONST_TRUE(StackFrame frame) throws Throwable {
+		stackPush(frame, Boolean.TRUE);
+		dispatchNext(CONST_TRUE_MH, frame);
+	}
+
+	private void CONST_FALSE(StackFrame frame) throws Throwable {
+		stackPush(frame, Boolean.FALSE);
+		dispatchNext(CONST_FALSE_MH, frame);
+	}
+
+	private void LOAD_FUNCTION(StackFrame frame) throws Throwable {
+//		int index = frame.decode2();
+//		stack[target] = stack[from];
+//		dispatchNext(MOV_MH, frame);
+		throw new IllegalStateException("NYI");
 	}
 
 	private void GETGLOBAL(StackFrame frame) throws Throwable {
@@ -247,12 +275,6 @@ public final class Interpreter {
 		stackPush(frame, stack[from]);
 		dispatchNext(MOV_MH, frame);
 	}
-
-//	private void LOADF(StackFrame frame) throws Throwable {
-//		int index = frame.decode2();
-//		stack[target] = stack[from];
-//		dispatchNext(MOV_MH, frame);
-//	}
 
 	private void PRINT(StackFrame frame) throws Throwable {
 		stackPop(frame);
@@ -399,19 +421,19 @@ public final class Interpreter {
 
 	private static LuaChunk forLoop() {
 		ConstantPool pool = new ConstantPool();
-		ByteCodeWriter w = new ByteCodeWriter(0);
-		w.write1(Ops.CONST1, pool.add(10));
-		w.write1(Ops.GOTO);
+		ByteCodeWriter w = new ByteCodeWriter();
+		w.write1(OpCodes.CONST1, pool.add(10));
+		w.write1(OpCodes.GOTO);
 		int jump = w.mark();
 		w.write4(-1);
 		int mark = w.mark();
-		w.write1(Ops.CONST1, pool.add(-1));
-		w.write1(Ops.ADD);
+		w.write1(OpCodes.CONST1, pool.add(-1));
+		w.write1(OpCodes.ADD);
 		int returnJump = w.mark();
 		w.patch4(jump, returnJump);
-		w.write1(Ops.DUP);
-		w.write4(Ops.IFNZ, mark);
-		w.write1(Ops.RET);
+		w.write1(OpCodes.DUP);
+		w.write4(OpCodes.IFNZ, mark);
+		w.write1(OpCodes.RET);
 
 		LuaChunk chunk = new LuaChunk("forLoopChunk");
 		chunk.paramCount = 0;
@@ -422,12 +444,12 @@ public final class Interpreter {
 
 	private static LuaChunk returnChunk(int count) {
 		ConstantPool pool = new ConstantPool();
-		ByteCodeWriter w = new ByteCodeWriter(0);
+		ByteCodeWriter w = new ByteCodeWriter();
 
 		for (int i = 0; i < count; i++)
-			w.write1(Ops.CONST1, pool.add(i));
-		w.write1(Ops.DEBUG);
-		w.write1(Ops.RET);
+			w.write1(OpCodes.CONST1, pool.add(i));
+		w.write1(OpCodes.DEBUG);
+		w.write1(OpCodes.RET);
 
 		LuaChunk chunk = new LuaChunk("returnChunk");
 		chunk.paramCount = 0;
@@ -438,14 +460,14 @@ public final class Interpreter {
 
 	private static LuaChunk acceptChunk(int count) {
 		ConstantPool pool = new ConstantPool();
-		ByteCodeWriter w = new ByteCodeWriter(0);
+		ByteCodeWriter w = new ByteCodeWriter();
 
 //		w.write1(Ops.DEBUG);
 		for (int i = 0; i < count; i++)
 //			w.write1(Ops.PRINT);
-			w.write1(Ops.POP);
+			w.write1(OpCodes.POP);
 //		w.write1(Ops.DEBUG);
-		w.write1(Ops.RET);
+		w.write1(OpCodes.RET);
 
 		LuaChunk chunk = new LuaChunk("acceptChunk");
 		chunk.paramCount = count;
@@ -456,7 +478,7 @@ public final class Interpreter {
 
 	public static void main(String[] args) throws Throwable {
 		File root = new File("C:\\Users\\Jezza\\Desktop\\JavaProjects\\Lava\\src\\main\\resources");
-		LuaChunk chunk = Language.parse(root, "main.lang");
+//		LuaChunk chunk = Language.parse(root, "main.lang");
 
 //		ConstantPool pool = new ConstantPool();
 //
@@ -496,7 +518,7 @@ public final class Interpreter {
 //			frame.top = 0;
 //			frame.base = 0;
 //			test(frame);
-			test(chunk);
+//			test(chunk);
 			builder.accept(System.nanoTime() - start);
 		}
 		System.out.println(builder.build().summaryStatistics());

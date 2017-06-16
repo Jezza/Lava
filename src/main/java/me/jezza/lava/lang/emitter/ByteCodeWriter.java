@@ -1,6 +1,4 @@
-package me.jezza.lava.runtime;
-
-import me.jezza.lava.runtime.Interpreter.Ops;
+package me.jezza.lava.lang.emitter;
 
 /**
  * @author Jezza
@@ -11,8 +9,12 @@ public final class ByteCodeWriter {
 	private byte[] data;
 	private int index;
 
-	public ByteCodeWriter(int size) {
-		data = new byte[size];
+	public ByteCodeWriter() {
+		this(64);
+	}
+
+	public ByteCodeWriter(int initialCapacity) {
+		data = new byte[initialCapacity];
 		index = 0;
 	}
 
@@ -50,39 +52,35 @@ public final class ByteCodeWriter {
 		index = i;
 	}
 
-	public void write1(Ops code) {
-		write1(code.ordinal());
-	}
-
-	public void write1(Ops code, int second) {
-		write1(code.ordinal());
+	public void write1(int code, int second) {
+		write1(code);
 		write1(second);
 	}
 
-	public void write2(Ops code, int second) {
-		write1(code.ordinal());
+	public void write2(int code, int second) {
+		write1(code);
 		write2(second);
 	}
 
-	public void write4(Ops code, int second) {
-		write1(code.ordinal());
+	public void write4(int code, int second) {
+		write1(code);
 		write4(second);
 	}
 
-	public void write1(Ops code, int second, int third) {
-		write1(code.ordinal());
+	public void write1(int code, int second, int third) {
+		write1(code);
 		write1(second);
 		write1(third);
 	}
 
-	public void write2(Ops code, int second, int third) {
-		write1(code.ordinal());
+	public void write2(int code, int second, int third) {
+		write1(code);
 		write2(second);
 		write2(third);
 	}
 
-	public void write4(Ops code, int second, int third) {
-		write1(code.ordinal());
+	public void write4(int code, int second, int third) {
+		write1(code);
 		write4(second);
 		write4(third);
 	}

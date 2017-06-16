@@ -12,7 +12,6 @@ import me.jezza.lava.lang.interfaces.Lexer;
  * @author Jezza
  */
 public final class ParallelLexer implements Lexer, Runnable {
-
 	private final Lexer delegate;
 
 	private BlockingDeque<Object> tokens;

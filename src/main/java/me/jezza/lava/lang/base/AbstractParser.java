@@ -1,6 +1,9 @@
 package me.jezza.lava.lang.base;
 
 import java.io.IOException;
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.Optional;
 
 import me.jezza.lava.Strings;
 import me.jezza.lava.Times;
@@ -14,13 +17,13 @@ import me.jezza.lava.lang.interfaces.Lexer;
 public abstract class AbstractParser {
 	private final Lexer lexer;
 
-	private Token current;
+	private Deque<Token> deque;
 
 	protected AbstractParser(final Lexer lexer) {
 		if (lexer == null)
 			throw new NullPointerException("Lexer cannot be null.");
 		this.lexer = lexer;
-		current = null;
+		deque = new ArrayDeque<>();
 	}
 
 	private static final Times CURRENT = new Times("current", 411);
@@ -28,7 +31,12 @@ public abstract class AbstractParser {
 	public final Token current() throws IOException {
 		long start = System.nanoTime();
 		try {
-			return current != null ? current : (current = lexer.next());
+			Token token = deque.peekFirst();
+			if (token == null) {
+				token = lexer.next();
+				deque.addLast(token);
+			}
+			return token;
 		} finally {
 			CURRENT.add(System.nanoTime() - start);
 		}
@@ -40,7 +48,7 @@ public abstract class AbstractParser {
 		long start = System.nanoTime();
 		boolean match = current().type == type;
 		if (match)
-			current = null;
+			deque.pop();
 		MATCH.add(System.nanoTime() - start);
 		return match;
 	}
@@ -61,7 +69,7 @@ public abstract class AbstractParser {
 	public final Token consume() throws IOException {
 		long start = System.nanoTime();
 		Token token = current();
-		current = null;
+		deque.pop();
 		CONSUME.add(System.nanoTime() - start);
 		return token;
 	}
@@ -72,10 +80,28 @@ public abstract class AbstractParser {
 		long start = System.nanoTime();
 		Token token = current();
 		if (token.type == type) {
-			current = null;
+			deque.pop();
 			CONSUME_INT.add(System.nanoTime() - start);
 			return token;
 		}
 		throw new RuntimeException(Strings.format("Expected token {}, found {}.", Tokens.name(type), token));
+	}
+
+	public final Token peek(int index) throws IOException {
+		if (index < 0)
+			throw new IllegalArgumentException("Index cannot be negative");
+		Token last = null;
+		while (deque.size() < index + 1) {
+			last = lexer.next();
+			deque.addLast(last);
+			if (last.type == Tokens.EOS) {
+				return last;
+			}
+		}
+		if (last != null) {
+			return last;
+		}
+		Optional<Token> element = deque.stream().skip(index).findFirst();
+		return element.orElse(Token.EOS);
 	}
 }

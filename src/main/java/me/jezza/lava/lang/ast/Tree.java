@@ -27,24 +27,6 @@ public abstract class Tree {
 		}
 	}
 
-	public static final class AssignStatement extends Statement {
-		public final Statement varList;
-		public final Statement expList;
-
-		public AssignStatement(Statement varList, Statement expList) {
-			this.varList = varList;
-			this.expList = expList;
-		}
-
-		@Override
-		public void visit(Visitor visitor) {
-			visitor.visitAssignStatement(this);
-		}
-	}
-
-//	public static final class FunctionCall extends Statement {
-//	}
-
 	public static final class Label extends Statement {
 		public final String name;
 
@@ -163,13 +145,15 @@ public abstract class Tree {
 		}
 	}
 
-	public static final class ForLoopIn extends Statement {
+	public static final class ForList extends Statement {
 		public final List<String> nameList;
-		public final Statement expList;
+		public final Expression expList;
+		public final Statement body;
 
-		public ForLoopIn(List<String> nameList, Statement expList) {
+		public ForList(List<String> nameList, Expression expList, Statement body) {
 			this.nameList = nameList;
 			this.expList = expList;
+			this.body = body;
 		}
 
 		@Override
@@ -195,7 +179,7 @@ public abstract class Tree {
 		}
 	}
 
-	public static final class FunctionBody extends Statement {
+	public static final class FunctionBody extends Expression {
 		public final ParameterList parameterList;
 		public final Block body;
 
@@ -225,26 +209,41 @@ public abstract class Tree {
 		}
 	}
 
-	public static final class LocalFunctionStatement extends Statement {
+	public static final class LocalFunction extends Statement {
 		public final String name;
 		public final FunctionBody body;
 
-		protected LocalFunctionStatement(String name, FunctionBody body) {
+		public LocalFunction(String name, FunctionBody body) {
 			this.name = name;
 			this.body = body;
 		}
 
 		@Override
 		public void visit(Visitor visitor) {
-			visitor.visitLocalFunctionStatement(this);
+			visitor.visitLocalFunction(this);
+		}
+	}
+
+	public static final class LocalStatement extends Statement {
+		public final List<String> names;
+		public final Expression expressions;
+
+		public LocalStatement(List<String> names, Expression expressions) {
+			this.names = names;
+			this.expressions = expressions;
+		}
+
+		@Override
+		public void visit(Visitor visitor) {
+			visitor.visitLocalStatement(this);
 		}
 	}
 
 	public static final class ReturnStatement extends Statement {
-		public final ExpressionList expList;
+		public final Expression expressions;
 
-		public ReturnStatement(ExpressionList expList) {
-			this.expList = expList;
+		public ReturnStatement(Expression expressions) {
+			this.expressions = expressions;
 		}
 
 		@Override
@@ -268,27 +267,7 @@ public abstract class Tree {
 		}
 	}
 
-	public abstract static class Variable extends Statement {
-
-	}
-
-//	public static final class NamedVariable extends Variable {
-//		public final String name;
-//
-//		public NamedVariable(String name) {
-//			this.name = name;
-//		}
-//	}
-//
-//	public static final class VariableList extends Statement {
-//		public final List<Variable> vars;
-//
-//		public VariableList(List<Variable> vars) {
-//			this.vars = vars;
-//		}
-//	}
-
-	public static final class ExpressionList extends Statement {
+	public static final class ExpressionList extends Expression {
 		public final List<Expression> expList;
 
 		public ExpressionList(List<Expression> expList) {
@@ -303,21 +282,154 @@ public abstract class Tree {
 	}
 
 	public abstract static class Expression extends Tree {
-
+		public Expression() {
+		}
 	}
 
-//	public static class UnaryOP extends Expression {
-//	}
-//
-//	public static class BinaryOP extends Expression {
-//		public final int op;
-//		public final Expression left;
-//		public final Expression right;
-//
-//		public BinaryOP(int op, Expression left, Expression right) {
-//			this.op = op;
-//			this.left = left;
-//			this.right = right;
-//		}
-//	}
+	public static final class UnaryOp extends Expression {
+		public final int op;
+		public final Expression arg;
+
+		public UnaryOp(int op, Expression arg) {
+			this.op = op;
+			this.arg = arg;
+		}
+
+		@Override
+		public void visit(Visitor visitor) {
+			visitor.visitUnaryOp(this);
+		}
+	}
+
+	public static final class BinaryOp extends Expression {
+		public final int op;
+		public final Expression left;
+		public final Expression right;
+
+		public BinaryOp(int op, Expression left, Expression right) {
+			this.op = op;
+			this.left = left;
+			this.right = right;
+		}
+
+		@Override
+		public void visit(Visitor visitor) {
+			visitor.visitBinaryOp(this);
+		}
+	}
+
+	public static final class Literal extends Expression {
+		public final int type;
+		public final Object value;
+
+		public Literal(int type, Object value) {
+			this.type = type;
+			this.value = value;
+		}
+
+		@Override
+		public void visit(Visitor visitor) {
+			visitor.visitLiteral(this);
+		}
+	}
+
+	public static final class Varargs extends Expression {
+		public Varargs() {
+		}
+
+		@Override
+		public void visit(Visitor visitor) {
+			visitor.visitVarargs(this);
+		}
+	}
+
+	public static final class FunctionCall extends Expression {
+		public final List<Expression> prefix;
+		public final String name;
+		public final Expression args;
+
+		public FunctionCall(List<Expression> prefix, final String name, Expression args) {
+			this.prefix = prefix;
+			this.name = name;
+			this.args = args;
+		}
+
+		@Override
+		public void visit(Visitor visitor) {
+			visitor.visitFunctionCall(this);
+		}
+	}
+
+	public static final class Assignment extends Statement {
+		public final Expression prefix;
+		public final Expression expressions;
+
+		public Assignment(Expression prefix, Expression expressions) {
+			this.prefix = prefix;
+			this.expressions = expressions;
+		}
+
+		@Override
+		public void visit(Visitor visitor) {
+			visitor.visitAssignment(this);
+		}
+	}
+
+
+	public static final class VariableList extends Expression {
+		public final List<Expression> variables;
+
+		public VariableList(List<Expression> variables) {
+			this.variables = variables;
+		}
+
+		@Override
+		public void visit(Visitor visitor) {
+			visitor.visitVariableList(this);
+		}
+	}
+
+	public static final class TableConstructor extends Expression {
+		public final List<TableField> fields;
+
+		public TableConstructor(List<TableField> fields) {
+			this.fields = fields;
+		}
+
+		@Override
+		public void visit(Visitor visitor) {
+			visitor.visitTableConstructor(this);
+		}
+	}
+
+	public abstract static class TableField extends Expression {
+	}
+
+	public static final class IndexField extends TableField {
+		public final Expression key;
+		public final Expression value;
+
+		public IndexField(Expression key, Expression value) {
+			this.key = key;
+			this.value = value;
+		}
+
+		@Override
+		public void visit(Visitor visitor) {
+			visitor.visitIndexField(this);
+		}
+	}
+
+	public static final class ListField extends TableField {
+		public final Expression value;
+
+		public ListField(Expression value) {
+			this.value = value;
+		}
+
+		@Override
+		public void visit(Visitor visitor) {
+			visitor.visitListField(this);
+		}
+	}
 }

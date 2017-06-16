@@ -1,4 +1,4 @@
-package me.jezza.lava.runtime;
+package me.jezza.lava.lang.emitter;
 
 import java.util.ArrayList;
 import java.util.List;
