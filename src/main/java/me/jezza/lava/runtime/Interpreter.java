@@ -25,7 +25,7 @@ import me.jezza.lava.runtime.OpCodes.Implemented;
 public final class Interpreter {
 
 	private static final boolean DEBUG_MODE = true;
-	private static final Object NIL = null;
+	private static final Object NIL = "NIL";
 
 //	enum Ops {
 //		CONST1,
@@ -135,7 +135,7 @@ public final class Interpreter {
 
 	void stackPush(StackFrame frame, Object o) {
 		stackCheck(frame.top + 1);
-		stack[frame.top++] = o;
+		stack[frame.top++] = o != null ? o : NIL;
 	}
 
 	void stackBuff(StackFrame frame, int count) {
@@ -145,7 +145,7 @@ public final class Interpreter {
 
 	void stackShrink(StackFrame frame, int count) {
 		while (--count >= 0)
-			stack[frame.top--] = null;
+			stack[frame.top--] = NIL;
 //		frame.top -= count;
 	}
 
@@ -153,8 +153,14 @@ public final class Interpreter {
 		if (frame.base >= frame.top)
 			throw new IllegalStateException("No such element");
 		Object result = stack[--frame.top];
-		stack[frame.top] = null;
+		stack[frame.top] = NIL;
 		return result;
+	}
+
+	void stackSet(StackFrame frame, int from, int to) {
+		if (from != to) {
+			stack[frame.base + to] = stack[frame.base + from];
+		}
 	}
 
 	void stackCheck(int length) {
@@ -162,6 +168,7 @@ public final class Interpreter {
 			int l = stack.length;
 			Object[] newData = new Object[l + STACK_GROWTH_RATE];
 			System.arraycopy(stack, 0, newData, 0, l);
+//			Arrays.fill(newData, l, newData.length, NIL);
 			stack = newData;
 		}
 	}
@@ -196,15 +203,19 @@ public final class Interpreter {
 			frame.top += results;
 			// Null out elements that no longer have an associated frame.
 			for (int i = frame.top; i < lastFrame.top; i++)
-				stack[i] = null;
+				stack[i] = NIL;
 //			stackShrink(frame, lastFrame.top - frame.top);
 		}
 		return lastFrame;
 	}
 
 	private void dispatchNext(MethodHandle next, StackFrame frame) throws Throwable {
-		byte op = frame.decode1();
-		next.invokeExact(this, frame, op);
+		if (DEBUG_MODE) {
+			next.invokeExact(this, frame, OpCodes.DEBUG);
+		} else {
+			byte op = frame.decode1();
+			next.invokeExact(this, frame, op);
+		}
 	}
 
 	private static final MethodHandle CONST1_MH = dispatcher();
@@ -214,6 +225,7 @@ public final class Interpreter {
 	private static final MethodHandle CONST_FALSE_MH = dispatcher();
 	private static final MethodHandle GETGLOBAL_MH = dispatcher();
 	private static final MethodHandle ADD_MH = dispatcher();
+	private static final MethodHandle MUL_MH = dispatcher();
 	private static final MethodHandle POP_MH = dispatcher();
 	private static final MethodHandle DUP_MH = dispatcher();
 	private static final MethodHandle MOV_MH = dispatcher();
@@ -252,7 +264,7 @@ public final class Interpreter {
 		throw new IllegalStateException("NYI");
 	}
 
-	private void GETGLOBAL(StackFrame frame) throws Throwable {
+	private void GET_GLOBAL(StackFrame frame) throws Throwable {
 		Object key = stackPop(frame);
 		Object value = globals.get(key);
 		stackPush(frame, value);
@@ -266,14 +278,22 @@ public final class Interpreter {
 		dispatchNext(ADD_MH, frame);
 	}
 
+	private void MUL(StackFrame frame) throws Throwable {
+		int second = (int) stackPop(frame);
+		int first = (int) stackPop(frame);
+		stackPush(frame, first * second);
+		dispatchNext(MUL_MH, frame);
+	}
+
 	private void POP(StackFrame frame) throws Throwable {
 		stackPop(frame);
 		dispatchNext(POP_MH, frame);
 	}
 
-	private void PUSH(StackFrame frame) throws Throwable {
-		int from = frame.base + frame.decode2();
-		stackPush(frame, stack[from]);
+	private void MOV(StackFrame frame) throws Throwable {
+		int from = frame.decode2();
+		int to = frame.decode2();
+		stackSet(frame, from, to);
 		dispatchNext(MOV_MH, frame);
 	}
 
@@ -286,7 +306,8 @@ public final class Interpreter {
 			newFrame.top = frame.top;
 			frame.top -= params;
 			newFrame.base = frame.top;
-			newFrame.results = ((Callback) o).call(this, newFrame);
+			newFrame.results = Math.min(((Callback) o).call(this, newFrame), results);
+			DEBUG(null);
 			// TODO: 29/05/2017 Support frame reordering
 			framePop();
 		} else if (o instanceof LuaChunk) {
@@ -306,7 +327,7 @@ public final class Interpreter {
 			if (params < expectedCount) {
 				for (int i = params; i < expectedCount; i++) {
 					// TODO: 31/05/2017 - need a faster method for growing the stack a given size
-					stackPush(newFrame, null);
+					stackPush(newFrame, NIL);
 				}
 			}
 
@@ -314,7 +335,7 @@ public final class Interpreter {
 			newFrame.base = frame.top;
 			newFrame.results = results;
 		} else {
-			throw new IllegalStateException("Illegal object on stack");
+			throw new IllegalStateException("Expected call object on stack, but got: " + o);
 		}
 	}
 
@@ -375,10 +396,10 @@ public final class Interpreter {
 
 	private static int print(Interpreter interpreter, StackFrame frame) {
 		int parameters = frame.top - frame.base;
-//		for (int i = 0; i < parameters; i++)
-//			System.out.println(interpreter.stackPop(frame));
-		interpreter.stackPush(frame, "Native!");
-		return 1;
+		for (int i = 0; i < parameters; i++)
+			System.out.println(interpreter.stackPop(frame));
+//		interpreter.stackPush(frame, "Native!");
+		return 0;
 	}
 
 	private static int nativeAdd(Interpreter interpreter, StackFrame frame) {
@@ -391,12 +412,32 @@ public final class Interpreter {
 		return 1;
 	}
 
+	private static int toLower(Interpreter interpreter, StackFrame frame) {
+		int parameters = frame.top - frame.base;
+		if (parameters != 1)
+			throw new IllegalStateException("Requires 1 argument.");
+		String o = (String) interpreter.stackPop(frame);
+		interpreter.stackPush(frame, o.toLowerCase());
+		return 1;
+	}
+
+	private static int toUpper(Interpreter interpreter, StackFrame frame) {
+		int parameters = frame.top - frame.base;
+		if (parameters != 1)
+			throw new IllegalStateException("Requires 1 argument.");
+		String o = (String) interpreter.stackPop(frame);
+		interpreter.stackPush(frame, o.toUpperCase());
+		return 1;
+	}
+
 	private static void prep(Interpreter interpreter) {
 		interpreter.globals.put("print", (Callback) Interpreter::print);
 		interpreter.globals.put("native_add", (Callback) Interpreter::nativeAdd);
+		interpreter.globals.put("upper", (Callback) Interpreter::toUpper);
+		interpreter.globals.put("lower", (Callback) Interpreter::toLower);
 	}
 
-	private static void test(LuaChunk chunk) throws Throwable {
+	public static void test(LuaChunk chunk) throws Throwable {
 		StackFrame frame = new StackFrame();
 
 		frame.instrs = chunk.code;
@@ -444,7 +485,6 @@ public final class Interpreter {
 
 		for (int i = 0; i < count; i++)
 			w.write1(OpCodes.CONST1, pool.add(i));
-		w.write1(OpCodes.DEBUG);
 		w.write1(OpCodes.RET);
 
 		LuaChunk chunk = new LuaChunk("returnChunk");
@@ -558,15 +598,15 @@ public final class Interpreter {
 		int call(Interpreter interpreter, StackFrame frame);
 	}
 
-	static final class LuaChunk {
-		int paramCount;
+	public static final class LuaChunk {
+		public final String name;
 
-		byte[] code;
-		Object[] constants;
+		public int paramCount;
+
+		public byte[] code;
+		public Object[] constants;
 //		LuaChunk[] chunks;
 
-
-		private final String name;
 
 		public LuaChunk(String name) {
 			this.name = name;

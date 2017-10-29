@@ -8,14 +8,14 @@ public final class Token {
 
 	public final int type;
 	public final String text;
-	public final int col;
 	public final int row;
+	public final int col;
 
-	public Token(int type, String text, int col, int row) {
+	public Token(int type, String text, int row, int col) {
 		this.type = type;
 		this.text = text;
-		this.col = col;
 		this.row = row;
+		this.col = col;
 	}
 
 	@Override

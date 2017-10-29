@@ -8,7 +8,5 @@ import me.jezza.lava.lang.Token;
  * @author Jezza
  */
 public interface Lexer {
-	int EOS = -1;
-
 	Token next() throws IOException;
 }

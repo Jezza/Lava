@@ -197,7 +197,7 @@ public final class LavaLexer extends AbstractLexer implements Lexer {
 	}
 
 	private static boolean isAlphabetic(int c) {
-		return Character.isAlphabetic(c) || c == '_';
+		return Character.isUpperCase(c) || Character.isLowerCase(c) || Character.isDigit(c) || c == '_';
 	}
 
 //	private static final Times NUMBER = new Times("NUMBER", 2048);

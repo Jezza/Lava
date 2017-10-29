@@ -153,7 +153,9 @@ public final class OpCodes {
 	 */
 	public static final byte LOAD_FUNCTION = 5;
 
+	@Implemented
 	public static final byte MOV = 6;
+	@Implemented
 	public static final byte POP = 7;
 	public static final byte DUP = 8;
 
@@ -168,6 +170,23 @@ public final class OpCodes {
 	// TODO: 30/05/2017 Might be able to merge SET_LIST with NEW_TABLE
 	public static final byte SET_LIST = 14;
 
+	/**
+	 * <b>LOAD_FUNCTION: (1)</b>
+	 * <p>
+	 * <b>Other Bytes:</b>
+	 * <ol>
+	 *     <li>N/A</li>
+	 * </ol>
+	 * <b>Stack:</b>
+	 * <blockquote>
+	 *     [name] -> [value]
+	 * </blockquote>
+	 * <b>Description:</b>
+	 * <blockquote>
+	 *     Loads a global onto the stack identified by the current value on top of the stack<br>
+	 * </blockquote>
+	 */
+	@Implemented
 	public static final byte GET_GLOBAL = 15;
 	public static final byte SET_GLOBAL = 16;
 
@@ -193,6 +212,7 @@ public final class OpCodes {
 	@Implemented
 	public static final byte ADD = 18;
 	public static final byte SUB = 19;
+	@Implemented
 	public static final byte MUL = 20;
 	public static final byte DIV = 21;
 	public static final byte MOD = 22;
@@ -205,6 +225,27 @@ public final class OpCodes {
 
 	// Control flow ops don't have dispatchers.
 
+	/**
+	 * <b>CALL: (1)</b>
+	 * <p>
+	 * <b>Other Bytes:</b>
+	 * <ol>
+	 *     <li>indexbyte</li>
+	 *     <li>indexbyte</li>
+	 *     <li>indexbyte</li>
+	 *     <li>indexbyte</li>
+	 * </ol>
+	 * <b>Stack:</b>
+	 * <blockquote>
+	 *     [] -> [function]
+	 * </blockquote>
+	 * <b>Description:</b>
+	 * <blockquote>
+	 *     Load a function onto the stack from the constant pool identified by the given index<br>
+	 *     This function also prepares the function's upvalues.<br>
+	 * </blockquote>
+	 */
+	@Implemented
 	public static final byte CALL = 28;
 	public static final byte GOTO = 29;
 	public static final byte IFZ = 30;
@@ -221,9 +262,11 @@ public final class OpCodes {
 	public static final byte FOR_LOOP_TABLE = 39;
 
 	public static final byte CLOSE = 40;
+	@Implemented
 	public static final byte RET = 41;
 
 	public static final byte PRINT = 42;
+	@Implemented
 	public static final byte DEBUG = 43;
 
 	public static void main(String[] args) {

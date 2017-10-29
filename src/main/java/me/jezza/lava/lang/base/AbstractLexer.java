@@ -13,12 +13,11 @@ import java.util.Arrays;
 /**
  * A very simple extension on the Reader classes.
  * Provides a good base for lexers, and the like, by unifying various input formats. (Files, Strings, InputStreams, etc)
- * And it does so by adding so little overhead.
  *
  * @author Jezza
  */
 public abstract class AbstractLexer {
-	private static final int DEFAULT_BUFFER_SIZE = 2048;
+	private static final int DEFAULT_BUFFER_SIZE = 4096;
 
 	private static final int START_COLUMN = 0;
 	private static final int START_ROW = 1;
@@ -28,7 +27,7 @@ public abstract class AbstractLexer {
 	private static final int MODE_READ = 1;
 	private static final int MODE_UNINITIALISED = 0;
 
-	private static final int EOS = -1;
+	protected static final int EOS = -1;
 
 	/**
 	 * The input from which to read from.
@@ -49,8 +48,8 @@ public abstract class AbstractLexer {
 
 	private int mode;
 
-	private int index = 0;
-	private int limit = -1;
+	private int index;
+	private int limit;
 
 	protected AbstractLexer(final String input) {
 		this(new StringReader(input), DEFAULT_BUFFER_SIZE);
@@ -89,6 +88,8 @@ public abstract class AbstractLexer {
 		this.buffer = new char[length];
 		mode = MODE_UNINITIALISED;
 		pos = new int[]{START_COLUMN, START_ROW};
+		index = 0;
+		limit = -1;
 	}
 
 //	private static final Times CHUNK = new Times("nextChunk", 1024);
@@ -144,25 +145,14 @@ public abstract class AbstractLexer {
 	}
 
 	protected final int peek() throws IOException {
-		if (mode == MODE_KILL)
+		if (mode == MODE_KILL) {
 			return EOS;
-		else if (mode == MODE_UNINITIALISED)
+		} else if (mode == MODE_UNINITIALISED) {
+			mode = MODE_READ;
 			nextChunk();
+		}
 		return buffer[index];
 	}
-
-//	protected final int peek(int offset) throws IOException {
-//		if (mode == MODE_KILL)
-//			return -1;
-//		else if (mode == MODE_UNINITIALISED)
-//			nextChunk();
-//		if (offset > length)
-//			throw new IllegalStateException("Can't lookahead greater than the buffer size");
-////		int position = buffer.position();
-//		int result = buffer.get(buffer.position() + offset);
-////		buffer.position(position);
-//		return result;
-//	}
 
 	static class Lex extends AbstractLexer {
 		protected Lex(String input, int bufferSize) {

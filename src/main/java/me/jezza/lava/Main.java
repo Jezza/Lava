@@ -42,10 +42,7 @@ public final class Main {
 			return 1;
 		});
 
-		L.doString("local table = {" +
-				"test = \"\"," +
-				"\"ehelo\"" +
-				"}; print(table)");
+		L.doString("local x,y,z; x, y, z = \"\";");
 
 
 
@@ -132,5 +129,4 @@ public final class Main {
 	public interface IntTransform {
 		int apply(int x);
 	}
-
 }

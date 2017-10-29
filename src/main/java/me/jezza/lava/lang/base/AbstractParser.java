@@ -1,12 +1,8 @@
 package me.jezza.lava.lang.base;
 
 import java.io.IOException;
-import java.util.ArrayDeque;
-import java.util.Deque;
-import java.util.Optional;
 
 import me.jezza.lava.Strings;
-import me.jezza.lava.Times;
 import me.jezza.lava.lang.Token;
 import me.jezza.lava.lang.Tokens;
 import me.jezza.lava.lang.interfaces.Lexer;
@@ -17,91 +13,69 @@ import me.jezza.lava.lang.interfaces.Lexer;
 public abstract class AbstractParser {
 	private final Lexer lexer;
 
-	private Deque<Token> deque;
+	private Token current;
 
 	protected AbstractParser(final Lexer lexer) {
 		if (lexer == null)
 			throw new NullPointerException("Lexer cannot be null.");
 		this.lexer = lexer;
-		deque = new ArrayDeque<>();
 	}
 
-	private static final Times CURRENT = new Times("current", 411);
+//	private static final Times CURRENT = new Times("current", 411);
 
 	public final Token current() throws IOException {
-		long start = System.nanoTime();
-		try {
-			Token token = deque.peekFirst();
-			if (token == null) {
-				token = lexer.next();
-				deque.addLast(token);
-			}
-			return token;
-		} finally {
-			CURRENT.add(System.nanoTime() - start);
-		}
+//		long start = System.nanoTime();
+//		try {
+			return current != null
+					? current
+					: (current = lexer.next());
+//		} finally {
+//			CURRENT.add(System.nanoTime() - start);
+//		}
 	}
 
-	private static final Times MATCH = new Times("match", 174);
+//	private static final Times MATCH = new Times("match", 174);
 
 	public final boolean match(int type) throws IOException {
-		long start = System.nanoTime();
+//		long start = System.nanoTime();
 		boolean match = current().type == type;
 		if (match)
-			deque.pop();
-		MATCH.add(System.nanoTime() - start);
+			current = null;
+//		MATCH.add(System.nanoTime() - start);
 		return match;
 	}
 
-	private static final Times LOOKAHEAD = new Times("lookahead", 22);
+//	private static final Times LOOKAHEAD = new Times("lookahead", 22);
 
 	public final boolean lookahead(int type) throws IOException {
-		long start = System.nanoTime();
-		try {
+//		long start = System.nanoTime();
+//		try {
 			return current().type == type;
-		} finally {
-			LOOKAHEAD.add(System.nanoTime() - start);
-		}
+//		} finally {
+//			LOOKAHEAD.add(System.nanoTime() - start);
+//		}
 	}
 
-	private static final Times CONSUME = new Times("consume", 117);
+//	private static final Times CONSUME = new Times("consume", 117);
 
 	public final Token consume() throws IOException {
-		long start = System.nanoTime();
+//		long start = System.nanoTime();
 		Token token = current();
-		deque.pop();
-		CONSUME.add(System.nanoTime() - start);
+		current = null;
+//		CONSUME.add(System.nanoTime() - start);
 		return token;
 	}
 
-	private static final Times CONSUME_INT = new Times("consume(INT)", 52);
+//	private static final Times CONSUME_INT = new Times("consume(INT)", 52);
 
 	public final Token consume(int type) throws IOException {
-		long start = System.nanoTime();
+//		long start = System.nanoTime();
 		Token token = current();
 		if (token.type == type) {
-			deque.pop();
-			CONSUME_INT.add(System.nanoTime() - start);
+			current = null;
+//			CONSUME_INT.add(System.nanoTime() - start);
 			return token;
 		}
 		throw new RuntimeException(Strings.format("Expected token {}, found {}.", Tokens.name(type), token));
-	}
-
-	public final Token peek(int index) throws IOException {
-		if (index < 0)
-			throw new IllegalArgumentException("Index cannot be negative");
-		Token last = null;
-		while (deque.size() < index + 1) {
-			last = lexer.next();
-			deque.addLast(last);
-			if (last.type == Tokens.EOS) {
-				return last;
-			}
-		}
-		if (last != null) {
-			return last;
-		}
-		Optional<Token> element = deque.stream().skip(index).findFirst();
-		return element.orElse(Token.EOS);
 	}
 }

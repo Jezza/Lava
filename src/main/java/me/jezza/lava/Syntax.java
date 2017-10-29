@@ -759,16 +759,9 @@ final class Syntax {
 
 		Lua L = new Lua();
 //		StringReader reader = new StringReader("local files = {[\"A.lua\"] = \"\"}");
-		StringReader reader = new StringReader("local function BottomUpTree(item, depth)\n" +
-				"  if depth > 0 then\n" +
-				"    local i = item + item\n" +
-				"    depth = depth - 1\n" +
-				"    local left, right = BottomUpTree(i-1, depth), BottomUpTree(i, depth)\n" +
-				"    return { item, left, right }\n" +
-				"  else\n" +
-				"    return { item }\n" +
-				"  end\n" +
-				"end");
+		StringReader reader = new StringReader("local t='';local test = 'asd';" +
+				"test = 'fff';");
+
 //		FileReader reader = new FileReader(new File("C:\\Users\\Jezza\\Desktop\\JavaProjects\\Lava\\src\\test\\resources\\all.lua"));
 //		Syntax syntax = new Syntax(L, reader, "Testing");
 //		while (syntax.token != TK_EOS){

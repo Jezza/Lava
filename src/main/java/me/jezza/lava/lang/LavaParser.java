@@ -1,6 +1,5 @@
 package me.jezza.lava.lang;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -21,9 +20,7 @@ import me.jezza.lava.lang.ast.Tree.FunctionName;
 import me.jezza.lava.lang.ast.Tree.FunctionStatement;
 import me.jezza.lava.lang.ast.Tree.Goto;
 import me.jezza.lava.lang.ast.Tree.IfBlock;
-import me.jezza.lava.lang.ast.Tree.IndexField;
 import me.jezza.lava.lang.ast.Tree.Label;
-import me.jezza.lava.lang.ast.Tree.ListField;
 import me.jezza.lava.lang.ast.Tree.Literal;
 import me.jezza.lava.lang.ast.Tree.LocalFunction;
 import me.jezza.lava.lang.ast.Tree.LocalStatement;
@@ -35,6 +32,7 @@ import me.jezza.lava.lang.ast.Tree.TableConstructor;
 import me.jezza.lava.lang.ast.Tree.TableField;
 import me.jezza.lava.lang.ast.Tree.UnaryOp;
 import me.jezza.lava.lang.ast.Tree.Varargs;
+import me.jezza.lava.lang.ast.Tree.Variable;
 import me.jezza.lava.lang.ast.Tree.WhileLoop;
 import me.jezza.lava.lang.base.AbstractParser;
 import me.jezza.lava.lang.interfaces.Lexer;
@@ -45,17 +43,6 @@ import me.jezza.lava.lang.interfaces.Lexer;
 public final class LavaParser extends AbstractParser {
 	public LavaParser(Lexer lexer) {
 		super(lexer);
-	}
-
-	public static void main(String[] args) throws IOException {
-//		LavaLexer lexer = new LavaLexer("x, (1)[test] = 4");
-		LavaLexer lexer = new LavaLexer(new File("C:\\Users\\Jezza\\Desktop\\JavaProjects\\TempShit\\binarytrees.lua"));
-		LavaParser parser = new LavaParser(lexer);
-
-		long start = System.nanoTime();
-		Block chunk = parser.chunk();
-		long end = System.nanoTime();
-		System.out.println(end - start);
 	}
 
 	public Block chunk() throws IOException {
@@ -69,7 +56,6 @@ public final class LavaParser extends AbstractParser {
 		List<Statement> statements = new ArrayList<>();
 		Statement statement;
 		while (!blockFollowing(current().type)) {
-			match(';');
 			statement = statement();
 			match(';');
 			if (statement == null)
@@ -79,7 +65,7 @@ public final class LavaParser extends AbstractParser {
 				break;
 			}
 		}
-		return new Block(wrap(statements));
+		return new Block(statements);
 	}
 
 	public Label label() throws IOException {
@@ -118,10 +104,10 @@ public final class LavaParser extends AbstractParser {
 				return new Break();
 			case Tokens.RETURN:
 				consume();
-				if (blockFollowing(current().type) || match(';')) {
-					return new ReturnStatement(new ExpressionList(Collections.emptyList()));
-				}
-				return new ReturnStatement(expressionList());
+				final ExpressionList expressions = blockFollowing(current().type) || match(';')
+						? new ExpressionList(Collections.emptyList())
+						: expressionList();
+				return new ReturnStatement(expressions);
 
 			case ':':
 				return label();
@@ -140,8 +126,10 @@ public final class LavaParser extends AbstractParser {
 			do {
 				names.add(name());
 			} while (match(','));
-			Expression expression = match('=') ? expressionList() : new ExpressionList(Collections.emptyList());
-			return new LocalStatement(wrap(names), expression);
+			ExpressionList expression = match('=')
+					? expressionList()
+					: new ExpressionList(Collections.emptyList());
+			return new LocalStatement(names, expression);
 		}
 	}
 
@@ -158,7 +146,7 @@ public final class LavaParser extends AbstractParser {
 		while (match('.'))
 			names.add(name());
 		String self = match(':') ? name() : null;
-		return new FunctionName(first, wrap(names), self);
+		return new FunctionName(first, names, self);
 	}
 
 	private FunctionBody functionBody() throws IOException {
@@ -168,7 +156,7 @@ public final class LavaParser extends AbstractParser {
 			parameterList = parameterList();
 			consume(')');
 		} else {
-			parameterList = null;
+			parameterList = new ParameterList(Collections.emptyList(), false);
 		}
 		Block body = block();
 		consume(Tokens.END);
@@ -176,21 +164,20 @@ public final class LavaParser extends AbstractParser {
 	}
 
 	private ParameterList parameterList() throws IOException {
-		List<String> nameList = nameList();
+		List<String> args = nameList();
 		boolean varargs = match(Tokens.DOTS);
-		return new ParameterList(nameList, varargs);
+		return new ParameterList(args, varargs);
 	}
 
 	private List<String> nameList() throws IOException {
-		// SIDE EFFECT
 		List<String> names = new ArrayList<>();
 		do {
-			// TODO: 08/06/2017 Just temp
+			// @TODO Jezza - 08 Jun 2017: Just temp
 			if (lookahead(Tokens.DOTS))
 				break;
 			names.add(name());
 		} while (match(','));
-		return wrap(names);
+		return names;
 	}
 
 	private String name() throws IOException {
@@ -314,87 +301,68 @@ public final class LavaParser extends AbstractParser {
 			consume(']');
 			consume('=');
 			Expression value = expression();
-			return new IndexField(key, value);
+			return new TableField(key, value);
 		} else if (current.type == Tokens.NAMESPACE) {
-			if (peek(1).type == '=') {
-				Expression key = new Literal(Tokens.NAMESPACE, consume().text);
+			String name = name();
+			if (current().type == '=') {
+				Expression key = new Literal(Tokens.NAMESPACE, name);
 				consume('=');
 				Expression value = expression();
-				return new IndexField(key, value);
+				return new TableField(key, value);
 			} else {
-				Expression key = new Literal(Tokens.NAMESPACE, consume().text);
-				return new ListField(key);
+				Expression value = new Literal(Tokens.NAMESPACE, name);
+				return new TableField(null, value);
 			}
 		} else {
 			Expression value = expression();
-			return new ListField(value);
+			return new TableField(null, value);
 		}
 	}
 
-	public Expression expressionList() throws IOException {
+	public ExpressionList expressionList() throws IOException {
 		Expression first = expression();
 		if (!match(','))
-			return first;
+			return new ExpressionList(Collections.singletonList(first));
 		List<Expression> expressions = new ArrayList<>();
 		expressions.add(first);
 		do {
 			expressions.add(expression());
 		} while (match(','));
-		return new ExpressionList(wrap(expressions));
+		return new ExpressionList(expressions);
 	}
-
-	public static final int OPR_ADD = 0;
-	public static final int OPR_SUB = 1;
-	public static final int OPR_MUL = 2;
-	public static final int OPR_DIV = 3;
-	public static final int OPR_MOD = 4;
-	public static final int OPR_POW = 5;
-	public static final int OPR_CONCAT = 6;
-	public static final int OPR_NE = 7;
-	public static final int OPR_EQ = 8;
-	public static final int OPR_LT = 9;
-	public static final int OPR_LE = 10;
-	public static final int OPR_GT = 11;
-	public static final int OPR_GE = 12;
-	public static final int OPR_AND = 13;
-	public static final int OPR_OR = 14;
-
-	public static final int OPR_MINUS = 0;
-	public static final int OPR_NOT = 1;
-	public static final int OPR_LEN = 2;
 
 	private static int binaryOp(int type) {
 		switch (type) {
 			case '+':
-				return OPR_ADD;
+				return BinaryOp.OPR_ADD;
 			case '-':
-				return OPR_SUB;
+				return BinaryOp.OPR_SUB;
 			case '*':
-				return OPR_MUL;
+				return BinaryOp.OPR_MUL;
 			case '/':
-				return OPR_DIV;
+				return BinaryOp.OPR_DIV;
 			case '%':
-				return OPR_MOD;
+				return BinaryOp.OPR_MOD;
 			case '^':
-				return OPR_POW;
+				return BinaryOp.OPR_POW;
 			case Tokens.CONCAT:
-				return OPR_CONCAT;
+				return BinaryOp.OPR_CONCAT;
 			case Tokens.NE:
-				return OPR_NE;
+				return BinaryOp.OPR_NE;
 			case Tokens.EQ:
-				return OPR_EQ;
+				return BinaryOp.OPR_EQ;
 			case '<':
-				return OPR_LT;
+				return BinaryOp.OPR_LT;
 			case Tokens.LE:
-				return OPR_LE;
+				return BinaryOp.OPR_LE;
 			case '>':
-				return OPR_GT;
+				return BinaryOp.OPR_GT;
 			case Tokens.GE:
-				return OPR_GE;
+				return BinaryOp.OPR_GE;
 			case Tokens.AND:
-				return OPR_AND;
+				return BinaryOp.OPR_AND;
 			case Tokens.OR:
-				return OPR_OR;
+				return BinaryOp.OPR_OR;
 			default:
 				return -1;
 		}
@@ -402,11 +370,11 @@ public final class LavaParser extends AbstractParser {
 
 	private static int unaryOp(int type) {
 		if (type == '-') {
-			return OPR_MINUS;
+			return UnaryOp.OPR_MINUS;
 		} else if (type == Tokens.NOT) {
-			return OPR_NOT;
+			return UnaryOp.OPR_NOT;
 		} else if (type == '#') {
-			return OPR_LEN;
+			return UnaryOp.OPR_LEN;
 		} else {
 			return -1;
 		}
@@ -492,7 +460,7 @@ public final class LavaParser extends AbstractParser {
 			consume(')');
 			return expression;
 		} else if (type == Tokens.NAMESPACE) {
-			return new Literal(Tokens.NAMESPACE, token.text);
+			return new Variable(token.text);
 		} else {
 			throw new IllegalStateException("Syntax: " + token);
 		}
@@ -520,8 +488,7 @@ public final class LavaParser extends AbstractParser {
 	private Expression primaryExpression() throws IOException {
 		List<Expression> expressions = new ArrayList<>();
 		// NAME | '(' expr ')'
-		Expression prefix = variable();
-		expressions.add(prefix);
+		expressions.add(variable());
 		while (true) {
 			switch (current().type) {
 				case '.': {  // field
@@ -552,7 +519,9 @@ public final class LavaParser extends AbstractParser {
 					expressions.add(functionCall);
 					break;
 				default:
-					return expressions.size() == 1 ? expressions.get(0) : new ExpressionList(expressions);
+					return expressions.size() == 1
+							? expressions.get(0)
+							: new ExpressionList(expressions);
 			}
 		}
 	}
@@ -561,18 +530,21 @@ public final class LavaParser extends AbstractParser {
 		Expression primary = primaryExpression();
 		// Assignment or function call
 		if (primary instanceof FunctionCall) {
-			return new Assignment(null, primary);
+			return new Assignment(null, new ExpressionList(Collections.singletonList(primary)));
 		} else {
+			final ExpressionList leftSide;
 			if (match(',')) {
 				List<Expression> expressions = new ArrayList<>();
 				expressions.add(primary);
 				do {
 					expressions.add(primaryExpression());
 				} while (match(','));
-				primary = new ExpressionList(expressions);
+				leftSide = new ExpressionList(expressions);
+			} else {
+				leftSide = new ExpressionList(Collections.singletonList(primary));
 			}
 			consume('=');
-			return new Assignment(primary, expressionList());
+			return new Assignment(leftSide, expressionList());
 		}
 	}
 
@@ -582,17 +554,5 @@ public final class LavaParser extends AbstractParser {
 				|| type == Tokens.END
 				|| type == Tokens.EOS
 				|| type == Tokens.UNTIL;
-	}
-
-	public static <T> List<T> wrap(List<T> in) {
-		if (in == null || in.isEmpty()) {
-			return Collections.emptyList();
-		} else if (in.size() == 1) {
-			return Collections.singletonList(in.get(0));
-		} else {
-			if (in instanceof ArrayList)
-				((ArrayList<?>) in).trimToSize();
-			return Collections.unmodifiableList(in);
-		}
 	}
 }
