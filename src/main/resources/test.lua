@@ -1,4 +1,8 @@
-print("");
+first, second, third = print("Hello?");
+
+print(first);
+print(second);
+print(third);
 
 --[==[
 local test = function()

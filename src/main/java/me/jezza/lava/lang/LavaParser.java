@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.ListIterator;
 
 import me.jezza.lava.lang.ast.Tree.Assignment;
 import me.jezza.lava.lang.ast.Tree.BinaryOp;
@@ -236,7 +237,7 @@ public final class LavaParser extends AbstractParser {
 		if (match(',')) {
 			step = expression();
 		} else {
-			step = new Literal(Tokens.INTEGER, 1);
+			step = new Literal(Literal.INTEGER, 1);
 		}
 		consume(Tokens.DO);
 		Block body = block();
@@ -305,12 +306,12 @@ public final class LavaParser extends AbstractParser {
 		} else if (current.type == Tokens.NAMESPACE) {
 			String name = name();
 			if (current().type == '=') {
-				Expression key = new Literal(Tokens.NAMESPACE, name);
+				Expression key = new Literal(Literal.NAMESPACE, name);
 				consume('=');
 				Expression value = expression();
 				return new TableField(key, value);
 			} else {
-				Expression value = new Literal(Tokens.NAMESPACE, name);
+				Expression value = new Literal(Literal.NAMESPACE, name);
 				return new TableField(null, value);
 			}
 		} else {
@@ -423,22 +424,22 @@ public final class LavaParser extends AbstractParser {
 		switch (current.type) {
 			case Tokens.INTEGER:
 				consume();
-				return new Literal(Tokens.INTEGER, Integer.valueOf(current.text));
+				return new Literal(Literal.INTEGER, Integer.valueOf(current.text));
 			case Tokens.FLOAT:
 				consume();
-				return new Literal(Tokens.FLOAT, Double.valueOf(current.text));
+				return new Literal(Literal.DOUBLE, Double.valueOf(current.text));
 			case Tokens.STRING:
 				consume();
-				return new Literal(Tokens.STRING, current.text);
+				return new Literal(Literal.STRING, current.text);
 			case Tokens.NIL:
 				consume();
-				return new Literal(Tokens.NIL, null);
+				return new Literal(Literal.NIL, null);
 			case Tokens.TRUE:
 				consume();
-				return new Literal(Tokens.TRUE, Boolean.TRUE);
+				return new Literal(Literal.TRUE, Boolean.TRUE);
 			case Tokens.FALSE:
 				consume();
-				return new Literal(Tokens.FALSE, Boolean.FALSE);
+				return new Literal(Literal.FALSE, Boolean.FALSE);
 			case Tokens.DOTS:
 				consume();
 				return new Varargs();
@@ -452,7 +453,7 @@ public final class LavaParser extends AbstractParser {
 		}
 	}
 
-	private Expression variable() throws IOException {
+	private Expression prefix() throws IOException {
 		Token token = consume();
 		int type = token.type;
 		if (type == '(') {
@@ -460,7 +461,7 @@ public final class LavaParser extends AbstractParser {
 			consume(')');
 			return expression;
 		} else if (type == Tokens.NAMESPACE) {
-			return new Variable(token.text);
+			return new Literal(Literal.NAMESPACE, token.text);
 		} else {
 			throw new IllegalStateException("Syntax: " + token);
 		}
@@ -488,7 +489,7 @@ public final class LavaParser extends AbstractParser {
 	private Expression primaryExpression() throws IOException {
 		List<Expression> expressions = new ArrayList<>();
 		// NAME | '(' expr ')'
-		expressions.add(variable());
+		expressions.add(prefix());
 		while (true) {
 			switch (current().type) {
 				case '.': {  // field
@@ -519,6 +520,13 @@ public final class LavaParser extends AbstractParser {
 					expressions.add(functionCall);
 					break;
 				default:
+					ListIterator<Expression> it = expressions.listIterator();
+					while (it.hasNext()) {
+						Expression expression = it.next();
+						if (expression instanceof Literal && ((Literal) expression).type == Literal.NAMESPACE) {
+							it.set(new Variable((String) ((Literal) expression).value));
+						}
+					}
 					return expressions.size() == 1
 							? expressions.get(0)
 							: new ExpressionList(expressions);

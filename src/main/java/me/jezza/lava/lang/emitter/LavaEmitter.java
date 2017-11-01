@@ -6,7 +6,6 @@ import java.util.List;
 
 import me.jezza.lava.lang.LavaLexer;
 import me.jezza.lava.lang.LavaParser;
-import me.jezza.lava.lang.Tokens;
 import me.jezza.lava.lang.ast.Tree.Assignment;
 import me.jezza.lava.lang.ast.Tree.BinaryOp;
 import me.jezza.lava.lang.ast.Tree.Block;
@@ -61,6 +60,8 @@ public final class LavaEmitter implements PVisitor<Scope> {
 		int top;
 		int results;
 
+		int maxStackSize;
+
 		public Scope(String name) {
 			this(name, null);
 		}
@@ -71,6 +72,13 @@ public final class LavaEmitter implements PVisitor<Scope> {
 			this.w = new ByteCodeWriter();
 			this.pool = new ConstantPool();
 			locals = new ConstantPool();
+		}
+
+		public void reserve(int count) {
+			top += count;
+			if (top > maxStackSize) {
+				maxStackSize = top;
+			}
 		}
 
 		public int registerLocal(String name) {
@@ -84,10 +92,11 @@ public final class LavaEmitter implements PVisitor<Scope> {
 		public LuaChunk build() {
 			LuaChunk chunk = new LuaChunk(name);
 			chunk.constants = pool.build();
-			if (w.get(w.mark()) != OpCodes.RET) {
-				w.write1(OpCodes.RET);
+			if (w.mark() == 0 || w.get(w.mark() - 1) != OpCodes.RET) {
+				w.write2(OpCodes.RET, 0);
 			}
 			chunk.code = w.code();
+			chunk.maxStackSize = maxStackSize;
 			// chunk.chunks = chunks.toArray(new LuaChunk[0]);
 			return chunk;
 		}
@@ -101,6 +110,8 @@ public final class LavaEmitter implements PVisitor<Scope> {
 
 	@Override
 	public Void visitFunctionCall(FunctionCall value, Scope scope) {
+		int top = scope.top;
+
 		// Load args
 		value.args.visit(this, scope);
 		// Load function
@@ -112,6 +123,7 @@ public final class LavaEmitter implements PVisitor<Scope> {
 					? ((ExpressionList) value.args).list.size()
 					: 1;
 		scope.w.write2(OpCodes.CALL, count, scope.results);
+		scope.top = top + scope.results;
 		return null;
 	}
 
@@ -137,9 +149,19 @@ public final class LavaEmitter implements PVisitor<Scope> {
 		} else {
 			List<Expression> lhs = value.lhs.list;
 			List<Expression> rhs = value.rhs.list;
-
+			// first, second = first(second), second(first);
+			//
+			// old_second = second;
+			// old_first = first;
+			// first = first(second);
+			// second = second(old_first);
+			//
+			//
+			int results = scope.results;
 			int ls = lhs.size();
 			int rs = rhs.size();
+			scope.results = ls;
+			// scope.reserve(ls);
 			if (ls > rs) {
 				for (int i = 0; i < ls; i++) {
 					if (i >= rs) {
@@ -156,6 +178,7 @@ public final class LavaEmitter implements PVisitor<Scope> {
 					lhs.get(i).visit(this, scope);
 				}
 			}
+			scope.results = results;
 		}
 		return null;
 	}
@@ -180,8 +203,12 @@ public final class LavaEmitter implements PVisitor<Scope> {
 			List<String> lhs = value.lhs;
 			List<Expression> rhs = value.rhs.list;
 
+			int results = scope.results;
+
 			int ls = lhs.size();
 			int rs = rhs.size();
+			scope.results = ls;
+			// scope.reserve(ls);
 			if (ls > rs) {
 				for (int i = 0; i < ls; i++) {
 					if (i >= rs) {
@@ -198,6 +225,7 @@ public final class LavaEmitter implements PVisitor<Scope> {
 					move(lhs.get(i), scope);
 				}
 			}
+			scope.results = results;
 		}
 		return null;
 	}
@@ -336,21 +364,21 @@ public final class LavaEmitter implements PVisitor<Scope> {
 	@Override
 	public Void visitLiteral(Literal value, Scope scope) {
 		ByteCodeWriter w = scope.w;
-		if (value.type == Tokens.NAMESPACE) {
+		if (value.type == Literal.NAMESPACE) {
 			String name = (String) value.value;
-			Scope current = scope;
-			while (current != null) {
-				int index = current.locals.add(name);
-				if (index != -1) {
-					// TODO: 18/06/2017 Upvalues should be added here.
-					if (current != scope)
-						throw new IllegalStateException("Upvalues aren't supported: " + name);
-					w.write1(OpCodes.CONST1, index);
-					scope.top++;
-					return null;
-				}
-				current = current.previous;
-			}
+//			Scope current = scope;
+//			while (current != null) {
+//				int index = current.locals.add(name);
+//				if (index != -1) {
+//					// TODO: 18/06/2017 Upvalues should be added here.
+//					if (current != scope)
+//						throw new IllegalStateException("Upvalues aren't supported: " + name);
+//					w.write1(OpCodes.CONST1, index);
+//					scope.top++;
+//					return null;
+//				}
+//				current = current.previous;
+//			}
 			int index = scope.pool.add(name);
 			w.write1(OpCodes.CONST1, index);
 			w.write1(OpCodes.GET_GLOBAL);
@@ -411,5 +439,9 @@ public final class LavaEmitter implements PVisitor<Scope> {
 		System.out.println("Emitter: " + emitterTime);
 		System.out.println("Total: " + (parserTime + visitorTime + emitterTime));
 		return emitted;
+	}
+
+	public static File resolve(String name) {
+		return new File(ROOT, name);
 	}
 }

@@ -206,6 +206,8 @@ final class FuncState {
 	}
 
 	/**
+	 * Ensure that expression 'e' is not a variable.
+	 * <p>
 	 * Equivalent to luaK_dischargevars.
 	 */
 	void kDischargevars(Expdesc e) {
@@ -254,6 +256,8 @@ final class FuncState {
 
 	/**
 	 * Equivalent to luaK_exp2nextreg.
+	 * <p>
+	 * Ensures final expression result (including results from its jump lists) is in next available register.
 	 */
 	void kExp2nextreg(Expdesc e) {
 		kDischargevars(e);
@@ -429,6 +433,8 @@ final class FuncState {
 
 	/**
 	 * Equivalent to luaK_reserveregs.
+	 * <p>
+	 * Reserve 'n' registers in register stack
 	 */
 	void kReserveregs(int n) {
 		kCheckstack(n);
@@ -640,9 +646,17 @@ final class FuncState {
 		e.nonreloc(reg);
 	}
 
+	/**
+	 * Ensures final expression result (including results
+	 * from its jump lists) is in register 'reg'.
+	 * <p>
+	 * If expression has jumps, need to patch these jumps
+	 * either to its final position or to "load" instructions
+	 * (for those tests that do not produce values).
+	 */
 	private void exp2reg(Expdesc e, int reg) {
 		discharge2reg(e, reg);
-		if (e.k == Expdesc.VJMP) {
+		if (e.k == Expdesc.VJMP) { /* expression itself is a test? */
 			e.t = kConcat(e.t, e.info);  /* put this jump in `t' list */
 		}
 		if (e.hasjumps()) {
@@ -654,9 +668,9 @@ final class FuncState {
 				p_t = code_label(reg, 1, 0);
 				kPatchtohere(fj);
 			}
-			int finalpos = kGetlabel(); /* position after whole expression */
-			patchlistaux(e.f, finalpos, reg, p_f);
-			patchlistaux(e.t, finalpos, reg, p_t);
+			int finalPos = kGetlabel(); /* position after whole expression */
+			patchlistaux(e.f, finalPos, reg, p_f);
+			patchlistaux(e.t, finalPos, reg, p_t);
 		}
 		e.init(Expdesc.VNONRELOC, reg);
 	}
@@ -680,6 +694,9 @@ final class FuncState {
 		return false;  /* not found */
 	}
 
+	/**
+	 * Free register used by expression 'e' (if any)
+	 */
 	private void freeexp(Expdesc e) {
 		if (e.kind() == Expdesc.VNONRELOC) {
 			freereg(e.info);
@@ -741,6 +758,9 @@ final class FuncState {
 	}
 
 	/**
+	 * Concatenate jump-list 'l2' into jump-list 'l1'
+	 * <p>
+	 * <p>
 	 * Equivalent to <code>luaK_concat</code>.
 	 * l1 was an int*, now passing back as result.
 	 */
@@ -760,6 +780,10 @@ final class FuncState {
 	}
 
 	/**
+	 * Path all jumps in 'list' to jump to 'target'.
+	 * (The assert means that we cannot fix a jump to a forward address
+	 * because we only know addresses once code is generated.)
+	 *
 	 * Equivalent to <code>luaK_patchlist</code>.
 	 */
 	void kPatchlist(int list, int target) {
@@ -771,8 +795,7 @@ final class FuncState {
 		}
 	}
 
-	private void patchlistaux(int list, int vtarget, int reg,
-							  int dtarget) {
+	private void patchlistaux(int list, int vtarget, int reg, int dtarget) {
 		while (list != NO_JUMP) {
 			int next = getjump(list);
 			if (patchtestreg(list, reg))
@@ -978,8 +1001,8 @@ final class FuncState {
 			case Expdesc.V_NIL:
 				if (nConstants <= Lua.MAXINDEXRK)    /* constant fit in RK operand? */ {
 					e.info = (e.k == Expdesc.V_NIL) ? nilK() :
-							(e.k == Expdesc.V_CONSTANT_NUMBER) ? kNumberK(e.nval) :
-									boolK(e.k == Expdesc.V_TRUE);
+							 (e.k == Expdesc.V_CONSTANT_NUMBER) ? kNumberK(e.nval) :
+							 boolK(e.k == Expdesc.V_TRUE);
 					e.k = Expdesc.V_CONSTANT;
 					return e.info | Lua.BITRK;
 				}
@@ -991,7 +1014,7 @@ final class FuncState {
 			default:
 				break;
 		}
-    	/* not a constant in the right range: put it in a register */
+		/* not a constant in the right range: put it in a register */
 		return kExp2anyreg(e);
 	}
 
@@ -1089,7 +1112,7 @@ final class FuncState {
 				pc--;  /* remove previous OP_NOT */
 				return condjump(Lua.OP_TEST, Lua.ARGB(ie), 0, cond ? 0 : 1);
 			}
-      /* else go through */
+	  /* else go through */
 		}
 		discharge2anyreg(e);
 		freeexp(e);

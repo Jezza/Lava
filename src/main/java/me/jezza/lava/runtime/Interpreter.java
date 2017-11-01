@@ -140,13 +140,15 @@ public final class Interpreter {
 
 	void stackBuff(StackFrame frame, int count) {
 		stackCheck(frame.top + count);
-		frame.top += count;
+		final Object[] stack = this.stack;
+		while (--count >= 0)
+			stack[frame.top++] = NIL;
 	}
 
 	void stackShrink(StackFrame frame, int count) {
+		final Object[] stack = this.stack;
 		while (--count >= 0)
 			stack[frame.top--] = NIL;
-//		frame.top -= count;
 	}
 
 	Object stackPop(StackFrame frame) {
@@ -196,11 +198,23 @@ public final class Interpreter {
 	StackFrame framePop() {
 		StackFrame lastFrame = frames[--frameIndex];
 		frames[frameIndex] = null;
-		if (lastFrame.results != 0) {
+		int expected = lastFrame.expected; // Math.min(lastFrame.results, lastFrame.top - frame.top);
+		if (expected != 0) {
 			StackFrame frame = currentFrame();
-			int results = lastFrame.results; // Math.min(lastFrame.results, lastFrame.top - frame.top);
-			System.arraycopy(stack, lastFrame.top - results, stack, frame.top, lastFrame.results);
-			frame.top += results;
+			int results = lastFrame.results;
+			if (results == 0) {
+				stackBuff(frame, expected);
+			} else {
+//				int diff = expected - (lastFrame.top - frame.top);
+//				if (diff > 0) {
+//					stackBuff(frame, diff);
+//				} else {
+//					throw new IllegalStateException("");
+				System.arraycopy(stack, (lastFrame.top - results) + expected - 1, stack, frame.top, lastFrame.results);
+				frame.top += expected;
+//				}
+//				stackBuff(frame, expected - lastFrame.top - frame.top);
+			}
 			// Null out elements that no longer have an associated frame.
 			for (int i = frame.top; i < lastFrame.top; i++)
 				stack[i] = NIL;
@@ -213,8 +227,7 @@ public final class Interpreter {
 		if (DEBUG_MODE) {
 			next.invokeExact(this, frame, OpCodes.DEBUG);
 		} else {
-			byte op = frame.decode1();
-			next.invokeExact(this, frame, op);
+			next.invokeExact(this, frame, frame.decode1());
 		}
 	}
 
@@ -299,17 +312,20 @@ public final class Interpreter {
 
 	private void CALL(StackFrame frame) throws Throwable {
 		int params = frame.decode2();
-		int results = frame.decode2();
+		int expected = frame.decode2();
 		Object o = stackPop(frame);
 		if (o instanceof Callback) {
 			StackFrame newFrame = newFrame();
 			newFrame.top = frame.top;
 			frame.top -= params;
 			newFrame.base = frame.top;
-			newFrame.results = Math.min(((Callback) o).call(this, newFrame), results);
+			newFrame.expected = expected;
+			newFrame.results = ((Callback) o).call(this, newFrame);
+
 			DEBUG(null);
 			// TODO: 29/05/2017 Support frame reordering
 			framePop();
+			DEBUG(null);
 		} else if (o instanceof LuaChunk) {
 			LuaChunk chunk = (LuaChunk) o;
 			int expectedCount = chunk.paramCount;
@@ -333,14 +349,16 @@ public final class Interpreter {
 
 			frame.top -= Math.min(params, expectedCount);
 			newFrame.base = frame.top;
-			newFrame.results = results;
+			newFrame.expected = expected;
 		} else {
 			throw new IllegalStateException("Expected call object on stack, but got: " + o);
 		}
 	}
 
 	private void RET(StackFrame frame) throws Throwable {
+		int returned = frame.decode2();
 		if (frameIndex > 1) {
+			frame.results = returned;
 			framePop();
 		} else {
 			status = 1;
@@ -398,8 +416,10 @@ public final class Interpreter {
 		int parameters = frame.top - frame.base;
 		for (int i = 0; i < parameters; i++)
 			System.out.println(interpreter.stackPop(frame));
-//		interpreter.stackPush(frame, "Native!");
-		return 0;
+		interpreter.stackPush(frame, "First");
+		interpreter.stackPush(frame, "Second");
+		interpreter.stackPush(frame, "Third");
+		return 3;
 	}
 
 	private static int nativeAdd(Interpreter interpreter, StackFrame frame) {
@@ -566,7 +586,9 @@ public final class Interpreter {
 		private int base;
 		private int top;
 
+		private int expected;
 		private int results;
+
 //		private int tailcalls;
 
 		private int pc;
@@ -602,6 +624,8 @@ public final class Interpreter {
 		public final String name;
 
 		public int paramCount;
+
+		public int maxStackSize;
 
 		public byte[] code;
 		public Object[] constants;

@@ -374,6 +374,14 @@ public abstract class Tree {
 	}
 
 	public static final class Literal extends Expression {
+		public static final int INTEGER = 1;
+		public static final int DOUBLE = 2;
+		public static final int STRING = 3;
+		public static final int TRUE = 4;
+		public static final int FALSE = 5;
+		public static final int NAMESPACE = 6;
+		public static final int NIL = 7;
+
 		public int type;
 		public Object value;
 

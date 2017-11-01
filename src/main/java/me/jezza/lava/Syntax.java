@@ -23,10 +23,14 @@
  */
 package me.jezza.lava;
 
+import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.Reader;
-import java.io.StringReader;
+import java.nio.file.Files;
 import java.util.HashMap;
+
+import me.jezza.lava.lang.emitter.LavaEmitter;
 
 
 /**
@@ -759,8 +763,11 @@ final class Syntax {
 
 		Lua L = new Lua();
 //		StringReader reader = new StringReader("local files = {[\"A.lua\"] = \"\"}");
-		StringReader reader = new StringReader("local t='';local test = 'asd';" +
-				"test = 'fff';");
+//		StringReader reader = new StringReader("" +
+//				"first, second, third = print();\n");
+		File file = LavaEmitter.resolve("test.lua");
+		FileReader reader = new FileReader(file);
+
 
 //		FileReader reader = new FileReader(new File("C:\\Users\\Jezza\\Desktop\\JavaProjects\\Lava\\src\\test\\resources\\all.lua"));
 //		Syntax syntax = new Syntax(L, reader, "Testing");
@@ -772,6 +779,19 @@ final class Syntax {
 		Proto proto = parser(L, reader, "chunkName");
 		long end = System.nanoTime();
 		System.out.println(end - start);
+
+		L.setGlobal("print", (LuaJavaCallback) L_ -> {
+			int n = L_.getTop();
+			for (int i = 0; i < n; i++) {
+				System.out.println(L.checkString(n));
+			}
+			L_.push("first");
+			L_.push("second");
+			L_.push("third");
+			return 3;
+		});
+
+		L.doString(new String(Files.readAllBytes(file.toPath())));
 	}
 
 	private void removevars(int tolevel) {
