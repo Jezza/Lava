@@ -1,6 +1,30 @@
 package me.jezza.lava.lang.interfaces;
 
-import me.jezza.lava.lang.ast.Tree.*;
+import me.jezza.lava.lang.ast.ParseTree.Assignment;
+import me.jezza.lava.lang.ast.ParseTree.BinaryOp;
+import me.jezza.lava.lang.ast.ParseTree.Block;
+import me.jezza.lava.lang.ast.ParseTree.Break;
+import me.jezza.lava.lang.ast.ParseTree.DoBlock;
+import me.jezza.lava.lang.ast.ParseTree.ExpressionList;
+import me.jezza.lava.lang.ast.ParseTree.ForList;
+import me.jezza.lava.lang.ast.ParseTree.ForLoop;
+import me.jezza.lava.lang.ast.ParseTree.FunctionBody;
+import me.jezza.lava.lang.ast.ParseTree.FunctionCall;
+import me.jezza.lava.lang.ast.ParseTree.Goto;
+import me.jezza.lava.lang.ast.ParseTree.IfBlock;
+import me.jezza.lava.lang.ast.ParseTree.Label;
+import me.jezza.lava.lang.ast.ParseTree.Literal;
+import me.jezza.lava.lang.ast.ParseTree.LocalFunction;
+import me.jezza.lava.lang.ast.ParseTree.LocalStatement;
+import me.jezza.lava.lang.ast.ParseTree.ParameterList;
+import me.jezza.lava.lang.ast.ParseTree.RepeatBlock;
+import me.jezza.lava.lang.ast.ParseTree.ReturnStatement;
+import me.jezza.lava.lang.ast.ParseTree.TableConstructor;
+import me.jezza.lava.lang.ast.ParseTree.TableField;
+import me.jezza.lava.lang.ast.ParseTree.UnaryOp;
+import me.jezza.lava.lang.ast.ParseTree.Varargs;
+import me.jezza.lava.lang.ast.ParseTree.Variable;
+import me.jezza.lava.lang.ast.ParseTree.WhileLoop;
 
 /**
  * @author Jezza
@@ -19,10 +43,6 @@ public interface Visitor<P, R> {
 	R visitLocalStatement(LocalStatement value, P userObject);
 
 	R visitLocalFunction(LocalFunction value, P userObject);
-
-	R visitFunctionStatement(FunctionStatement value, P userObject);
-
-	R visitFunctionName(FunctionName value, P userObject);
 
 	R visitFunctionBody(FunctionBody value, P userObject);
 

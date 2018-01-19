@@ -10,7 +10,7 @@ import me.jezza.lava.lang.interfaces.Visitor.RVisitor;
 /**
  * @author Jezza
  */
-public abstract class Tree {
+public abstract class ParseTree {
 	private static final int TYPE_BLOCK = 0;
 	private static final int TYPE_LABEL = 1;
 	private static final int TYPE_BREAK = 2;
@@ -21,9 +21,7 @@ public abstract class Tree {
 	private static final int TYPE_IF_BLOCK = 7;
 	private static final int TYPE_FOR_LOOP = 8;
 	private static final int TYPE_FOR_LIST = 9;
-	private static final int TYPE_FUNCTION_NAME = 10;
 	private static final int TYPE_FUNCTION_BODY = 11;
-	private static final int TYPE_FUNCTION_STATEMENT = 12;
 	private static final int TYPE_LOCAL_FUNCTION = 13;
 	private static final int TYPE_LOCAL_STATEMENT = 14;
 	private static final int TYPE_RETURN_STATEMENT = 15;
@@ -41,7 +39,7 @@ public abstract class Tree {
 
 	private final int type;
 
-	Tree(int type) {
+	ParseTree(int type) {
 		this.type = type;
 	}
 
@@ -84,12 +82,8 @@ public abstract class Tree {
 				return visitor.visitForLoop((ForLoop) this, userObject);
 			case TYPE_FOR_LIST:
 				return visitor.visitForList((ForList) this, userObject);
-			case TYPE_FUNCTION_NAME:
-				return visitor.visitFunctionName((FunctionName) this, userObject);
 			case TYPE_FUNCTION_BODY:
 				return visitor.visitFunctionBody((FunctionBody) this, userObject);
-			case TYPE_FUNCTION_STATEMENT:
-				return visitor.visitFunctionStatement((FunctionStatement) this, userObject);
 			case TYPE_LOCAL_FUNCTION:
 				return visitor.visitLocalFunction((LocalFunction) this, userObject);
 			case TYPE_LOCAL_STATEMENT:
@@ -123,13 +117,13 @@ public abstract class Tree {
 		}
 	}
 
-	public abstract static class Statement extends Tree {
+	public abstract static class Statement extends ParseTree {
 		Statement(int type) {
 			super(type);
 		}
 	}
 
-	public abstract static class Expression extends Tree {
+	public abstract static class Expression extends ParseTree {
 		Expression(int type) {
 			super(type);
 		}
@@ -243,19 +237,6 @@ public abstract class Tree {
 		}
 	}
 
-	public static final class FunctionName extends Statement {
-		public String first;
-		public List<String> nested;
-		public String self;
-
-		public FunctionName(String first, List<String> nested, String self) {
-			super(TYPE_FUNCTION_NAME);
-			this.first = first;
-			this.nested = nested;
-			this.self = self;
-		}
-	}
-
 	public static final class FunctionBody extends Expression {
 		public ParameterList parameterList;
 		public Block body;
@@ -263,17 +244,6 @@ public abstract class Tree {
 		public FunctionBody(ParameterList parameterList, Block body) {
 			super(TYPE_FUNCTION_BODY);
 			this.parameterList = parameterList;
-			this.body = body;
-		}
-	}
-
-	public static final class FunctionStatement extends Statement {
-		public FunctionName name;
-		public FunctionBody body;
-
-		public FunctionStatement(FunctionName name, FunctionBody body) {
-			super(TYPE_FUNCTION_STATEMENT);
-			this.name = name;
 			this.body = body;
 		}
 	}

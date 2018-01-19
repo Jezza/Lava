@@ -54,7 +54,7 @@ public final class LavaLexer extends AbstractLexer implements Lexer {
 				switch (c) {
 					case '-': {
 						if (peek() != '-')
-							return token('-', c, pos);
+							return token('-', pos, "-");
 						advance();
 						if (peek() != '[') {
 							// Line comment, scan until EOS or EOL
@@ -71,32 +71,32 @@ public final class LavaLexer extends AbstractLexer implements Lexer {
 					case '[': {
 						int count = skipSeparator(c);
 						if (count < 0)
-							return token('[', '[', pos);
+							return token('[', pos, "[");
 						return readLongString(pos, true, count);
 					}
 					case '=': {
 						if (peek() != '=')
-							return token('=', '=', pos);
+							return token('=', pos, "=");
 						advance();
-						return token(Tokens.EQ, "==", pos);
+						return token(Tokens.EQ, pos, "==");
 					}
 					case '<': {
 						if (peek() != '=')
-							return token('<', '<', pos);
+							return token('<', pos, "<");
 						advance();
-						return token(Tokens.LE, "<=", pos);
+						return token(Tokens.LE, pos, "<=");
 					}
 					case '>': {
 						if (peek() != '=')
-							return token('>', '>', pos);
+							return token('>', pos, ">");
 						advance();
-						return token(Tokens.GE, ">=", pos);
+						return token(Tokens.GE, pos, ">=");
 					}
 					case '~': {
 						if (peek() != '=')
-							return token('~', '~', pos);
+							return token('~', pos, "~");
 						advance();
-						return token(Tokens.NE, "~=", pos);
+						return token(Tokens.NE, pos, "~=");
 					}
 					case '"':
 					case '\'': {
@@ -107,10 +107,10 @@ public final class LavaLexer extends AbstractLexer implements Lexer {
 						if (p == '.') {
 							advance();
 							if (peek() == '.')
-								return token(Tokens.DOTS, "...", pos);
-							return token(Tokens.CONCAT, "..", pos);
+								return token(Tokens.DOTS, pos, "...");
+							return token(Tokens.CONCAT, pos, "..");
 						} else if (!Character.isDigit(p)) {
-							return token('.', '.', pos);
+							return token('.', pos, ".");
 						}
 						return readNumber(pos, c);
 					}
@@ -137,57 +137,57 @@ public final class LavaLexer extends AbstractLexer implements Lexer {
 							String s = text.toString();
 							switch (s) {
 								case "and":
-									return token(Tokens.AND, s, pos);
+									return token(Tokens.AND, pos, s);
 								case "break":
-									return token(Tokens.BREAK, s, pos);
+									return token(Tokens.BREAK, pos, s);
 								case "do":
-									return token(Tokens.DO, s, pos);
+									return token(Tokens.DO, pos, s);
 								case "else":
-									return token(Tokens.ELSE, s, pos);
+									return token(Tokens.ELSE, pos, s);
 								case "elseif":
-									return token(Tokens.ELSEIF, s, pos);
+									return token(Tokens.ELSEIF, pos, s);
 								case "end":
-									return token(Tokens.END, s, pos);
+									return token(Tokens.END, pos, s);
 								case "false":
-									return token(Tokens.FALSE, s, pos);
+									return token(Tokens.FALSE, pos, s);
 								case "for":
-									return token(Tokens.FOR, s, pos);
+									return token(Tokens.FOR, pos, s);
 								case "function":
-									return token(Tokens.FUNCTION, s, pos);
+									return token(Tokens.FUNCTION, pos, s);
 								case "goto":
-									return token(Tokens.GOTO, s, pos);
+									return token(Tokens.GOTO, pos, s);
 								case "if":
-									return token(Tokens.IF, s, pos);
+									return token(Tokens.IF, pos, s);
 								case "in":
-									return token(Tokens.IN, s, pos);
+									return token(Tokens.IN, pos, s);
 								case "local":
-									return token(Tokens.LOCAL, s, pos);
+									return token(Tokens.LOCAL, pos, s);
 								case "nil":
-									return token(Tokens.NIL, s, pos);
+									return token(Tokens.NIL, pos, s);
 								case "not":
-									return token(Tokens.NOT, s, pos);
+									return token(Tokens.NOT, pos, s);
 								case "or":
-									return token(Tokens.OR, s, pos);
+									return token(Tokens.OR, pos, s);
 								case "repeat":
-									return token(Tokens.REPEAT, s, pos);
+									return token(Tokens.REPEAT, pos, s);
 								case "return":
-									return token(Tokens.RETURN, s, pos);
+									return token(Tokens.RETURN, pos, s);
 								case "then":
-									return token(Tokens.THEN, s, pos);
+									return token(Tokens.THEN, pos, s);
 								case "true":
-									return token(Tokens.TRUE, s, pos);
+									return token(Tokens.TRUE, pos, s);
 								case "until":
-									return token(Tokens.UNTIL, s, pos);
+									return token(Tokens.UNTIL, pos, s);
 								case "while":
-									return token(Tokens.WHILE, s, pos);
+									return token(Tokens.WHILE, pos, s);
 								default:
-									return token(Tokens.NAMESPACE, s, pos);
+									return token(Tokens.NAMESPACE, pos, s);
 							}
 //						} finally {
 //							NAMESPACE.add(System.nanoTime() - startW);
 //						}
 						}
-						return token(c, c, pos);
+						return token(c, pos, String.valueOf((char) c));
 				}
 			}
 			return Token.EOS;
@@ -217,8 +217,9 @@ public final class LavaLexer extends AbstractLexer implements Lexer {
 		final int first;
 		final int second;
 		if (hex) {
-			first = 'P';
-			second = 'p';
+			throw new IllegalStateException("Hex literal not yet implemented.");
+//			first = 'P';
+//			second = 'p';
 		} else {
 			first = 'E';
 			second = 'e';
@@ -246,7 +247,7 @@ public final class LavaLexer extends AbstractLexer implements Lexer {
 			}
 			c = peek();
 		}
-		return token(integer ? Tokens.INTEGER : Tokens.FLOAT, text.toString(), pos);
+		return token(integer ? Tokens.INTEGER : Tokens.FLOAT, pos, text.toString());
 //		} finally {
 //			NUMBER.add(System.nanoTime() - star2t);
 //		}
@@ -309,7 +310,7 @@ public final class LavaLexer extends AbstractLexer implements Lexer {
 				case '"':
 				case '\'':
 					if (c == style)
-						return token(Tokens.STRING, text.toString(), pos);
+						return token(Tokens.STRING, pos, text.toString());
 				default:
 					text.append((char) c);
 			}
@@ -334,7 +335,7 @@ public final class LavaLexer extends AbstractLexer implements Lexer {
 			if (c == ']') {
 				if (skipSeparator(c) == count) {
 					advance();
-					return isString ? token(Tokens.STRING, text.toString(), pos) : null;
+					return isString ? token(Tokens.STRING, pos, text.toString()) : null;
 				}
 			} else if (isString)
 				text.append((char) c);
@@ -362,12 +363,8 @@ public final class LavaLexer extends AbstractLexer implements Lexer {
 //		}
 	}
 
-	protected static Token token(int type, int c, int[] pos) {
-		return token(type, String.valueOf((char) c), pos);
-	}
-
-	protected static Token token(int type, String text, int[] pos) {
-		return new Token(type, text, pos[0], pos[1]);
+	protected static Token token(int type, int[] pos, String text) {
+		return new Token(type, pos[0], pos[1], text);
 	}
 
 	public static void main(String[] args) throws IOException {

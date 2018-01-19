@@ -30,7 +30,7 @@ import java.io.Reader;
 import java.nio.file.Files;
 import java.util.HashMap;
 
-import me.jezza.lava.lang.emitter.LavaEmitter;
+import me.jezza.lava.lang.Main;
 
 
 /**
@@ -765,7 +765,7 @@ final class Syntax {
 //		StringReader reader = new StringReader("local files = {[\"A.lua\"] = \"\"}");
 //		StringReader reader = new StringReader("" +
 //				"first, second, third = print();\n");
-		File file = LavaEmitter.resolve("test.lua");
+		File file = Main.resolve("test.lua");
 		FileReader reader = new FileReader(file);
 
 

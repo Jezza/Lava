@@ -4,37 +4,33 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.ListIterator;
 
-import me.jezza.lava.lang.ast.Tree.Assignment;
-import me.jezza.lava.lang.ast.Tree.BinaryOp;
-import me.jezza.lava.lang.ast.Tree.Block;
-import me.jezza.lava.lang.ast.Tree.Break;
-import me.jezza.lava.lang.ast.Tree.DoBlock;
-import me.jezza.lava.lang.ast.Tree.Expression;
-import me.jezza.lava.lang.ast.Tree.ExpressionList;
-import me.jezza.lava.lang.ast.Tree.ForList;
-import me.jezza.lava.lang.ast.Tree.ForLoop;
-import me.jezza.lava.lang.ast.Tree.FunctionBody;
-import me.jezza.lava.lang.ast.Tree.FunctionCall;
-import me.jezza.lava.lang.ast.Tree.FunctionName;
-import me.jezza.lava.lang.ast.Tree.FunctionStatement;
-import me.jezza.lava.lang.ast.Tree.Goto;
-import me.jezza.lava.lang.ast.Tree.IfBlock;
-import me.jezza.lava.lang.ast.Tree.Label;
-import me.jezza.lava.lang.ast.Tree.Literal;
-import me.jezza.lava.lang.ast.Tree.LocalFunction;
-import me.jezza.lava.lang.ast.Tree.LocalStatement;
-import me.jezza.lava.lang.ast.Tree.ParameterList;
-import me.jezza.lava.lang.ast.Tree.RepeatBlock;
-import me.jezza.lava.lang.ast.Tree.ReturnStatement;
-import me.jezza.lava.lang.ast.Tree.Statement;
-import me.jezza.lava.lang.ast.Tree.TableConstructor;
-import me.jezza.lava.lang.ast.Tree.TableField;
-import me.jezza.lava.lang.ast.Tree.UnaryOp;
-import me.jezza.lava.lang.ast.Tree.Varargs;
-import me.jezza.lava.lang.ast.Tree.Variable;
-import me.jezza.lava.lang.ast.Tree.WhileLoop;
+import me.jezza.lava.lang.ast.ParseTree.Assignment;
+import me.jezza.lava.lang.ast.ParseTree.BinaryOp;
+import me.jezza.lava.lang.ast.ParseTree.Block;
+import me.jezza.lava.lang.ast.ParseTree.Break;
+import me.jezza.lava.lang.ast.ParseTree.DoBlock;
+import me.jezza.lava.lang.ast.ParseTree.Expression;
+import me.jezza.lava.lang.ast.ParseTree.ExpressionList;
+import me.jezza.lava.lang.ast.ParseTree.ForList;
+import me.jezza.lava.lang.ast.ParseTree.ForLoop;
+import me.jezza.lava.lang.ast.ParseTree.FunctionBody;
+import me.jezza.lava.lang.ast.ParseTree.FunctionCall;
+import me.jezza.lava.lang.ast.ParseTree.Goto;
+import me.jezza.lava.lang.ast.ParseTree.IfBlock;
+import me.jezza.lava.lang.ast.ParseTree.Label;
+import me.jezza.lava.lang.ast.ParseTree.Literal;
+import me.jezza.lava.lang.ast.ParseTree.LocalFunction;
+import me.jezza.lava.lang.ast.ParseTree.LocalStatement;
+import me.jezza.lava.lang.ast.ParseTree.ParameterList;
+import me.jezza.lava.lang.ast.ParseTree.RepeatBlock;
+import me.jezza.lava.lang.ast.ParseTree.ReturnStatement;
+import me.jezza.lava.lang.ast.ParseTree.Statement;
+import me.jezza.lava.lang.ast.ParseTree.TableConstructor;
+import me.jezza.lava.lang.ast.ParseTree.TableField;
+import me.jezza.lava.lang.ast.ParseTree.UnaryOp;
+import me.jezza.lava.lang.ast.ParseTree.Varargs;
+import me.jezza.lava.lang.ast.ParseTree.WhileLoop;
 import me.jezza.lava.lang.base.AbstractParser;
 import me.jezza.lava.lang.interfaces.Lexer;
 
@@ -96,7 +92,6 @@ public final class LavaParser extends AbstractParser {
 				return whileLoop();
 			case Tokens.FOR:
 				return forLoop();
-
 			case Tokens.END:
 				consume();
 				return null;
@@ -134,20 +129,15 @@ public final class LavaParser extends AbstractParser {
 		}
 	}
 
-	public FunctionStatement functionStatement() throws IOException {
+	public Statement functionStatement() throws IOException {
 		consume(Tokens.FUNCTION);
-		FunctionName name = functionName();
+		List<Expression> names = new ArrayList<>();
+		do {
+			names.add(new Literal(Literal.NAMESPACE, name()));
+		} while (match('.'));
+		ExpressionList prefix = new ExpressionList(names);
 		FunctionBody body = functionBody();
-		return new FunctionStatement(name, body);
-	}
-
-	private FunctionName functionName() throws IOException {
-		String first = name();
-		List<String> names = new ArrayList<>();
-		while (match('.'))
-			names.add(name());
-		String self = match(':') ? name() : null;
-		return new FunctionName(first, names, self);
+		return new Assignment(prefix, new ExpressionList(List.of(body)));
 	}
 
 	private FunctionBody functionBody() throws IOException {
@@ -323,7 +313,7 @@ public final class LavaParser extends AbstractParser {
 	public ExpressionList expressionList() throws IOException {
 		Expression first = expression();
 		if (!match(','))
-			return new ExpressionList(Collections.singletonList(first));
+			return new ExpressionList(List.of(first));
 		List<Expression> expressions = new ArrayList<>();
 		expressions.add(first);
 		do {
@@ -494,7 +484,7 @@ public final class LavaParser extends AbstractParser {
 			switch (current().type) {
 				case '.': {  // field
 					consume();
-					expressions.add(new Literal(Tokens.NAMESPACE, name()));
+					expressions.add(new Literal(Literal.NAMESPACE, name()));
 					// chain field
 					break;
 				}
@@ -520,13 +510,13 @@ public final class LavaParser extends AbstractParser {
 					expressions.add(functionCall);
 					break;
 				default:
-					ListIterator<Expression> it = expressions.listIterator();
-					while (it.hasNext()) {
-						Expression expression = it.next();
-						if (expression instanceof Literal && ((Literal) expression).type == Literal.NAMESPACE) {
-							it.set(new Variable((String) ((Literal) expression).value));
-						}
-					}
+//					ListIterator<Expression> it = expressions.listIterator();
+//					while (it.hasNext()) {
+//						Expression expression = it.next();
+//						if (expression instanceof Literal && ((Literal) expression).type == Literal.NAMESPACE) {
+//							it.set(new Variable((String) ((Literal) expression).value));
+//						}
+//					}
 					return expressions.size() == 1
 							? expressions.get(0)
 							: new ExpressionList(expressions);
@@ -548,8 +538,10 @@ public final class LavaParser extends AbstractParser {
 					expressions.add(primaryExpression());
 				} while (match(','));
 				leftSide = new ExpressionList(expressions);
+			} else if (primary instanceof ExpressionList){
+				leftSide = ((ExpressionList) primary);
 			} else {
-				leftSide = new ExpressionList(Collections.singletonList(primary));
+				leftSide = new ExpressionList(List.of(primary));
 			}
 			consume('=');
 			return new Assignment(leftSide, expressionList());

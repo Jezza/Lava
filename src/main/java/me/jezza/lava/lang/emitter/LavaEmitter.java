@@ -1,43 +1,36 @@
 package me.jezza.lava.lang.emitter;
 
-import java.io.File;
-import java.io.IOException;
 import java.util.List;
 
-import me.jezza.lava.lang.LavaLexer;
-import me.jezza.lava.lang.LavaParser;
-import me.jezza.lava.lang.ast.Tree.Assignment;
-import me.jezza.lava.lang.ast.Tree.BinaryOp;
-import me.jezza.lava.lang.ast.Tree.Block;
-import me.jezza.lava.lang.ast.Tree.Break;
-import me.jezza.lava.lang.ast.Tree.DoBlock;
-import me.jezza.lava.lang.ast.Tree.Expression;
-import me.jezza.lava.lang.ast.Tree.ExpressionList;
-import me.jezza.lava.lang.ast.Tree.ForList;
-import me.jezza.lava.lang.ast.Tree.ForLoop;
-import me.jezza.lava.lang.ast.Tree.FunctionBody;
-import me.jezza.lava.lang.ast.Tree.FunctionCall;
-import me.jezza.lava.lang.ast.Tree.FunctionName;
-import me.jezza.lava.lang.ast.Tree.FunctionStatement;
-import me.jezza.lava.lang.ast.Tree.Goto;
-import me.jezza.lava.lang.ast.Tree.IfBlock;
-import me.jezza.lava.lang.ast.Tree.Label;
-import me.jezza.lava.lang.ast.Tree.Literal;
-import me.jezza.lava.lang.ast.Tree.LocalFunction;
-import me.jezza.lava.lang.ast.Tree.LocalStatement;
-import me.jezza.lava.lang.ast.Tree.ParameterList;
-import me.jezza.lava.lang.ast.Tree.RepeatBlock;
-import me.jezza.lava.lang.ast.Tree.ReturnStatement;
-import me.jezza.lava.lang.ast.Tree.Statement;
-import me.jezza.lava.lang.ast.Tree.TableConstructor;
-import me.jezza.lava.lang.ast.Tree.TableField;
-import me.jezza.lava.lang.ast.Tree.UnaryOp;
-import me.jezza.lava.lang.ast.Tree.Varargs;
-import me.jezza.lava.lang.ast.Tree.Variable;
-import me.jezza.lava.lang.ast.Tree.WhileLoop;
+import me.jezza.lava.lang.ast.ParseTree.Assignment;
+import me.jezza.lava.lang.ast.ParseTree.BinaryOp;
+import me.jezza.lava.lang.ast.ParseTree.Block;
+import me.jezza.lava.lang.ast.ParseTree.Break;
+import me.jezza.lava.lang.ast.ParseTree.DoBlock;
+import me.jezza.lava.lang.ast.ParseTree.Expression;
+import me.jezza.lava.lang.ast.ParseTree.ExpressionList;
+import me.jezza.lava.lang.ast.ParseTree.ForList;
+import me.jezza.lava.lang.ast.ParseTree.ForLoop;
+import me.jezza.lava.lang.ast.ParseTree.FunctionBody;
+import me.jezza.lava.lang.ast.ParseTree.FunctionCall;
+import me.jezza.lava.lang.ast.ParseTree.Goto;
+import me.jezza.lava.lang.ast.ParseTree.IfBlock;
+import me.jezza.lava.lang.ast.ParseTree.Label;
+import me.jezza.lava.lang.ast.ParseTree.Literal;
+import me.jezza.lava.lang.ast.ParseTree.LocalFunction;
+import me.jezza.lava.lang.ast.ParseTree.LocalStatement;
+import me.jezza.lava.lang.ast.ParseTree.ParameterList;
+import me.jezza.lava.lang.ast.ParseTree.RepeatBlock;
+import me.jezza.lava.lang.ast.ParseTree.ReturnStatement;
+import me.jezza.lava.lang.ast.ParseTree.Statement;
+import me.jezza.lava.lang.ast.ParseTree.TableConstructor;
+import me.jezza.lava.lang.ast.ParseTree.TableField;
+import me.jezza.lava.lang.ast.ParseTree.UnaryOp;
+import me.jezza.lava.lang.ast.ParseTree.Varargs;
+import me.jezza.lava.lang.ast.ParseTree.Variable;
+import me.jezza.lava.lang.ast.ParseTree.WhileLoop;
 import me.jezza.lava.lang.emitter.LavaEmitter.Scope;
 import me.jezza.lava.lang.interfaces.Visitor.PVisitor;
-import me.jezza.lava.runtime.Interpreter;
 import me.jezza.lava.runtime.Interpreter.LuaChunk;
 import me.jezza.lava.runtime.OpCodes;
 
@@ -45,9 +38,9 @@ import me.jezza.lava.runtime.OpCodes;
  * @author Jezza
  */
 public final class LavaEmitter implements PVisitor<Scope> {
-	public static void main(String[] args) throws Throwable {
-		LuaChunk chunk = nom("test.lua");
-		Interpreter.test(chunk);
+
+	public static LuaChunk emit(String name, Block block) {
+		throw new IllegalStateException();
 	}
 
 	static final class Scope {
@@ -236,16 +229,6 @@ public final class LavaEmitter implements PVisitor<Scope> {
 	}
 
 	@Override
-	public Void visitFunctionStatement(FunctionStatement value, Scope scope) {
-		throw new IllegalStateException("NYI");
-	}
-
-	@Override
-	public Void visitFunctionName(FunctionName value, Scope scope) {
-		throw new IllegalStateException("NYI");
-	}
-
-	@Override
 	public Void visitFunctionBody(FunctionBody value, Scope scope) {
 		Scope local = scope.newScope("local");
 		ParameterList params = value.parameterList;
@@ -409,39 +392,5 @@ public final class LavaEmitter implements PVisitor<Scope> {
 	@Override
 	public Void visitTableField(TableField value, Scope scope) {
 		throw new IllegalStateException("NYI");
-	}
-
-	private static final File ROOT = new File("C:\\Users\\Jezza\\Desktop\\JavaProjects\\Lava\\src\\main\\resources");
-
-	private static LuaChunk nom(String name) throws IOException {
-		LavaLexer lexer = new LavaLexer(new File(ROOT, name));
-//		LavaLexer lexer = new LavaLexer(new File("C:\\Users\\Jezza\\Desktop\\JavaProjects\\Lava\\src\\test\\resources\\SyntaxTest10.lua"));
-		LavaParser parser = new LavaParser(lexer);
-
-		long start = System.nanoTime();
-		Block chunk = parser.chunk();
-		long end = System.nanoTime();
-		long parserTime = end - start;
-		System.out.println("AST: " + parserTime);
-
-		LavaEmitter emitter = new LavaEmitter();
-		Scope scope = new Scope(name);
-		start = System.nanoTime();
-		chunk.visit(emitter, scope);
-		end = System.nanoTime();
-		long visitorTime = end - start;
-		System.out.println("Visitor: " + visitorTime);
-
-		start = System.nanoTime();
-		LuaChunk emitted = scope.build();
-		end = System.nanoTime();
-		long emitterTime = end - start;
-		System.out.println("Emitter: " + emitterTime);
-		System.out.println("Total: " + (parserTime + visitorTime + emitterTime));
-		return emitted;
-	}
-
-	public static File resolve(String name) {
-		return new File(ROOT, name);
 	}
 }
