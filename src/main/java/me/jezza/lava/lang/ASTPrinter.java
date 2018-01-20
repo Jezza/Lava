@@ -116,6 +116,7 @@ public final class ASTPrinter implements EVisitor {
 
 	@Override
 	public Void visitAssignment(Assignment value, Void userObject) {
+		indent();
 		if (value.lhs != null) {
 			value.lhs.visit(this);
 			text.append(" = ");
@@ -127,7 +128,7 @@ public final class ASTPrinter implements EVisitor {
 	@Override
 	public Void visitFunctionCall(FunctionCall value, Void userObject) {
 		indent();
-		visit(value.prefix.iterator(), "[", "]");
+		value.prefix.visit(this);
 		if (value.name != null) {
 			text.append(':').append(value.name);
 		}
@@ -150,7 +151,6 @@ public final class ASTPrinter implements EVisitor {
 		join(value.lhs.iterator(), ", ");
 		text.append(" = ");
 		value.rhs.visit(this);
-		text.append(';');
 		return null;
 	}
 
@@ -160,28 +160,9 @@ public final class ASTPrinter implements EVisitor {
 		return null;
 	}
 
-//	@Override
-//	public Void visitFunctionStatement(FunctionStatement value, Void userObject) {
-//		indent();
-//		value.name.visit(this);
-//		value.body.visit(this);
-//		return null;
-//	}
-//
-//	@Override
-//	public Void visitFunctionName(FunctionName value, Void userObject) {
-//		text.append(value.first);
-//		if (!value.nested.isEmpty()) {
-//			for (String name : value.nested) {
-//				text.append(',').append(name);
-//			}
-//		}
-//		return null;
-//	}
-
 	@Override
 	public Void visitFunctionBody(FunctionBody value, Void userObject) {
-		text.append(" function (");
+		text.append(" function(");
 		value.parameterList.visit(this);
 		text.append(')');
 		text.append(" ");
@@ -239,7 +220,20 @@ public final class ASTPrinter implements EVisitor {
 
 	@Override
 	public Void visitIfBlock(IfBlock value, Void userObject) {
-		text.append("if");
+		indent();
+		text.append("if (");
+		value.condition.visit(this);
+		text.append(") then ");
+		value.thenPart.visit(this);
+		if (value.elsePart != null) {
+			text.append('\n');
+			indent();
+			text.append("else");
+			text.append('\n');
+			value.elsePart.visit(this);
+		}
+		indent();
+		text.append("end\n");
 		return null;
 	}
 
@@ -269,7 +263,65 @@ public final class ASTPrinter implements EVisitor {
 
 	@Override
 	public Void visitBinaryOp(BinaryOp value, Void userObject) {
-		text.append("binary");
+		boolean indexed = value.op == BinaryOp.OPR_INDEXED;
+
+		value.left.visit(this);
+		switch (value.op) {
+			case BinaryOp.OPR_ADD:
+				text.append(" + ");
+				break;
+			case BinaryOp.OPR_SUB:
+				text.append(" - ");
+				break;
+			case BinaryOp.OPR_MUL:
+				text.append(" * ");
+				break;
+			case BinaryOp.OPR_DIV:
+				text.append(" / ");
+				break;
+			case BinaryOp.OPR_MOD:
+				text.append(" & ");
+				break;
+			case BinaryOp.OPR_POW:
+				text.append(" ^ ");
+				break;
+			case BinaryOp.OPR_CONCAT:
+				text.append(" .. ");
+				break;
+			case BinaryOp.OPR_NE:
+				text.append(" ~= ");
+				break;
+			case BinaryOp.OPR_EQ:
+				text.append(" == ");
+				break;
+			case BinaryOp.OPR_LT:
+				text.append(" < ");
+				break;
+			case BinaryOp.OPR_LE:
+				text.append(" <= ");
+				break;
+			case BinaryOp.OPR_GT:
+				text.append(" > ");
+				break;
+			case BinaryOp.OPR_GE:
+				text.append(" >= ");
+				break;
+			case BinaryOp.OPR_AND:
+				text.append(" and ");
+				break;
+			case BinaryOp.OPR_OR:
+				text.append(" or ");
+				break;
+			case BinaryOp.OPR_INDEXED:
+				text.append('[');
+				break;
+			default:
+				throw new IllegalStateException("BinOp: " + value.op);
+		}
+		value.right.visit(this);
+		if (indexed) {
+			text.append(']');
+		}
 		return null;
 	}
 
@@ -301,16 +353,19 @@ public final class ASTPrinter implements EVisitor {
 
 	@Override
 	public Void visitVarargs(Varargs value, Void userObject) {
+		text.append("varargs");
 		return null;
 	}
 
 	@Override
 	public Void visitTableConstructor(TableConstructor value, Void userObject) {
+		text.append("table constructor");
 		return null;
 	}
 
 	@Override
 	public Void visitTableField(TableField value, Void userObject) {
+		text.append("table field");
 		return null;
 	}
 

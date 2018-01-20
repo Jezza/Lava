@@ -192,7 +192,7 @@ public final class TableLib {
 			}
 			if (u - l == 2)
 				break;  // only 3 elements
-			final Object p = Lua.rawGetI(t, i); // Pivot
+			Object p = Lua.rawGetI(t, i); // Pivot
 			o2 = Lua.rawGetI(t, u - 1);
 			L.rawSetI(t, i, o2);
 			L.rawSetI(t, u - 1, p);

@@ -41,7 +41,7 @@ public class CoroutineTest extends AbstractTest {
 	@Test
 	@Library(BaseLib.class)
 	public void test2() throws Exception {
-		final boolean[] yielded = {false};
+		boolean[] yielded = {false};
 		L.push((LuaJavaCallback) L1 -> {
 			System.out.println("Yielding");
 			yielded[0] = true;
@@ -74,7 +74,7 @@ public class CoroutineTest extends AbstractTest {
 	public void test4() throws Exception {
 		Lua L = this.L;
 		loadFileAndFunction();
-		final int n = 4;
+		int n = 4;
 		for (int i = 0; i < n; ++i) {
 			int status = L.resume(0);
 			if (i < n - 1) {

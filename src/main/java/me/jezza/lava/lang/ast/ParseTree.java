@@ -21,21 +21,21 @@ public abstract class ParseTree {
 	private static final int TYPE_IF_BLOCK = 7;
 	private static final int TYPE_FOR_LOOP = 8;
 	private static final int TYPE_FOR_LIST = 9;
-	private static final int TYPE_FUNCTION_BODY = 11;
-	private static final int TYPE_LOCAL_FUNCTION = 13;
-	private static final int TYPE_LOCAL_STATEMENT = 14;
-	private static final int TYPE_RETURN_STATEMENT = 15;
-	private static final int TYPE_PARAMETER_LIST = 16;
-	private static final int TYPE_EXPRESSION_LIST = 17;
-	private static final int TYPE_UNARY_OP = 18;
-	private static final int TYPE_BINARY_OP = 19;
-	private static final int TYPE_LITERAL = 20;
-	private static final int TYPE_VARARGS = 21;
-	private static final int TYPE_FUNCTION_CALL = 22;
-	private static final int TYPE_VARIABLE = 23;
-	private static final int TYPE_ASSIGNMENT = 24;
-	private static final int TYPE_TABLE_CONSTRUCTOR = 25;
-	private static final int TYPE_TABLE_FIELD = 26;
+	private static final int TYPE_FUNCTION_BODY = 10;
+	private static final int TYPE_LOCAL_FUNCTION = 11;
+	private static final int TYPE_LOCAL_STATEMENT = 12;
+	private static final int TYPE_RETURN_STATEMENT = 13;
+	private static final int TYPE_PARAMETER_LIST = 14;
+	private static final int TYPE_EXPRESSION_LIST = 15;
+	private static final int TYPE_UNARY_OP = 16;
+	private static final int TYPE_BINARY_OP = 17;
+	private static final int TYPE_LITERAL = 18;
+	private static final int TYPE_VARARGS = 19;
+	private static final int TYPE_FUNCTION_CALL = 20;
+	private static final int TYPE_VARIABLE = 21;
+	private static final int TYPE_ASSIGNMENT = 22;
+	private static final int TYPE_TABLE_CONSTRUCTOR = 23;
+	private static final int TYPE_TABLE_FIELD = 24;
 
 	private final int type;
 
@@ -318,18 +318,23 @@ public abstract class ParseTree {
 		public static final int OPR_ADD = 0;
 		public static final int OPR_SUB = 2;
 		public static final int OPR_MUL = 4;
-		public static final int OPR_DIV = 8;
-		public static final int OPR_MOD = 10;
-		public static final int OPR_POW = 12;
-		public static final int OPR_CONCAT = 14;
-		public static final int OPR_NE = 16;
-		public static final int OPR_EQ = 18;
-		public static final int OPR_LT = 20;
-		public static final int OPR_LE = 22;
-		public static final int OPR_GT = 24;
-		public static final int OPR_GE = 26;
-		public static final int OPR_AND = 28;
-		public static final int OPR_OR = 30;
+		public static final int OPR_DIV = 6;
+		public static final int OPR_MOD = 8;
+
+		public static final int OPR_POW = 10;
+		public static final int OPR_CONCAT = 12;
+
+		public static final int OPR_NE = 14;
+		public static final int OPR_EQ = 16;
+
+		public static final int OPR_LT = 18;
+		public static final int OPR_LE = 20;
+		public static final int OPR_GT = 22;
+		public static final int OPR_GE = 24;
+
+		public static final int OPR_AND = 26;
+		public static final int OPR_OR = 28;
+		public static final int OPR_INDEXED = 30;
 
 		public int op;
 		public Expression left;
@@ -369,11 +374,11 @@ public abstract class ParseTree {
 	}
 
 	public static final class FunctionCall extends Expression {
-		public List<Expression> prefix;
+		public Expression prefix;
 		public String name;
 		public Expression args;
 
-		public FunctionCall(List<Expression> prefix, final String name, Expression args) {
+		public FunctionCall(Expression prefix, String name, Expression args) {
 			super(TYPE_FUNCTION_CALL);
 			this.prefix = prefix;
 			this.name = name;

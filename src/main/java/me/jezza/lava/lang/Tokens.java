@@ -37,7 +37,7 @@ public final class Tokens {
 	public static final int LE = 98;
 	public static final int NE = 99;
 
-	public static final int FLOAT = 100;
+	public static final int DOUBLE = 100;
 	public static final int INTEGER = 101;
 	public static final int STRING = 102;
 
@@ -106,8 +106,8 @@ public final class Tokens {
 				return "LE";
 			case NE:
 				return "NE";
-			case FLOAT:
-				return "FLOAT";
+			case DOUBLE:
+				return "DOUBLE";
 			case INTEGER:
 				return "INTEGER";
 			case NAMESPACE:

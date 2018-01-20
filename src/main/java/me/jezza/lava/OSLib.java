@@ -84,7 +84,7 @@ public final class OSLib {
 	 * Implements date.
 	 */
 	private static int date(Lua L) {
-		final long t;
+		long t;
 		if (L.isNoneOrNil(2)) {
 			t = System.currentTimeMillis();
 		} else {
@@ -237,7 +237,7 @@ public final class OSLib {
 	 * Implements exit.
 	 */
 	private static int exit(Lua L) {
-		final int status;
+		int status;
 		int type = L.type(1);
 		if (type == Lua.TBOOLEAN) {
 			status = L.checkBoolean(1) ? EXIT_SUCCESS : EXIT_FAILURE;

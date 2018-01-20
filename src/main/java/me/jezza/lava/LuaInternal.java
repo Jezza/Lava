@@ -53,7 +53,7 @@ final class LuaInternal implements LuaJavaCallback {
 	@Override
 	public int luaFunction(Lua L) {
 		try {
-			final Proto p;
+			Proto p;
 
 			// In either the stream or the reader case there is a way of
 			// converting the input to the other type.

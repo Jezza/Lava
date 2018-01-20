@@ -139,13 +139,13 @@ public final class ProtoInterpreter {
 
 	void stackBuff(StackFrame frame, int count) {
 		stackCheck(frame.top + count);
-		final Object[] stack = this.stack;
+		Object[] stack = this.stack;
 		while (--count >= 0)
 			stack[frame.top++] = NIL;
 	}
 
 	void stackShrink(StackFrame frame, int count) {
-		final Object[] stack = this.stack;
+		Object[] stack = this.stack;
 		while (--count >= 0)
 			stack[frame.top--] = NIL;
 	}

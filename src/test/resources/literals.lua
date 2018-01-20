@@ -44,7 +44,7 @@ assert(string.len(b) == 960)
 prog = [=[
 print('+')
 
-a1 = [["isto e' um string com várias 'aspas'"]]
+a1 = [["isto e' um string com vÃ¡rias 'aspas'"]]
 a2 = "'aspas'"
 
 assert(string.find(a1, a2) == 31)

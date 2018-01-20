@@ -3172,7 +3172,7 @@ public final class Lua {
 					case OP_CLOSURE: {
 						Proto p = proto.proto()[ARGBx(i)];
 						int nup = p.nups();
-						final UpVal[] up;
+						UpVal[] up;
 						if (nup > 0) {
 							up = new UpVal[nup];
 							for (int j = 0; j < nup; j++, pc++) {

@@ -54,9 +54,9 @@ public final class LavaParser extends AbstractParser {
 		Statement statement;
 		while (!blockFollowing(current().type)) {
 			statement = statement();
-			match(';');
-			if (statement == null)
-				break;
+			if (statement == null) {
+				continue;
+			}
 			statements.add(statement);
 			if (statement instanceof Break || statement instanceof ReturnStatement) {
 				break;
@@ -92,21 +92,23 @@ public final class LavaParser extends AbstractParser {
 				return whileLoop();
 			case Tokens.FOR:
 				return forLoop();
-			case Tokens.END:
-				consume();
-				return null;
 			case Tokens.BREAK:
 				consume();
+				while (match(';'));
 				return new Break();
 			case Tokens.RETURN:
 				consume();
-				final ExpressionList expressions = blockFollowing(current().type) || match(';')
+				// @CLEANUP Jezza - 20 Jan 2018: This is a bit messy...
+				ExpressionList expressions = blockFollowing(current().type) || match(';')
 						? new ExpressionList(Collections.emptyList())
 						: expressionList();
+				match(';');
 				return new ReturnStatement(expressions);
-
 			case ':':
 				return label();
+			case ';':
+				consume();
+				return null;
 			default:
 				return expressionStatement();
 		}
@@ -131,44 +133,43 @@ public final class LavaParser extends AbstractParser {
 
 	public Statement functionStatement() throws IOException {
 		consume(Tokens.FUNCTION);
-		List<Expression> names = new ArrayList<>();
-		do {
-			names.add(new Literal(Literal.NAMESPACE, name()));
-		} while (match('.'));
-		ExpressionList prefix = new ExpressionList(names);
+		Expression left = new Literal(Literal.NAMESPACE, name());
+		while (match('.')) {
+			left = new BinaryOp(BinaryOp.OPR_INDEXED, left, new Literal(Literal.NAMESPACE, name()));
+		}
+		boolean self = match(':');
+		if (self) {
+			left = new BinaryOp(BinaryOp.OPR_INDEXED, left, new Literal(Literal.NAMESPACE, name()));
+		}
+		ExpressionList prefix = new ExpressionList(List.of(left));
 		FunctionBody body = functionBody();
+		if (self) {
+			body.parameterList.nameList.add(0, "self");
+		}
 		return new Assignment(prefix, new ExpressionList(List.of(body)));
 	}
 
 	private FunctionBody functionBody() throws IOException {
 		consume('(');
-		final ParameterList parameterList;
+		ParameterList parameters;
 		if (!match(')')) {
-			parameterList = parameterList();
+			List<String> names = new ArrayList<>();
+			boolean varargs;
+			do {
+				// @TODO Jezza - 08 Jun 2017: Probably not the best lookahead...
+				if (varargs = match(Tokens.DOTS)) {
+					break;
+				}
+				names.add(name());
+			} while (match(','));
+			parameters = new ParameterList(names, varargs);
 			consume(')');
 		} else {
-			parameterList = new ParameterList(Collections.emptyList(), false);
+			parameters = new ParameterList(new ArrayList<>(), false);
 		}
 		Block body = block();
 		consume(Tokens.END);
-		return new FunctionBody(parameterList, body);
-	}
-
-	private ParameterList parameterList() throws IOException {
-		List<String> args = nameList();
-		boolean varargs = match(Tokens.DOTS);
-		return new ParameterList(args, varargs);
-	}
-
-	private List<String> nameList() throws IOException {
-		List<String> names = new ArrayList<>();
-		do {
-			// @TODO Jezza - 08 Jun 2017: Just temp
-			if (lookahead(Tokens.DOTS))
-				break;
-			names.add(name());
-		} while (match(','));
-		return names;
+		return new FunctionBody(parameters, body);
 	}
 
 	private String name() throws IOException {
@@ -201,7 +202,9 @@ public final class LavaParser extends AbstractParser {
 
 	private Goto gotoStatement() throws IOException {
 		consume(Tokens.GOTO);
-		return new Goto(name());
+		String name = name();
+		while (match(';'));
+		return new Goto(name);
 	}
 
 	private Statement forLoop() throws IOException {
@@ -223,7 +226,7 @@ public final class LavaParser extends AbstractParser {
 		Expression lowerBound = expression();
 		consume(',');
 		Expression upperBound = expression();
-		final Expression step;
+		Expression step;
 		if (match(',')) {
 			step = expression();
 		} else {
@@ -257,8 +260,8 @@ public final class LavaParser extends AbstractParser {
 		Expression condition = expression();
 		consume(Tokens.THEN);
 		Block body = block();
-		final Statement elsePart;
-		if (lookahead(Tokens.ELSEIF)) {
+		Statement elsePart;
+		if (is(Tokens.ELSEIF)) {
 			elsePart = ifBlock0(Tokens.ELSEIF);
 		} else {
 			elsePart = match(Tokens.ELSE)
@@ -271,20 +274,18 @@ public final class LavaParser extends AbstractParser {
 
 	public TableConstructor tableConstructor() throws IOException {
 		consume('{');
-		final List<TableField> fields;
-		if (!match('}')) {
-			fields = new ArrayList<>();
-			do {
-				fields.add(field());
-			} while (match(',') || match(';'));
-			consume('}');
-		} else {
-			fields = Collections.emptyList();
-		}
+		List<TableField> fields = new ArrayList<>();;
+		do {
+			if (is('}')) {
+				break;
+			}
+			fields.add(tableField());
+		} while (match(',') || match(';'));
+		consume('}');
 		return new TableConstructor(fields);
 	}
 
-	public TableField field() throws IOException {
+	public TableField tableField() throws IOException {
 		Token current = current();
 		if (current.type == '[') {
 			consume();
@@ -294,19 +295,24 @@ public final class LavaParser extends AbstractParser {
 			Expression value = expression();
 			return new TableField(key, value);
 		} else if (current.type == Tokens.NAMESPACE) {
-			String name = name();
+			// @CLEANUP Jezza - 20 Jan 2018: Ok, so this is a lovely little hack.
+			// Because we don't treat = as a binary operator, eg, not an expression,
+			// we can attempt to parse an expression, it can return a namespace literal.
+			// Then if the next token is an equal character, we can guess that it was
+			// just a key.
+			// All of this because I couldn't be bothered to implement 2 token lookahead.
+			Expression expression = expression();
 			if (current().type == '=') {
-				Expression key = new Literal(Literal.NAMESPACE, name);
+				if (!(expression instanceof Literal) || ((Literal) expression).type != Literal.NAMESPACE) {
+					throw new IllegalStateException("Assertion invalid. During table construction only ");
+				}
 				consume('=');
 				Expression value = expression();
-				return new TableField(key, value);
-			} else {
-				Expression value = new Literal(Literal.NAMESPACE, name);
-				return new TableField(null, value);
+				return new TableField(expression, value);
 			}
+			return new TableField(null, expression);
 		} else {
-			Expression value = expression();
-			return new TableField(null, value);
+			return new TableField(null, expression());
 		}
 	}
 
@@ -414,10 +420,20 @@ public final class LavaParser extends AbstractParser {
 		switch (current.type) {
 			case Tokens.INTEGER:
 				consume();
-				return new Literal(Literal.INTEGER, Integer.valueOf(current.text));
-			case Tokens.FLOAT:
+				try {
+					Integer value = Integer.valueOf(current.text);
+					return new Literal(Literal.INTEGER, value);
+				} catch (NumberFormatException e) {
+					throw new IllegalStateException("Invalid number: " + current, e);
+				}
+			case Tokens.DOUBLE:
 				consume();
-				return new Literal(Literal.DOUBLE, Double.valueOf(current.text));
+				try {
+					Double value = Double.valueOf(current.text);
+					return new Literal(Literal.DOUBLE, value);
+				} catch (NumberFormatException e) {
+					throw new IllegalStateException("Invalid number: " + current, e);
+				}
 			case Tokens.STRING:
 				consume();
 				return new Literal(Literal.STRING, current.text);
@@ -477,49 +493,36 @@ public final class LavaParser extends AbstractParser {
 	}
 
 	private Expression primaryExpression() throws IOException {
-		List<Expression> expressions = new ArrayList<>();
 		// NAME | '(' expr ')'
-		expressions.add(prefix());
+		Expression left = prefix();
 		while (true) {
 			switch (current().type) {
 				case '.': {  // field
 					consume();
-					expressions.add(new Literal(Literal.NAMESPACE, name()));
-					// chain field
+					Literal right = new Literal(Literal.NAMESPACE, name());
+					left = new BinaryOp(BinaryOp.OPR_INDEXED, left, right);
 					break;
 				}
 				case '[': { // '[' exp ']'
 					consume();
-					expressions.add(expression());
+					Expression right = expression();
+					left = new BinaryOp(BinaryOp.OPR_INDEXED, left, right);
 					consume(']');
 					// chain field
 					break;
 				}
 				case ':':  { // ':' NAME functionArgs
 					consume();
-					FunctionCall functionCall = new FunctionCall(expressions, name(), functionArguments());
-					expressions = new ArrayList<>();
-					expressions.add(functionCall);
+					left = new FunctionCall(left, name(), functionArguments());
 					break;
 				}
 				case '(':
 				case Tokens.STRING:
 				case '{':
-					FunctionCall functionCall = new FunctionCall(expressions, null, functionArguments());
-					expressions = new ArrayList<>();
-					expressions.add(functionCall);
+					left = new FunctionCall(left, null, functionArguments());
 					break;
 				default:
-//					ListIterator<Expression> it = expressions.listIterator();
-//					while (it.hasNext()) {
-//						Expression expression = it.next();
-//						if (expression instanceof Literal && ((Literal) expression).type == Literal.NAMESPACE) {
-//							it.set(new Variable((String) ((Literal) expression).value));
-//						}
-//					}
-					return expressions.size() == 1
-							? expressions.get(0)
-							: new ExpressionList(expressions);
+					return left;
 			}
 		}
 	}
@@ -528,9 +531,9 @@ public final class LavaParser extends AbstractParser {
 		Expression primary = primaryExpression();
 		// Assignment or function call
 		if (primary instanceof FunctionCall) {
-			return new Assignment(null, new ExpressionList(Collections.singletonList(primary)));
+			return new Assignment(null, new ExpressionList(List.of(primary)));
 		} else {
-			final ExpressionList leftSide;
+			ExpressionList leftSide;
 			if (match(',')) {
 				List<Expression> expressions = new ArrayList<>();
 				expressions.add(primary);

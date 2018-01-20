@@ -5,6 +5,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
+import java.util.Arrays;
 
 import me.jezza.lava.Times;
 import me.jezza.lava.lang.base.AbstractLexer;
@@ -56,15 +57,17 @@ public final class LavaLexer extends AbstractLexer implements Lexer {
 						if (peek() != '-')
 							return token('-', pos, "-");
 						advance();
-						if (peek() != '[') {
-							// Line comment, scan until EOS or EOL
-							while ((c = advance()) != EOS && c != '\n') ;
-							pos = this.pos.clone();
-							continue;
+						if (peek() == '[') {
+							// block comment
+							int count = skipSeparator(advance());
+							if (count >= 0) {
+								readLongString(pos, false, count);
+								pos = this.pos.clone();
+								continue;
+							}
 						}
-						// block comment
-						int count = skipSeparator(advance());
-						readLongString(pos, false, count);
+						// Line comment, scan until EOS or EOL
+						while ((c = advance()) != EOS && c != '\n') ;
 						pos = this.pos.clone();
 						continue;
 					}
@@ -106,8 +109,10 @@ public final class LavaLexer extends AbstractLexer implements Lexer {
 						int p = peek();
 						if (p == '.') {
 							advance();
-							if (peek() == '.')
+							if (peek() == '.') {
+								advance();
 								return token(Tokens.DOTS, pos, "...");
+							}
 							return token(Tokens.CONCAT, pos, "..");
 						} else if (!Character.isDigit(p)) {
 							return token('.', pos, ".");
@@ -214,8 +219,8 @@ public final class LavaLexer extends AbstractLexer implements Lexer {
 		text.append((char) start);
 		int c = peek();
 		boolean hex = start == '0' && (c == 'x' || c == 'X');
-		final int first;
-		final int second;
+		int first;
+		int second;
 		if (hex) {
 			throw new IllegalStateException("Hex literal not yet implemented.");
 //			first = 'P';
@@ -224,7 +229,13 @@ public final class LavaLexer extends AbstractLexer implements Lexer {
 			first = 'E';
 			second = 'e';
 		}
-		boolean integer = true;
+		boolean integer = start != '.';
+		// @CLEANUP Jezza - 20 Jan 2018: I don't like doing this here...
+		// Should look into the sideeffects of this, this might make valid numbers
+		// invalid, or invalid numbers valid.
+		if (!integer) {
+			text.append('0');
+		}
 		// Read number from text
 		while (true) {
 			if (c == first || c == second) {
@@ -232,11 +243,17 @@ public final class LavaLexer extends AbstractLexer implements Lexer {
 				text.append((char) c);
 				advance();
 				c = peek();
-				if (c == '+' || c == '-')
+				if (c == '+' || c == '-') {
 					text.append((char) c);
+					advance();
+					c = peek();
+				}
 			}
 			if (Character.isDigit(c)) {
 				text.append((char) c);
+				if (text.length() > 11) {
+					integer = false;
+				}
 				advance();
 			} else if (c == '.') {
 				integer = false;
@@ -247,7 +264,7 @@ public final class LavaLexer extends AbstractLexer implements Lexer {
 			}
 			c = peek();
 		}
-		return token(integer ? Tokens.INTEGER : Tokens.FLOAT, pos, text.toString());
+		return token(integer ? Tokens.INTEGER : Tokens.DOUBLE, pos, text.toString());
 //		} finally {
 //			NUMBER.add(System.nanoTime() - star2t);
 //		}
@@ -288,6 +305,10 @@ public final class LavaLexer extends AbstractLexer implements Lexer {
 						case 'v':
 							text.append((char) 11);
 							continue;
+						case '\r':
+							if (peek() == '\n') {
+								e = advance();
+							}
 						default:
 							if (!Character.isDigit(e)) {
 								text.append((char) e); // handles \\, \", \', \?
@@ -297,7 +318,9 @@ public final class LavaLexer extends AbstractLexer implements Lexer {
 								do {
 									c = 10 * c + (e - '0');
 									e = peek();
-								} while (++i < 3 && Character.isDigit(e = advance()));
+									// @CLEANUP Jezza - 20 Jan 2018: Get rid of that stupid (advance() != Integer.MIN_VALUE)
+									// I only did that because.... I just did, ok?
+								} while (++i < 3 && Character.isDigit(e) && (advance() != Integer.MIN_VALUE));
 								// In unicode, there are no bounds on a 3-digit decimal.
 								text.append((char) c);
 							}
@@ -306,7 +329,7 @@ public final class LavaLexer extends AbstractLexer implements Lexer {
 				}
 				case '\r':
 				case '\n':
-					throw new IllegalArgumentException("Illegal line end on string literal");
+					throw new IllegalArgumentException("Illegal line end on string literal: " + Arrays.toString(pos));
 				case '"':
 				case '\'':
 					if (c == style)
@@ -375,7 +398,7 @@ public final class LavaLexer extends AbstractLexer implements Lexer {
 //		lexer.next();
 //		long ee = System.nanoTime();
 //		System.out.println(ee - ss);
-		final long start = System.nanoTime();
+		long start = System.nanoTime();
 		int count = 0;
 		Token t;
 //		long s = System.nanoTime();
@@ -385,7 +408,7 @@ public final class LavaLexer extends AbstractLexer implements Lexer {
 //			EXTRA.add(e - s);
 //			s = e;
 		}
-		final long end = System.nanoTime();
+		long end = System.nanoTime();
 //		EXTRA.add(end - s);
 		System.out.println(end - start);
 		System.out.println("Count: " + count);

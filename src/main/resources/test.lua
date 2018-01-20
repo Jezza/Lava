@@ -1,3 +1,19 @@
+if type(i) ~= 'number' then return i,'jojo'; end;
+
+assert(string.find("1234567890123456789", "345", 3) == 3)
+
+local num = print(1e-4);
+
+local x = {test = unpack(asd)}
+local x = {unpack(a)}
+
+if (test) then
+	print(test.a or "asd")
+end
+
+first.second[test .. asd]:third("asd");
+
+
 test = {
  a = "asd"
 }
@@ -15,13 +31,15 @@ end
 test:method1("dd")
 test:method2("aa")
 
+first.second:method2("aa")
+first.second.third:method2("aa")
+first.second.third.fourth:method2("aa")
 
+local mal1 = first.second.third.fourth;
+mal1.method2(mal1, "aa");
 
-
-
-
-
-
+-- local mal = ($1);
+-- mal.$2(mal, $*)
 
 first, second, third = print("Hello?");
 

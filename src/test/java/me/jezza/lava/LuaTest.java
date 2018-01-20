@@ -56,8 +56,8 @@ public class LuaTest extends AbstractTest {
 	@Test
 	@Library(None.class)
 	public void testLua2() throws Exception {
-		final Object[] v = new Object[1];
-		final Object MAGIC = new Object();
+		Object[] v = new Object[1];
+		Object MAGIC = new Object();
 		L.push((LuaJavaCallback) L1 -> {
 			v[0] = MAGIC;
 			return 0;

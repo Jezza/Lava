@@ -56,7 +56,7 @@ assert(#"\0\0\0" == 3)
 assert(#"1234567890" == 10)
 
 assert(string.byte("a") == 97)
-assert(string.byte("·") > 127)
+assert(string.byte("√°") > 127)
 assert(string.byte(string.char(255)) == 255)
 assert(string.byte(string.char(0)) == 0)
 assert(string.byte("\0") == 0)
@@ -71,16 +71,16 @@ assert(string.byte("hi", 9, 10) == nil)
 assert(string.byte("hi", 2, 1) == nil)
 assert(string.char() == "")
 assert(string.char(0, 255, 0) == "\0\255\0")
-assert(string.char(0, string.byte("·"), 0) == "\0·\0")
-assert(string.char(string.byte("·l\0Ûu", 1, -1)) == "·l\0Ûu")
-assert(string.char(string.byte("·l\0Ûu", 1, 0)) == "")
-assert(string.char(string.byte("·l\0Ûu", -10, 100)) == "·l\0Ûu")
+assert(string.char(0, string.byte("√°"), 0) == "\0√°\0")
+assert(string.char(string.byte("√°l\0√≥u", 1, -1)) == "√°l\0√≥u")
+assert(string.char(string.byte("√°l\0√≥u", 1, 0)) == "")
+assert(string.char(string.byte("√°l\0√≥u", -10, 100)) == "√°l\0√≥u")
 print('+')
 
 assert(string.upper("ab\0c") == "AB\0C")
 assert(string.lower("\0ABCc%$") == "\0abcc%$")
 assert(string.rep('teste', 0) == '')
-assert(string.rep('tÈs\00tÍ', 2) == 'tÈs\0tÍtÈs\000tÍ')
+assert(string.rep('t√©s\00t√™', 2) == 't√©s\0t√™t√©s\000t√™')
 assert(string.rep('', 10) == '')
 
 assert(string.reverse"" == "")
@@ -101,11 +101,11 @@ assert(tostring(true) == "true")
 assert(tostring(false) == "false")
 print('+')
 
-x = '"Ìlo"\n\\'
-assert(string.format('%q%s', x, x) == '"\\"Ìlo\\"\\\n\\\\""Ìlo"\n\\')
+x = '"√≠lo"\n\\'
+assert(string.format('%q%s', x, x) == '"\\"√≠lo\\"\\\n\\\\""√≠lo"\n\\')
 assert(string.format('%q', "\0") == [["\000"]])
-assert(string.format("\0%c\0%c%x\0", string.byte("·"), string.byte("b"), 140) ==
-              "\0·\0b8c\0")
+assert(string.format("\0%c\0%c%x\0", string.byte("√°"), string.byte("b"), 140) ==
+              "\0√°\0b8c\0")
 assert(string.format('') == "")
 assert(string.format("%c",34)..string.format("%c",48)..string.format("%c",90)..string.format("%c",100) ==
        string.format("%c%c%c%c", 34, 48, 90, 100))
@@ -124,7 +124,7 @@ assert(string.format('"-%20s.20s"', string.rep("%", 2000)) ==
 -- longest number that can be formated
 assert(string.len(string.format('%99.99f', -1e308)) >= 100)
 
-assert(loadstring("return 1\n--coment·rio sem EOL no final")() == 1)
+assert(loadstring("return 1\n--coment√°rio sem EOL no final")() == 1)
 
 
 assert(table.concat{} == "")
@@ -156,16 +156,16 @@ assert(table.concat(a, ",", 4) == "")
 --if not trylocale("collate")  then
 --  print("locale not supported")
 --else
---  assert("alo" < "·lo" and "·lo" < "amo")
+--  assert("alo" < "√°lo" and "√°lo" < "amo")
 --end
 
 --if not trylocale("ctype") then
 --  print("locale not supported")
 --else
---  assert(string.gsub("·ÈÌÛ˙", "%a", "x") == "xxxxx")
---  assert(string.gsub("·¡È…", "%l", "x") == "x¡x…")
---  assert(string.gsub("·¡È…", "%u", "x") == "·xÈx")
---  assert(string.upper"·¡È{xuxu}Á„o" == "¡¡…{XUXU}«√O")
+--  assert(string.gsub("√°√©√≠√≥√∫", "%a", "x") == "xxxxx")
+--  assert(string.gsub("√°√Å√©√â", "%l", "x") == "x√Åx√â")
+--  assert(string.gsub("√°√Å√©√â", "%u", "x") == "√°x√©x")
+--  assert(string.upper"√°√Å√©{xuxu}√ß√£o" == "√Å√Å√â{XUXU}√á√ÉO")
 --end
 
 --os.setlocale("C")

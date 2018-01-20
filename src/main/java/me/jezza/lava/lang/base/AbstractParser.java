@@ -15,7 +15,7 @@ public abstract class AbstractParser {
 
 	private Token current;
 
-	protected AbstractParser(final Lexer lexer) {
+	protected AbstractParser(Lexer lexer) {
 		if (lexer == null)
 			throw new NullPointerException("Lexer cannot be null.");
 		this.lexer = lexer;
@@ -34,7 +34,7 @@ public abstract class AbstractParser {
 		return match;
 	}
 
-	public final boolean lookahead(int type) throws IOException {
+	public final boolean is(int type) throws IOException {
 			return current().type == type;
 	}
 

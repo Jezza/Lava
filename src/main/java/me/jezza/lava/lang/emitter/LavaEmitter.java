@@ -108,9 +108,7 @@ public final class LavaEmitter implements PVisitor<Scope> {
 		// Load args
 		value.args.visit(this, scope);
 		// Load function
-		for (Expression prefix : value.prefix) {
-			prefix.visit(this, scope);
-		}
+		value.prefix.visit(this, scope);
 		// Call function
 		int count = value.args instanceof ExpressionList
 					? ((ExpressionList) value.args).list.size()

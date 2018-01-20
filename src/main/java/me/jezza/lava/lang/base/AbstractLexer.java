@@ -83,7 +83,7 @@ public abstract class AbstractLexer {
 	 * @throws NullPointerException     - If the input is null
 	 * @throws IllegalArgumentException - If the buffer size is not positive.
 	 */
-	protected AbstractLexer(final String input) {
+	protected AbstractLexer(String input) {
 		this(new StringReader(input), DEFAULT_BUFFER_SIZE);
 	}
 
@@ -95,7 +95,7 @@ public abstract class AbstractLexer {
 	 * @throws NullPointerException     - If the input is null
 	 * @throws IllegalArgumentException - If the buffer size is not positive.
 	 */
-	protected AbstractLexer(final String input, final int bufferSize) {
+	protected AbstractLexer(String input, int bufferSize) {
 		this(new StringReader(input), bufferSize);
 	}
 
@@ -111,7 +111,7 @@ public abstract class AbstractLexer {
 	 * @throws NullPointerException     - If the input is null
 	 * @throws IllegalArgumentException - If the buffer size is not positive.
 	 */
-	protected AbstractLexer(final File file) throws FileNotFoundException {
+	protected AbstractLexer(File file) throws FileNotFoundException {
 		this(new FileReader(file), DEFAULT_BUFFER_SIZE);
 	}
 
@@ -128,7 +128,7 @@ public abstract class AbstractLexer {
 	 * @throws NullPointerException     - If the input is null
 	 * @throws IllegalArgumentException - If the buffer size is not positive.
 	 */
-	protected AbstractLexer(final File file, final Charset charset) throws FileNotFoundException {
+	protected AbstractLexer(File file, Charset charset) throws FileNotFoundException {
 		this(new FileInputStream(file), charset, DEFAULT_BUFFER_SIZE);
 	}
 
@@ -146,7 +146,7 @@ public abstract class AbstractLexer {
 	 * @throws NullPointerException     - If the input is null
 	 * @throws IllegalArgumentException - If the buffer size is not positive.
 	 */
-	protected AbstractLexer(final File file, final int bufferSize) throws FileNotFoundException {
+	protected AbstractLexer(File file, int bufferSize) throws FileNotFoundException {
 		this(new FileReader(file), bufferSize);
 	}
 
@@ -164,7 +164,7 @@ public abstract class AbstractLexer {
 	 * @throws NullPointerException     - If the input is null
 	 * @throws IllegalArgumentException - If the buffer size is not positive.
 	 */
-	protected AbstractLexer(final File file, final Charset charset, final int bufferSize) throws FileNotFoundException {
+	protected AbstractLexer(File file, Charset charset, int bufferSize) throws FileNotFoundException {
 		this(new FileInputStream(file), charset, bufferSize);
 	}
 
@@ -177,7 +177,7 @@ public abstract class AbstractLexer {
 	 * @throws NullPointerException     - If the input is null
 	 * @throws IllegalArgumentException - If the buffer size is not positive.
 	 */
-	protected AbstractLexer(final Path path) throws IOException {
+	protected AbstractLexer(Path path) throws IOException {
 		this(Files.newInputStream(path), DEFAULT_BUFFER_SIZE);
 	}
 
@@ -191,7 +191,7 @@ public abstract class AbstractLexer {
 	 * @throws NullPointerException     - If the input is null
 	 * @throws IllegalArgumentException - If the buffer size is not positive.
 	 */
-	protected AbstractLexer(final Path path, final Charset charset) throws IOException {
+	protected AbstractLexer(Path path, Charset charset) throws IOException {
 		this(Files.newInputStream(path), charset, DEFAULT_BUFFER_SIZE);
 	}
 
@@ -206,7 +206,7 @@ public abstract class AbstractLexer {
 	 * @throws NullPointerException     - If the input is null
 	 * @throws IllegalArgumentException - If the buffer size is not positive.
 	 */
-	protected AbstractLexer(final Path path, final int bufferSize) throws IOException {
+	protected AbstractLexer(Path path, int bufferSize) throws IOException {
 		this(Files.newInputStream(path), bufferSize);
 	}
 
@@ -221,7 +221,7 @@ public abstract class AbstractLexer {
 	 * @throws NullPointerException     - If the input is null
 	 * @throws IllegalArgumentException - If the buffer size is not positive.
 	 */
-	protected AbstractLexer(final Path path, final Charset charset, final int bufferSize) throws IOException {
+	protected AbstractLexer(Path path, Charset charset, int bufferSize) throws IOException {
 		this(Files.newInputStream(path), charset, bufferSize);
 	}
 
@@ -233,7 +233,7 @@ public abstract class AbstractLexer {
 	 * @throws NullPointerException     - If the input is null
 	 * @throws IllegalArgumentException - If the buffer size is not positive.
 	 */
-	protected AbstractLexer(final InputStream in) {
+	protected AbstractLexer(InputStream in) {
 		this(new InputStreamReader(in), DEFAULT_BUFFER_SIZE);
 	}
 
@@ -246,7 +246,7 @@ public abstract class AbstractLexer {
 	 * @throws NullPointerException     - If the input is null
 	 * @throws IllegalArgumentException - If the buffer size is not positive.
 	 */
-	protected AbstractLexer(final InputStream in, final Charset charset) {
+	protected AbstractLexer(InputStream in, Charset charset) {
 		this(new InputStreamReader(in, charset), DEFAULT_BUFFER_SIZE);
 	}
 
@@ -260,7 +260,7 @@ public abstract class AbstractLexer {
 	 * @throws NullPointerException     - If the input is null
 	 * @throws IllegalArgumentException - If the buffer size is not positive.
 	 */
-	protected AbstractLexer(final InputStream in, final int bufferSize) {
+	protected AbstractLexer(InputStream in, int bufferSize) {
 		this(new InputStreamReader(in), bufferSize);
 	}
 
@@ -275,7 +275,7 @@ public abstract class AbstractLexer {
 	 * @throws NullPointerException     - If the input is null
 	 * @throws IllegalArgumentException - If the buffer size is not positive.
 	 */
-	protected AbstractLexer(final InputStream in, final Charset charset, final int bufferSize) {
+	protected AbstractLexer(InputStream in, Charset charset, int bufferSize) {
 		this(new InputStreamReader(in, charset), bufferSize);
 	}
 
@@ -287,7 +287,7 @@ public abstract class AbstractLexer {
 	 * @throws NullPointerException     - If the input is null
 	 * @throws IllegalArgumentException - If the buffer size is not positive.
 	 */
-	protected AbstractLexer(final Reader in) {
+	protected AbstractLexer(Reader in) {
 		this(in, DEFAULT_BUFFER_SIZE);
 	}
 
@@ -300,7 +300,7 @@ public abstract class AbstractLexer {
 	 * @throws NullPointerException     - If the input is null
 	 * @throws IllegalArgumentException - If the buffer size is not positive.
 	 */
-	protected AbstractLexer(final Reader in, final int bufferSize) {
+	protected AbstractLexer(Reader in, int bufferSize) {
 		if (in == null)
 			throw new NullPointerException("Input cannot be null.");
 		if (bufferSize < 1)
@@ -339,7 +339,7 @@ public abstract class AbstractLexer {
 				return EOS;
 		} else if (mode == MODE_KILL)
 			return EOS;
-		final int c = buffer[index++];
+		int c = buffer[index++];
 		if (limit != -1 && index >= limit)
 			mode = MODE_KILL;
 		else if (in != null && buffer.length - index == 0)

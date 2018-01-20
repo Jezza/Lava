@@ -34,7 +34,7 @@ public final class Strings {
 	 * <br>
 	 * <i>NOTE: This method is very cheap to call and is highly optimized.</i>
 	 */
-	public static String format(final String original, final Object... objects) {
+	public static String format(String original, Object... objects) {
 		if (original == null)
 			return null;
 		int length = original.length();
@@ -45,11 +45,11 @@ public final class Strings {
 
 		int objectLength = objects.length;
 		int calculatedLength = length;
-		final String[] params = new String[objectLength];
+		String[] params = new String[objectLength];
 		while (--objectLength >= 0) {
-			final Object obj = objects[objectLength];
+			Object obj = objects[objectLength];
 			if (obj != null) {
-				final String param = obj.toString();
+				String param = obj.toString();
 				calculatedLength += param.length();
 				params[objectLength] = param;
 			} else {
@@ -59,9 +59,9 @@ public final class Strings {
 		}
 		objectLength = objects.length;
 
-		final char[] rep = OBJ_REP_CHARS;
-		final int repLength = rep.length;
-		final char[] result = new char[calculatedLength];
+		char[] rep = OBJ_REP_CHARS;
+		int repLength = rep.length;
+		char[] result = new char[calculatedLength];
 		char[] param;
 		original.getChars(0, length, result, 0);
 		for (int i = 0, index = 0, end, paramLength; i < objectLength; i++) {
@@ -95,7 +95,7 @@ public final class Strings {
 	 * @param fromIndex - the index to begin searching from.
 	 * @return - the index that the target array was found at within the source array
 	 */
-	public static int indexOf(final char[] source, final char[] target, final int fromIndex) {
+	public static int indexOf(char[] source, char[] target, int fromIndex) {
 		return indexOf(source, 0, source.length, target, 0, target.length, fromIndex);
 	}
 
@@ -112,7 +112,7 @@ public final class Strings {
 	 * @param fromIndex    - the index to begin searching from.
 	 * @return - the index that the target array was found at within the source array
 	 */
-	public static int indexOf(final char[] source, final int sourceOffset, final int sourceCount, final char[] target, final int targetOffset, final int targetCount, int fromIndex) {
+	public static int indexOf(char[] source, int sourceOffset, int sourceCount, char[] target, int targetOffset, int targetCount, int fromIndex) {
 		if (fromIndex >= sourceCount)
 			return targetCount == 0 ? sourceCount : -1;
 		if (fromIndex < 0)
@@ -120,8 +120,8 @@ public final class Strings {
 		if (targetCount == 0)
 			return fromIndex;
 
-		final char first = target[targetOffset];
-		final int max = sourceOffset + sourceCount - targetCount;
+		char first = target[targetOffset];
+		int max = sourceOffset + sourceCount - targetCount;
 
 		for (int i = sourceOffset + fromIndex; i <= max; i++) {
 			// Look for first character.
@@ -131,7 +131,7 @@ public final class Strings {
 			// Found first character, now look at the rest of v2
 			if (i <= max) {
 				int j = i + 1;
-				final int end = j + targetCount - 1;
+				int end = j + targetCount - 1;
 				for (int k = targetOffset + 1; j < end && source[j] == target[k]; j++, k++) ;
 
 				if (j == end)
@@ -162,11 +162,11 @@ public final class Strings {
 	 * @param transform - The function to apply to the value found between the startKey and the endKey
 	 * @return - The formatted result.
 	 */
-	public static String formatToken(final String input, final String startKey, final String endKey, final Function<String, String> transform) {
-		final int startKeyLength = startKey.length();
-		final int endKeyLength = endKey.length();
+	public static String formatToken(String input, String startKey, String endKey, Function<String, String> transform) {
+		int startKeyLength = startKey.length();
+		int endKeyLength = endKey.length();
 
-		final StringBuilder output = new StringBuilder(input.length());
+		StringBuilder output = new StringBuilder(input.length());
 		int start;
 		int end = -endKeyLength;
 		int diff;
@@ -234,11 +234,11 @@ public final class Strings {
 		return results.toArray(EMPTY);
 	}
 
-	public static String trimSubstring(final String target, int start) {
+	public static String trimSubstring(String target, int start) {
 		return trimSubstring(target, start, target.length());
 	}
 
-	public static String trimSubstring(final String target, int start, int end) {
+	public static String trimSubstring(String target, int start, int end) {
 		if (start < 0)
 			throw new StringIndexOutOfBoundsException(start);
 
@@ -246,12 +246,12 @@ public final class Strings {
 		if (diff < 0)
 			throw new StringIndexOutOfBoundsException(diff);
 		if (diff == 1) {
-			final char c = target.charAt(start);
+			char c = target.charAt(start);
 			return Character.isWhitespace(c) ? "" : String.valueOf(c);
 		}
 
-		final char[] val = target.toCharArray();
-		final int length = val.length;
+		char[] val = target.toCharArray();
+		int length = val.length;
 		if (end > length)
 			throw new StringIndexOutOfBoundsException(end);
 
