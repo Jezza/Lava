@@ -45,7 +45,7 @@ public final class ASTPrinter implements EVisitor {
 	}
 
 	private void indent() {
-		if (text.length() > 0 && text.charAt(text.length() - 1) == '\n') {
+		if (text.length() == 0 || text.charAt(text.length() - 1) == '\n') {
 			for (int i = 0; i < level; i++) {
 				text.append(' ');
 			}
@@ -94,6 +94,7 @@ public final class ASTPrinter implements EVisitor {
 	@Override
 	public Void visitBlock(Block value, Void userObject) {
 		shift(increment);
+		indent();
 		for (Statement statement : value.statements) {
 			statement.visit(this);
 			text.append('\n');
@@ -102,13 +103,6 @@ public final class ASTPrinter implements EVisitor {
 		indent();
 		return null;
 	}
-
-//	@Override
-//	public Void visitVariable(Variable variable, Void userObject) {
-//		indent();
-//		text.append("var ").append(variable.name);
-//		return null;
-//	}
 
 	@Override
 	public Void visitAssignment(Assignment value, Void userObject) {

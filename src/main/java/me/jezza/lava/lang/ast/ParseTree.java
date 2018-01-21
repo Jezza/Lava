@@ -101,8 +101,6 @@ public abstract class ParseTree {
 				return visitor.visitVarargs((Varargs) this, userObject);
 			case TYPE_FUNCTION_CALL:
 				return visitor.visitFunctionCall((FunctionCall) this, userObject);
-//			case TYPE_VARIABLE:
-//				return visitor.visitVariable((Variable) this, userObject);
 			case TYPE_ASSIGNMENT:
 				return visitor.visitAssignment((Assignment) this, userObject);
 			case TYPE_TABLE_CONSTRUCTOR:
@@ -371,15 +369,6 @@ public abstract class ParseTree {
 			this.args = args;
 		}
 	}
-
-//	public static final class Variable extends Expression {
-//		public String name;
-//
-//		public Variable(String name) {
-//			super(TYPE_VARIABLE);
-//			this.name = name;
-//		}
-//	}
 
 	public static final class Assignment extends Statement {
 		public ExpressionList lhs;

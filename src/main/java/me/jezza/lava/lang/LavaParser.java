@@ -137,11 +137,11 @@ public final class LavaParser extends AbstractParser {
 		consume(Tokens.FUNCTION);
 		Expression left = new Literal(Literal.NAMESPACE, name());
 		while (match('.')) {
-			left = new BinaryOp(BinaryOp.OPR_INDEXED, left, new Literal(Literal.NAMESPACE, name()));
+			left = new BinaryOp(BinaryOp.OPR_INDEXED, left, new Literal(Literal.STRING, name()));
 		}
 		boolean self = match(':');
 		if (self) {
-			left = new BinaryOp(BinaryOp.OPR_INDEXED, left, new Literal(Literal.NAMESPACE, name()));
+			left = new BinaryOp(BinaryOp.OPR_INDEXED, left, new Literal(Literal.STRING, name()));
 		}
 		ExpressionList prefix = new ExpressionList(List.of(left));
 		FunctionBody body = functionBody();
@@ -501,7 +501,7 @@ public final class LavaParser extends AbstractParser {
 			switch (current().type) {
 				case '.': {  // field
 					consume();
-					Literal right = new Literal(Literal.NAMESPACE, name());
+					Literal right = new Literal(Literal.STRING, name());
 					left = new BinaryOp(BinaryOp.OPR_INDEXED, left, right);
 					break;
 				}

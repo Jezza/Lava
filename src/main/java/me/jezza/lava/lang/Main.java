@@ -8,6 +8,7 @@ import java.nio.file.Paths;
 
 import me.jezza.lava.lang.ast.ParseTree.Block;
 import me.jezza.lava.lang.interfaces.Lexer;
+import me.jezza.lava.runtime.Interpreter;
 import me.jezza.lava.runtime.Interpreter.LuaChunk;
 
 /**
@@ -21,22 +22,23 @@ public final class Main {
 	private static final String base = "C:\\Users\\Jezza\\Desktop\\JavaProjects\\Lava\\src\\test\\resources";
 
 	public static void main(String[] args) throws Throwable {
-//		LuaChunk chunk = nom(new File(ROOT, "test.lua"));
-//		Interpreter.test(chunk);
-		long basic = run(Paths.get(base).resolve("accept-basic"));
-		long libs = run(Paths.get(base).resolve("libs"));
-		long libssub = run(Paths.get(base).resolve("libs").resolve("P1"));
-		long speed = run(Paths.get(base).resolve("speed"));
-		long root = run(Paths.get(base));
+//		long basic = run(Paths.get(base).resolve("accept-basic"));
+//		long libs = run(Paths.get(base).resolve("libs"));
+//		long libssub = run(Paths.get(base).resolve("libs").resolve("P1"));
+//		long speed = run(Paths.get(base).resolve("speed"));
+//		long root = run(Paths.get(base));
 //		run("constructs.lua");
-		System.out.println(root);
-		System.out.println(basic);
-		System.out.println(libs);
-		System.out.println(libssub);
-		System.out.println(speed);
+//		System.out.println(root);
+//		System.out.println(basic);
+//		System.out.println(libs);
+//		System.out.println(libssub);
+//		System.out.println(speed);
+
+		LuaChunk chunk = nom(new File(ROOT, "lang.lua"));
+		Interpreter.test(chunk);
 	}
 
-	private static final void run(String name) {
+	private static void run(String name) {
 		try {
 			nom(Paths.get(base, name).toFile());
 		} catch (Throwable e) {
@@ -44,7 +46,7 @@ public final class Main {
 		}
 	}
 
-	private static final long run(Path root) throws IOException {
+	private static long run(Path root) throws IOException {
 		return Files.list(root)
 				.filter(child -> Files.isRegularFile(child) && child.getFileName().toString().endsWith(".lua"))
 				.mapToLong(child -> {
@@ -80,22 +82,21 @@ public final class Main {
 //		LoweringPhase.run(chunk);
 
 //		LavaEmitter emitter = new LavaEmitter();
-//		Scope scope = new Scope(name);
+//		Scope scope = new Scope(data.getName());
 //		start = System.nanoTime();
 //		chunk.visit(emitter, scope);
 //		end = System.nanoTime();
 //		long visitorTime = end - start;
-//		System.out.println("Visitor: " + visitorTime);  + visitorTime
+//		System.out.println("Visitor: " + visitorTime);
 
 
-//		start = System.nanoTime();
-//		LuaChunk emitted = LavaEmitter.emit(name, chunk);
-//		end = System.nanoTime();
-//		long emitterTime = end - start;
-//		System.out.println("Emitter: " + emitterTime);
-//		System.out.println("Total: " + (parserTime + emitterTime));
-//		return emitted;
-		return null;
+		start = System.nanoTime();
+		LuaChunk emitted = LavaEmitter.emit(data.getName(), chunk);
+		end = System.nanoTime();
+		long emitterTime = end - start;
+		System.out.println("Emitter: " + emitterTime);
+		System.out.println("Total: " + (parserTime + emitterTime));
+		return emitted;
 	}
 
 	private static long nomTime(File data) throws IOException {

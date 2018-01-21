@@ -1,4 +1,4 @@
-package me.jezza.lava.lang.emitter;
+package me.jezza.lava.lang;
 
 import java.util.List;
 
@@ -27,7 +27,9 @@ import me.jezza.lava.lang.ast.ParseTree.TableField;
 import me.jezza.lava.lang.ast.ParseTree.UnaryOp;
 import me.jezza.lava.lang.ast.ParseTree.Varargs;
 import me.jezza.lava.lang.ast.ParseTree.WhileLoop;
-import me.jezza.lava.lang.emitter.LavaEmitter.Scope;
+import me.jezza.lava.lang.LavaEmitter.Scope;
+import me.jezza.lava.lang.emitter.ByteCodeWriter;
+import me.jezza.lava.lang.emitter.ConstantPool;
 import me.jezza.lava.lang.interfaces.Visitor.PVisitor;
 import me.jezza.lava.runtime.Interpreter.LuaChunk;
 import me.jezza.lava.runtime.OpCode;
@@ -38,7 +40,10 @@ import me.jezza.lava.runtime.OpCode;
 public final class LavaEmitter implements PVisitor<Scope> {
 
 	public static LuaChunk emit(String name, Block block) {
-		throw new IllegalStateException();
+		LavaEmitter emitter = new LavaEmitter();
+		Scope scope = new Scope(name);
+		block.visit(emitter, scope);
+		return scope.build();
 	}
 
 	static final class Scope {
@@ -53,16 +58,20 @@ public final class LavaEmitter implements PVisitor<Scope> {
 
 		int maxStackSize;
 
-		public Scope(String name) {
+		Scope(String name) {
 			this(name, null);
 		}
 
-		public Scope(String name, Scope previous) {
+		Scope(String name, Scope previous) {
 			this.name = name;
 			this.previous = previous;
 			this.w = new ByteCodeWriter();
 			this.pool = new ConstantPool();
 			locals = new ConstantPool();
+		}
+
+		public Scope newScope(String name) {
+			return new Scope(name, this);
 		}
 
 		public void reserve(int count) {
@@ -74,10 +83,6 @@ public final class LavaEmitter implements PVisitor<Scope> {
 
 		public int registerLocal(String name) {
 			return locals.add(name);
-		}
-
-		public Scope newScope(String name) {
-			return new Scope(name, this);
 		}
 
 		public LuaChunk build() {
@@ -144,7 +149,6 @@ public final class LavaEmitter implements PVisitor<Scope> {
 			// old_first = first;
 			// first = first(second);
 			// second = second(old_first);
-			//
 			//
 			int results = scope.results;
 			int ls = lhs.size();

@@ -765,7 +765,8 @@ final class Syntax {
 //		StringReader reader = new StringReader("local files = {[\"A.lua\"] = \"\"}");
 //		StringReader reader = new StringReader("" +
 //				"first, second, third = print();\n");
-		File file = Main.resolve("test.lua");
+//		File file = Main.resolve("test.lua");
+		File file = Main.resolve("lang.lua");
 		FileReader reader = new FileReader(file);
 
 
