@@ -2,13 +2,13 @@ package me.jezza.lava.runtime;
 
 import static java.lang.invoke.MethodType.methodType;
 
-import java.io.File;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.invoke.MutableCallSite;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -17,7 +17,7 @@ import java.util.stream.LongStream.Builder;
 
 import me.jezza.lava.lang.emitter.ByteCodeWriter;
 import me.jezza.lava.lang.emitter.ConstantPool;
-import me.jezza.lava.runtime.OpCodes.Implemented;
+import me.jezza.lava.runtime.OpCode.Implemented;
 
 /**
  * @author Jezza
@@ -85,7 +85,7 @@ public final class Interpreter {
 			}
 
 			// TEMP
-			Field[] fields = OpCodes.class.getDeclaredFields();
+			Field[] fields = OpCode.class.getDeclaredFields();
 			List<MethodHandle> handles = new ArrayList<>();
 			for (Field field : fields) {
 				if (field.isAnnotationPresent(Implemented.class)) {
@@ -225,7 +225,7 @@ public final class Interpreter {
 
 	private void dispatchNext(MethodHandle next, StackFrame frame) throws Throwable {
 		if (DEBUG_MODE) {
-			next.invokeExact(this, frame, OpCodes.DEBUG);
+			next.invokeExact(this, frame, OpCode.DEBUG);
 		} else {
 			next.invokeExact(this, frame, frame.decode1());
 		}
@@ -356,9 +356,9 @@ public final class Interpreter {
 	}
 
 	private void RET(StackFrame frame) throws Throwable {
-		int returned = frame.decode2();
 		if (frameIndex > 1) {
-			frame.results = returned;
+			// @TODO Jezza - 20 Jan 2018: Is it acceptable to ignore any arguments given by the bytecode?
+			frame.results = frame.decode2();
 			framePop();
 		} else {
 			status = 1;
@@ -372,8 +372,10 @@ public final class Interpreter {
 	private void DEBUG(StackFrame f) throws Throwable {
 		if (!DEBUG_MODE)
 			return;
-		Object[] stack = this.stack;
-		StackFrame[] frames = this.frames;
+		System.out.println(buildStackView(stack, frames, frameIndex));
+	}
+
+	private static String buildStackView(Object[] stack, StackFrame[] frames, int frameIndex) {
 		StringBuilder b = new StringBuilder();
 		b.append("Stack: [");
 		int stackIndex = 0;
@@ -389,8 +391,7 @@ public final class Interpreter {
 			if (i + 1 < frameIndex)
 				b.append(", ");
 		}
-		b.append(']');
-		System.out.println(b);
+		return b.append(']').toString();
 	}
 
 	private void DUP(StackFrame frame) throws Throwable {
@@ -450,11 +451,16 @@ public final class Interpreter {
 		return 1;
 	}
 
+	private static int test(Interpreter interpreter, StackFrame frame) {
+		return 0;
+	}
+
 	private static void prep(Interpreter interpreter) {
 		interpreter.globals.put("print", (Callback) Interpreter::print);
 		interpreter.globals.put("native_add", (Callback) Interpreter::nativeAdd);
 		interpreter.globals.put("upper", (Callback) Interpreter::toUpper);
 		interpreter.globals.put("lower", (Callback) Interpreter::toLower);
+		interpreter.globals.put("test", (Callback) Interpreter::test);
 	}
 
 	public static void test(LuaChunk chunk) throws Throwable {
@@ -479,18 +485,18 @@ public final class Interpreter {
 	private static LuaChunk forLoop() {
 		ConstantPool pool = new ConstantPool();
 		ByteCodeWriter w = new ByteCodeWriter();
-		w.write1(OpCodes.CONST1, pool.add(10));
-		w.write1(OpCodes.GOTO);
+		w.write1(OpCode.CONST1, pool.add(10));
+		w.write1(OpCode.GOTO);
 		int jump = w.mark();
 		w.write4(-1);
 		int mark = w.mark();
-		w.write1(OpCodes.CONST1, pool.add(-1));
-		w.write1(OpCodes.ADD);
+		w.write1(OpCode.CONST1, pool.add(-1));
+		w.write1(OpCode.ADD);
 		int returnJump = w.mark();
 		w.patch4(jump, returnJump);
-		w.write1(OpCodes.DUP);
-		w.write4(OpCodes.IFNZ, mark);
-		w.write1(OpCodes.RET);
+		w.write1(OpCode.DUP);
+		w.write4(OpCode.IFNZ, mark);
+		w.write1(OpCode.RET);
 
 		LuaChunk chunk = new LuaChunk("forLoopChunk");
 		chunk.paramCount = 0;
@@ -504,8 +510,8 @@ public final class Interpreter {
 		ByteCodeWriter w = new ByteCodeWriter();
 
 		for (int i = 0; i < count; i++)
-			w.write1(OpCodes.CONST1, pool.add(i));
-		w.write1(OpCodes.RET);
+			w.write1(OpCode.CONST1, pool.add(i));
+		w.write1(OpCode.RET);
 
 		LuaChunk chunk = new LuaChunk("returnChunk");
 		chunk.paramCount = 0;
@@ -521,9 +527,9 @@ public final class Interpreter {
 //		w.write1(Ops.DEBUG);
 		for (int i = 0; i < count; i++)
 //			w.write1(Ops.PRINT);
-			w.write1(OpCodes.POP);
+			w.write1(OpCode.POP);
 //		w.write1(Ops.DEBUG);
-		w.write1(OpCodes.RET);
+		w.write1(OpCode.RET);
 
 		LuaChunk chunk = new LuaChunk("acceptChunk");
 		chunk.paramCount = count;
@@ -533,47 +539,53 @@ public final class Interpreter {
 	}
 
 	public static void main(String[] args) throws Throwable {
-		File root = new File("C:\\Users\\Jezza\\Desktop\\JavaProjects\\Lava\\src\\main\\resources");
+//		File root = new File("C:\\Users\\Jezza\\Desktop\\JavaProjects\\Lava\\src\\main\\resources");
 //		LuaChunk chunk = Language.parse(root, "main.lang");
 
-//		ConstantPool pool = new ConstantPool();
+		ConstantPool pool = new ConstantPool();
 //
-//		ByteCodeWriter w = new ByteCodeWriter(0);
-//		w.write4(Ops.LOADF, 0);
-//		w.write1(Ops.CONST1, pool.add(1));
-//		w.write1(Ops.CONST1, pool.add(25));
-//		w.write1(Ops.CONST1, pool.add(25));
-//		w.write1(Ops.CONST1, pool.add(25));
-//		w.write1(Ops.DEBUG);
-//		w.write2(Ops.MOV, 0, 3);
-//		w.write1(Ops.CONST1, pool.add(1));
-//		w.write1(Ops.CONST1, pool.add("test2"));
-//		w.write1(Ops.GETGLOBAL);
-//		w.write2(Ops.CALL, 2, 0);
-//		w.write1(Ops.DEBUG);
-//		w.write1(Ops.CONST1, pool.add("first"));
-//		w.write1(Ops.CONST1, pool.add("second"));
-//		w.write1(Ops.CONST1, pool.add("third"));
-//		w.write1(Ops.CONST1, pool.add(acceptChunk(4)));
-//		w.write1(Ops.DEBUG);
-//		w.write2(Ops.CALL, 3, 0);
-//		w.write1(Ops.DEBUG);
-//		w.write1(Ops.RET);
+		ByteCodeWriter w = new ByteCodeWriter(0);
+		w.write1(OpCode.CONST1, pool.add(1));
+		w.write1(OpCode.CONST1, pool.add("test"));
+		w.write1(OpCode.GET_GLOBAL);
+		w.write2(OpCode.CALL, 1, 1);
+//		w.write1(OpCode.CONST1, pool.add(25));
+//		w.write1(OpCode.CONST1, pool.add(25));
+//		w.write1(OpCode.CONST1, pool.add(25));
+//		w.write1(OpCode.DEBUG);
+//		w.write2(OpCode.MOV, 0, 3);
+//		w.write1(OpCode.CONST1, pool.add(1));
+//		w.write1(OpCode.CONST1, pool.add("test2"));
+//		w.write1(OpCode.GETGLOBAL);
+//		w.write2(OpCode.CALL, 2, 0);
+//		w.write1(OpCode.DEBUG);
+//		w.write1(OpCode.CONST1, pool.add("first"));
+//		w.write1(OpCode.CONST1, pool.add("second"));
+//		w.write1(OpCode.CONST1, pool.add("third"));
+//		w.write1(OpCode.CONST1, pool.add(acceptChunk(4)));
+//		w.write1(OpCode.DEBUG);
+//		w.write2(OpCode.CALL, 3, 0);
+//		w.write1(OpCode.DEBUG);
+		w.write1(OpCode.RET);
 
-//		StackFrame frame = new StackFrame();
-//		frame.instrs = w.code();
-//		frame.constants = pool.build();
-//		System.out.println(Arrays.toString(frame.instrs));
+		// E  /  R
+		// 0  /  1
+		// 1  /  0
+
+		StackFrame frame = new StackFrame();
+		frame.instrs = w.code();
+		frame.constants = pool.build();
+		System.out.println(Arrays.toString(frame.instrs));
 
 		Builder builder = LongStream.builder();
 		long start;
 		for (int i = 0; i < 1; i++) {
 			start = System.nanoTime();
 
-//			frame.pc = 0;
-//			frame.top = 0;
-//			frame.base = 0;
-//			test(frame);
+			frame.pc = 0;
+			frame.top = 0;
+			frame.base = 0;
+			test(frame);
 //			test(chunk);
 			builder.accept(System.nanoTime() - start);
 		}
@@ -581,7 +593,7 @@ public final class Interpreter {
 		System.out.println("Done!");
 	}
 
-	static class StackFrame {
+	static final class StackFrame {
 		//	private int func;
 		private int base;
 		private int top;
@@ -630,7 +642,6 @@ public final class Interpreter {
 		public byte[] code;
 		public Object[] constants;
 //		LuaChunk[] chunks;
-
 
 		public LuaChunk(String name) {
 			this.name = name;

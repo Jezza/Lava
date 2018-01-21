@@ -3,6 +3,7 @@ package me.jezza.lava.lang;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 
 import me.jezza.lava.lang.ast.ParseTree.Block;
@@ -17,14 +18,23 @@ public final class Main {
 		throw new IllegalStateException();
 	}
 
-	public static void main(String[] args) throws Throwable {
-		LuaChunk chunk = nom(new File(ROOT, "test.lua"));
-//		Interpreter.test(chunk);
-//		runAll();
-//		run("constructs.lua");
-	}
-
 	private static final String base = "C:\\Users\\Jezza\\Desktop\\JavaProjects\\Lava\\src\\test\\resources";
+
+	public static void main(String[] args) throws Throwable {
+//		LuaChunk chunk = nom(new File(ROOT, "test.lua"));
+//		Interpreter.test(chunk);
+		long basic = run(Paths.get(base).resolve("accept-basic"));
+		long libs = run(Paths.get(base).resolve("libs"));
+		long libssub = run(Paths.get(base).resolve("libs").resolve("P1"));
+		long speed = run(Paths.get(base).resolve("speed"));
+		long root = run(Paths.get(base));
+//		run("constructs.lua");
+		System.out.println(root);
+		System.out.println(basic);
+		System.out.println(libs);
+		System.out.println(libssub);
+		System.out.println(speed);
+	}
 
 	private static final void run(String name) {
 		try {
@@ -34,23 +44,16 @@ public final class Main {
 		}
 	}
 
-	private static final void runAll() throws IOException {
-		long count = Files.list(Paths.get(base))
+	private static final long run(Path root) throws IOException {
+		return Files.list(root)
 				.filter(child -> Files.isRegularFile(child) && child.getFileName().toString().endsWith(".lua"))
 				.mapToLong(child -> {
 					try {
-						File file = child.toFile();
-						long start = System.nanoTime();
-						long length = nomTime(file);
-						long time = System.nanoTime() - start;
-						System.out.println("D: " + time + ", length: " + length);
-						return time;
+						return nomTime(child.toFile());
 					} catch (Throwable e) {
 						throw new IllegalStateException("File: " + child, e);
 					}
 				}).sum();
-		System.out.println("Time: " + count);
-
 	}
 
 	private static final File ROOT = new File("C:\\Users\\Jezza\\Desktop\\JavaProjects\\Lava\\src\\main\\resources");
@@ -96,11 +99,14 @@ public final class Main {
 	}
 
 	private static long nomTime(File data) throws IOException {
+		long start = System.nanoTime();
 		Lexer lexer = new LavaLexer(data);
 		LavaParser parser = new LavaParser(lexer);
 		Block chunk = parser.chunk();
 		String text = ASTPrinter.print(chunk);
-		return text.length();
+		long end = System.nanoTime();
+		System.out.println(text);
+		return end - start;
 	}
 
 	private static final class PrintLexer implements Lexer {

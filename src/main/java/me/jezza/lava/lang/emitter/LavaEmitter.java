@@ -17,7 +17,6 @@ import me.jezza.lava.lang.ast.ParseTree.Goto;
 import me.jezza.lava.lang.ast.ParseTree.IfBlock;
 import me.jezza.lava.lang.ast.ParseTree.Label;
 import me.jezza.lava.lang.ast.ParseTree.Literal;
-import me.jezza.lava.lang.ast.ParseTree.LocalFunction;
 import me.jezza.lava.lang.ast.ParseTree.LocalStatement;
 import me.jezza.lava.lang.ast.ParseTree.ParameterList;
 import me.jezza.lava.lang.ast.ParseTree.RepeatBlock;
@@ -27,12 +26,11 @@ import me.jezza.lava.lang.ast.ParseTree.TableConstructor;
 import me.jezza.lava.lang.ast.ParseTree.TableField;
 import me.jezza.lava.lang.ast.ParseTree.UnaryOp;
 import me.jezza.lava.lang.ast.ParseTree.Varargs;
-import me.jezza.lava.lang.ast.ParseTree.Variable;
 import me.jezza.lava.lang.ast.ParseTree.WhileLoop;
 import me.jezza.lava.lang.emitter.LavaEmitter.Scope;
 import me.jezza.lava.lang.interfaces.Visitor.PVisitor;
 import me.jezza.lava.runtime.Interpreter.LuaChunk;
-import me.jezza.lava.runtime.OpCodes;
+import me.jezza.lava.runtime.OpCode;
 
 /**
  * @author Jezza
@@ -85,8 +83,8 @@ public final class LavaEmitter implements PVisitor<Scope> {
 		public LuaChunk build() {
 			LuaChunk chunk = new LuaChunk(name);
 			chunk.constants = pool.build();
-			if (w.mark() == 0 || w.get(w.mark() - 1) != OpCodes.RET) {
-				w.write2(OpCodes.RET, 0);
+			if (w.mark() == 0 || w.get(w.mark() - 1) != OpCode.RET) {
+				w.write2(OpCode.RET, 0);
 			}
 			chunk.code = w.code();
 			chunk.maxStackSize = maxStackSize;
@@ -113,25 +111,25 @@ public final class LavaEmitter implements PVisitor<Scope> {
 		int count = value.args instanceof ExpressionList
 					? ((ExpressionList) value.args).list.size()
 					: 1;
-		scope.w.write2(OpCodes.CALL, count, scope.results);
+		scope.w.write2(OpCode.CALL, count, scope.results);
 		scope.top = top + scope.results;
 		return null;
 	}
 
 	private void move(String name, Scope scope) {
 		int index = scope.registerLocal(name);
-		scope.w.write2(OpCodes.MOV, scope.top - 1, index);
+		scope.w.write2(OpCode.MOV, scope.top - 1, index);
 		if (scope.top - 1 != index) {
 			scope.top--;
-			scope.w.write1(OpCodes.POP);
+			scope.w.write1(OpCode.POP);
 		}
 	}
 
-	@Override
-	public Void visitVariable(Variable variable, Scope scope) {
-		move(variable.name, scope);
-		return null;
-	}
+//	@Override
+//	public Void visitVariable(Variable variable, Scope scope) {
+//		move(variable.name, scope);
+//		return null;
+//	}
 
 	@Override
 	public Void visitAssignment(Assignment value, Scope scope) {
@@ -156,7 +154,7 @@ public final class LavaEmitter implements PVisitor<Scope> {
 			if (ls > rs) {
 				for (int i = 0; i < ls; i++) {
 					if (i >= rs) {
-						scope.w.write1(OpCodes.CONST_NIL);
+						scope.w.write1(OpCode.CONST_NIL);
 						scope.top++;
 					} else {
 						rhs.get(i).visit(this, scope);
@@ -203,7 +201,7 @@ public final class LavaEmitter implements PVisitor<Scope> {
 			if (ls > rs) {
 				for (int i = 0; i < ls; i++) {
 					if (i >= rs) {
-						scope.w.write1(OpCodes.CONST_NIL);
+						scope.w.write1(OpCode.CONST_NIL);
 						scope.top++;
 					} else {
 						rhs.get(i).visit(this, scope);
@@ -219,11 +217,6 @@ public final class LavaEmitter implements PVisitor<Scope> {
 			scope.results = results;
 		}
 		return null;
-	}
-
-	@Override
-	public Void visitLocalFunction(LocalFunction value, Scope scope) {
-		throw new IllegalStateException("NYI");
 	}
 
 	@Override
@@ -309,11 +302,11 @@ public final class LavaEmitter implements PVisitor<Scope> {
 	private static int unaryOpCode(int code) {
 		switch (code) {
 			case UnaryOp.OPR_MINUS:
-				return OpCodes.NEG;
+				return OpCode.NEG;
 			case UnaryOp.OPR_NOT:
-				return OpCodes.NOT;
+				return OpCode.NOT;
 			case UnaryOp.OPR_LEN:
-				return OpCodes.LEN;
+				return OpCode.LEN;
 			default:
 				throw new IllegalStateException("Unsupported: " + code);
 		}
@@ -330,13 +323,13 @@ public final class LavaEmitter implements PVisitor<Scope> {
 	private static int binaryOpCode(int code) {
 		switch (code) {
 			case BinaryOp.OPR_ADD:
-				return OpCodes.ADD;
+				return OpCode.ADD;
 			case BinaryOp.OPR_SUB:
-				return OpCodes.SUB;
+				return OpCode.SUB;
 			case BinaryOp.OPR_MUL:
-				return OpCodes.MUL;
+				return OpCode.MUL;
 			case BinaryOp.OPR_DIV:
-				return OpCodes.DIV;
+				return OpCode.DIV;
 			default:
 				throw new IllegalStateException("Unsupported: " + code);
 		}
@@ -361,16 +354,16 @@ public final class LavaEmitter implements PVisitor<Scope> {
 //				current = current.previous;
 //			}
 			int index = scope.pool.add(name);
-			w.write1(OpCodes.CONST1, index);
-			w.write1(OpCodes.GET_GLOBAL);
+			w.write1(OpCode.CONST1, index);
+			w.write1(OpCode.GET_GLOBAL);
 			scope.top++;
 		} else {
 			// Load the literal
 			int index = scope.pool.add(value.value);
 			if (index < 256) {
-				scope.w.write1(OpCodes.CONST1, index);
+				scope.w.write1(OpCode.CONST1, index);
 			} else {
-				scope.w.write2(OpCodes.CONST2, index);
+				scope.w.write2(OpCode.CONST2, index);
 			}
 			scope.top++;
 		}

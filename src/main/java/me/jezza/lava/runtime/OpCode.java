@@ -30,7 +30,7 @@ import java.lang.reflect.Field;
  *     A short description of what the instruction does.<br>
  * </blockquote>
  */
-public final class OpCodes {
+public final class OpCode {
 
 	@Target(ElementType.FIELD)
 	@Retention(RetentionPolicy.RUNTIME)
@@ -272,7 +272,7 @@ public final class OpCodes {
 	public static void main(String[] args) {
 		// Used when we move around values.
 		StringBuilder b = new StringBuilder();
-		Field[] fields = OpCodes.class.getDeclaredFields();
+		Field[] fields = OpCode.class.getDeclaredFields();
 		for (int i = 0; i < fields.length; i++) {
 			b.append("public static final byte ").append(fields[i].getName()).append(" = ").append(i).append(";\n");
 		}

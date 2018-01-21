@@ -14,7 +14,6 @@ import me.jezza.lava.lang.ast.ParseTree.Goto;
 import me.jezza.lava.lang.ast.ParseTree.IfBlock;
 import me.jezza.lava.lang.ast.ParseTree.Label;
 import me.jezza.lava.lang.ast.ParseTree.Literal;
-import me.jezza.lava.lang.ast.ParseTree.LocalFunction;
 import me.jezza.lava.lang.ast.ParseTree.LocalStatement;
 import me.jezza.lava.lang.ast.ParseTree.ParameterList;
 import me.jezza.lava.lang.ast.ParseTree.RepeatBlock;
@@ -23,7 +22,6 @@ import me.jezza.lava.lang.ast.ParseTree.TableConstructor;
 import me.jezza.lava.lang.ast.ParseTree.TableField;
 import me.jezza.lava.lang.ast.ParseTree.UnaryOp;
 import me.jezza.lava.lang.ast.ParseTree.Varargs;
-import me.jezza.lava.lang.ast.ParseTree.Variable;
 import me.jezza.lava.lang.ast.ParseTree.WhileLoop;
 
 /**
@@ -32,8 +30,6 @@ import me.jezza.lava.lang.ast.ParseTree.WhileLoop;
 public interface Visitor<P, R> {
 	R visitBlock(Block value, P userObject);
 
-	R visitVariable(Variable variable, P userObject);
-
 	R visitAssignment(Assignment value, P userObject);
 
 	R visitFunctionCall(FunctionCall value, P userObject);
@@ -41,8 +37,6 @@ public interface Visitor<P, R> {
 	R visitExpressionList(ExpressionList value, P userObject);
 
 	R visitLocalStatement(LocalStatement value, P userObject);
-
-	R visitLocalFunction(LocalFunction value, P userObject);
 
 	R visitFunctionBody(FunctionBody value, P userObject);
 

@@ -22,20 +22,19 @@ public abstract class ParseTree {
 	private static final int TYPE_FOR_LOOP = 8;
 	private static final int TYPE_FOR_LIST = 9;
 	private static final int TYPE_FUNCTION_BODY = 10;
-	private static final int TYPE_LOCAL_FUNCTION = 11;
-	private static final int TYPE_LOCAL_STATEMENT = 12;
-	private static final int TYPE_RETURN_STATEMENT = 13;
-	private static final int TYPE_PARAMETER_LIST = 14;
-	private static final int TYPE_EXPRESSION_LIST = 15;
-	private static final int TYPE_UNARY_OP = 16;
-	private static final int TYPE_BINARY_OP = 17;
-	private static final int TYPE_LITERAL = 18;
-	private static final int TYPE_VARARGS = 19;
-	private static final int TYPE_FUNCTION_CALL = 20;
-	private static final int TYPE_VARIABLE = 21;
-	private static final int TYPE_ASSIGNMENT = 22;
-	private static final int TYPE_TABLE_CONSTRUCTOR = 23;
-	private static final int TYPE_TABLE_FIELD = 24;
+	private static final int TYPE_LOCAL_STATEMENT = 11;
+	private static final int TYPE_RETURN_STATEMENT = 12;
+	private static final int TYPE_PARAMETER_LIST = 13;
+	private static final int TYPE_EXPRESSION_LIST = 14;
+	private static final int TYPE_UNARY_OP = 15;
+	private static final int TYPE_BINARY_OP = 16;
+	private static final int TYPE_LITERAL = 17;
+	private static final int TYPE_VARARGS = 18;
+	private static final int TYPE_FUNCTION_CALL = 19;
+//	private static final int TYPE_VARIABLE = 20;
+	private static final int TYPE_ASSIGNMENT = 21;
+	private static final int TYPE_TABLE_CONSTRUCTOR = 22;
+	private static final int TYPE_TABLE_FIELD = 23;
 
 	private final int type;
 
@@ -84,8 +83,6 @@ public abstract class ParseTree {
 				return visitor.visitForList((ForList) this, userObject);
 			case TYPE_FUNCTION_BODY:
 				return visitor.visitFunctionBody((FunctionBody) this, userObject);
-			case TYPE_LOCAL_FUNCTION:
-				return visitor.visitLocalFunction((LocalFunction) this, userObject);
 			case TYPE_LOCAL_STATEMENT:
 				return visitor.visitLocalStatement((LocalStatement) this, userObject);
 			case TYPE_RETURN_STATEMENT:
@@ -104,8 +101,8 @@ public abstract class ParseTree {
 				return visitor.visitVarargs((Varargs) this, userObject);
 			case TYPE_FUNCTION_CALL:
 				return visitor.visitFunctionCall((FunctionCall) this, userObject);
-			case TYPE_VARIABLE:
-				return visitor.visitVariable((Variable) this, userObject);
+//			case TYPE_VARIABLE:
+//				return visitor.visitVariable((Variable) this, userObject);
 			case TYPE_ASSIGNMENT:
 				return visitor.visitAssignment((Assignment) this, userObject);
 			case TYPE_TABLE_CONSTRUCTOR:
@@ -248,17 +245,6 @@ public abstract class ParseTree {
 		}
 	}
 
-	public static final class LocalFunction extends Statement {
-		public String name;
-		public FunctionBody body;
-
-		public LocalFunction(String name, FunctionBody body) {
-			super(TYPE_LOCAL_FUNCTION);
-			this.name = name;
-			this.body = body;
-		}
-	}
-
 	public static final class LocalStatement extends Statement {
 		public List<String> lhs;
 		public ExpressionList rhs;
@@ -386,14 +372,14 @@ public abstract class ParseTree {
 		}
 	}
 
-	public static final class Variable extends Expression {
-		public String name;
-
-		public Variable(String name) {
-			super(TYPE_VARIABLE);
-			this.name = name;
-		}
-	}
+//	public static final class Variable extends Expression {
+//		public String name;
+//
+//		public Variable(String name) {
+//			super(TYPE_VARIABLE);
+//			this.name = name;
+//		}
+//	}
 
 	public static final class Assignment extends Statement {
 		public ExpressionList lhs;

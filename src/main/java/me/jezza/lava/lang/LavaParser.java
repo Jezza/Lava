@@ -20,7 +20,6 @@ import me.jezza.lava.lang.ast.ParseTree.Goto;
 import me.jezza.lava.lang.ast.ParseTree.IfBlock;
 import me.jezza.lava.lang.ast.ParseTree.Label;
 import me.jezza.lava.lang.ast.ParseTree.Literal;
-import me.jezza.lava.lang.ast.ParseTree.LocalFunction;
 import me.jezza.lava.lang.ast.ParseTree.LocalStatement;
 import me.jezza.lava.lang.ast.ParseTree.ParameterList;
 import me.jezza.lava.lang.ast.ParseTree.RepeatBlock;
@@ -116,19 +115,22 @@ public final class LavaParser extends AbstractParser {
 
 	public Statement local() throws IOException {
 		consume(Tokens.LOCAL);
+		List<String> names = new ArrayList<>();
+		ExpressionList expression;
 		if (match(Tokens.FUNCTION)) {
-			return new LocalFunction(name(), functionBody());
+			names.add(name());
+			expression = new ExpressionList(List.of(functionBody()));
 		} else {
 			// local statement
-			List<String> names = new ArrayList<>();
 			do {
 				names.add(name());
 			} while (match(','));
-			ExpressionList expression = match('=')
+			expression = match('=')
 					? expressionList()
-					: new ExpressionList(Collections.emptyList());
-			return new LocalStatement(names, expression);
+					: new ExpressionList(new ArrayList<>());
 		}
+		// @CLEANUP Jezza - 20 Jan 2018: We could probably collapse this into Assignment.
+		return new LocalStatement(names, expression);
 	}
 
 	public Statement functionStatement() throws IOException {

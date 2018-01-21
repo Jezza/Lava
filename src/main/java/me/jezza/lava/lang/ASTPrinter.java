@@ -17,7 +17,6 @@ import me.jezza.lava.lang.ast.ParseTree.Goto;
 import me.jezza.lava.lang.ast.ParseTree.IfBlock;
 import me.jezza.lava.lang.ast.ParseTree.Label;
 import me.jezza.lava.lang.ast.ParseTree.Literal;
-import me.jezza.lava.lang.ast.ParseTree.LocalFunction;
 import me.jezza.lava.lang.ast.ParseTree.LocalStatement;
 import me.jezza.lava.lang.ast.ParseTree.ParameterList;
 import me.jezza.lava.lang.ast.ParseTree.RepeatBlock;
@@ -27,7 +26,6 @@ import me.jezza.lava.lang.ast.ParseTree.TableConstructor;
 import me.jezza.lava.lang.ast.ParseTree.TableField;
 import me.jezza.lava.lang.ast.ParseTree.UnaryOp;
 import me.jezza.lava.lang.ast.ParseTree.Varargs;
-import me.jezza.lava.lang.ast.ParseTree.Variable;
 import me.jezza.lava.lang.ast.ParseTree.WhileLoop;
 import me.jezza.lava.lang.interfaces.Visitor.EVisitor;
 
@@ -47,7 +45,7 @@ public final class ASTPrinter implements EVisitor {
 	}
 
 	private void indent() {
-		if (text.charAt(text.length() - 1) == '\n') {
+		if (text.length() > 0 && text.charAt(text.length() - 1) == '\n') {
 			for (int i = 0; i < level; i++) {
 				text.append(' ');
 			}
@@ -95,7 +93,6 @@ public final class ASTPrinter implements EVisitor {
 
 	@Override
 	public Void visitBlock(Block value, Void userObject) {
-		text.append("{\n");
 		shift(increment);
 		for (Statement statement : value.statements) {
 			statement.visit(this);
@@ -103,16 +100,15 @@ public final class ASTPrinter implements EVisitor {
 		}
 		shift(-increment);
 		indent();
-		text.append("}\n");
 		return null;
 	}
 
-	@Override
-	public Void visitVariable(Variable variable, Void userObject) {
-		indent();
-		text.append("var ").append(variable.name);
-		return null;
-	}
+//	@Override
+//	public Void visitVariable(Variable variable, Void userObject) {
+//		indent();
+//		text.append("var ").append(variable.name);
+//		return null;
+//	}
 
 	@Override
 	public Void visitAssignment(Assignment value, Void userObject) {
@@ -155,14 +151,8 @@ public final class ASTPrinter implements EVisitor {
 	}
 
 	@Override
-	public Void visitLocalFunction(LocalFunction value, Void userObject) {
-		text.append("local function");
-		return null;
-	}
-
-	@Override
 	public Void visitFunctionBody(FunctionBody value, Void userObject) {
-		text.append(" function(");
+		text.append("function(");
 		value.parameterList.visit(this);
 		text.append(')');
 		text.append(" ");
@@ -184,13 +174,13 @@ public final class ASTPrinter implements EVisitor {
 
 	@Override
 	public Void visitLabel(Label value, Void userObject) {
-		text.append("label");
+		text.append("::").append(value.name).append("::");
 		return null;
 	}
 
 	@Override
 	public Void visitGoto(Goto value, Void userObject) {
-		text.append("goto");
+		text.append("goto ").append(value.label);
 		return null;
 	}
 
@@ -223,7 +213,7 @@ public final class ASTPrinter implements EVisitor {
 		indent();
 		text.append("if (");
 		value.condition.visit(this);
-		text.append(") then ");
+		text.append(") then\n");
 		value.thenPart.visit(this);
 		if (value.elsePart != null) {
 			text.append('\n');
@@ -251,7 +241,10 @@ public final class ASTPrinter implements EVisitor {
 
 	@Override
 	public Void visitReturnStatement(ReturnStatement value, Void userObject) {
-		text.append("return");
+		indent();
+		text.append("return ");
+		value.exprs.visit(this);
+		text.append(';');
 		return null;
 	}
 
