@@ -18,7 +18,6 @@ import me.jezza.lava.lang.ast.ParseTree.IfBlock;
 import me.jezza.lava.lang.ast.ParseTree.Label;
 import me.jezza.lava.lang.ast.ParseTree.Literal;
 import me.jezza.lava.lang.ast.ParseTree.LocalStatement;
-import me.jezza.lava.lang.ast.ParseTree.ParameterList;
 import me.jezza.lava.lang.ast.ParseTree.RepeatBlock;
 import me.jezza.lava.lang.ast.ParseTree.ReturnStatement;
 import me.jezza.lava.lang.ast.ParseTree.Statement;
@@ -118,7 +117,7 @@ public final class ASTPrinter implements EVisitor {
 	@Override
 	public Void visitFunctionCall(FunctionCall value, Void userObject) {
 		indent();
-		value.prefix.visit(this);
+		value.target.visit(this);
 		if (value.name != null) {
 			text.append(':').append(value.name);
 		}
@@ -147,24 +146,27 @@ public final class ASTPrinter implements EVisitor {
 	@Override
 	public Void visitFunctionBody(FunctionBody value, Void userObject) {
 		text.append("function(");
-		value.parameterList.visit(this);
+		join(value.parameters.iterator(), ", ");
+		if (value.varargs) {
+			text.append(value.parameters.isEmpty() ? "..." : ", ...");
+		}
 		text.append(')');
 		text.append(" ");
 		value.body.visit(this);
 		return null;
 	}
 
-	@Override
-	public Void visitParameterList(ParameterList value, Void userObject) {
-		join(value.nameList.iterator(), ", ");
-		if (value.varargs) {
-			if (!value.nameList.isEmpty()) {
-				text.append(", ");
-			}
-			text.append("...");
-		}
-		return null;
-	}
+//	@Override
+//	public Void visitParameterList(ParameterList value, Void userObject) {
+//		join(value.nameList.iterator(), ", ");
+//		if (value.varargs) {
+//			if (!value.nameList.isEmpty()) {
+//				text.append(", ");
+//			}
+//			text.append("...");
+//		}
+//		return null;
+//	}
 
 	@Override
 	public Void visitLabel(Label value, Void userObject) {

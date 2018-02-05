@@ -2,6 +2,7 @@ package me.jezza.lava.lang;
 
 import java.util.List;
 
+import me.jezza.lava.lang.LavaEmitter.Scope;
 import me.jezza.lava.lang.ast.ParseTree.Assignment;
 import me.jezza.lava.lang.ast.ParseTree.BinaryOp;
 import me.jezza.lava.lang.ast.ParseTree.Block;
@@ -18,7 +19,6 @@ import me.jezza.lava.lang.ast.ParseTree.IfBlock;
 import me.jezza.lava.lang.ast.ParseTree.Label;
 import me.jezza.lava.lang.ast.ParseTree.Literal;
 import me.jezza.lava.lang.ast.ParseTree.LocalStatement;
-import me.jezza.lava.lang.ast.ParseTree.ParameterList;
 import me.jezza.lava.lang.ast.ParseTree.RepeatBlock;
 import me.jezza.lava.lang.ast.ParseTree.ReturnStatement;
 import me.jezza.lava.lang.ast.ParseTree.Statement;
@@ -27,7 +27,6 @@ import me.jezza.lava.lang.ast.ParseTree.TableField;
 import me.jezza.lava.lang.ast.ParseTree.UnaryOp;
 import me.jezza.lava.lang.ast.ParseTree.Varargs;
 import me.jezza.lava.lang.ast.ParseTree.WhileLoop;
-import me.jezza.lava.lang.LavaEmitter.Scope;
 import me.jezza.lava.lang.emitter.ByteCodeWriter;
 import me.jezza.lava.lang.emitter.ConstantPool;
 import me.jezza.lava.lang.interfaces.Visitor.PVisitor;
@@ -111,7 +110,7 @@ public final class LavaEmitter implements PVisitor<Scope> {
 		// Load args
 		value.args.visit(this, scope);
 		// Load function
-		value.prefix.visit(this, scope);
+		value.target.visit(this, scope);
 		// Call function
 		int count = value.args instanceof ExpressionList
 					? ((ExpressionList) value.args).list.size()
@@ -136,42 +135,53 @@ public final class LavaEmitter implements PVisitor<Scope> {
 //		return null;
 //	}
 
+	private static final int ASSIGNMENT = 0b1;
+
 	@Override
 	public Void visitAssignment(Assignment value, Scope scope) {
 		if (value.lhs == null) {
 			value.rhs.visit(this, scope);
 		} else {
-			List<Expression> lhs = value.lhs.list;
-			List<Expression> rhs = value.rhs.list;
+
 			// first, second = first(second), second(first);
 			//
 			// old_second = second;
 			// old_first = first;
 			// first = first(second);
 			// second = second(old_first);
-			//
-			int results = scope.results;
-			int ls = lhs.size();
-			int rs = rhs.size();
-			scope.results = ls;
-			// scope.reserve(ls);
-			if (ls > rs) {
-				for (int i = 0; i < ls; i++) {
-					if (i >= rs) {
-						scope.w.write1(OpCode.CONST_NIL);
-						scope.top++;
-					} else {
-						rhs.get(i).visit(this, scope);
-					}
-					lhs.get(i).visit(this, scope);
-				}
-			} else {
-				for (int i = 0; i < ls; i++) {
-					rhs.get(i).visit(this, scope);
-					lhs.get(i).visit(this, scope);
-				}
+
+			// @TODO Jezza - 22 Jan 2018: Size check
+			value.rhs.visit(this, scope);
+
+			List<Expression> lhs = value.lhs.list;
+//			value.rhs.list;
+
+
+			for (Expression lh : lhs) {
+//				lh.set(ASSIGNMENT).visit(this, scope);
 			}
-			scope.results = results;
+//			int results = scope.results;
+//			int ls = lhs.size();
+//			int rs = rhs.size();
+//			scope.results = ls;
+//			// scope.reserve(ls);
+//			if (ls > rs) {
+//				for (int i = 0; i < ls; i++) {
+//					if (i >= rs) {
+//						scope.w.write1(OpCode.CONST_NIL);
+//						scope.top++;
+//					} else {
+//						rhs.get(i).visit(this, scope);
+//					}
+//					lhs.get(i).visit(this, scope);
+//				}
+//			} else {
+//				for (int i = 0; i < ls; i++) {
+//					rhs.get(i).visit(this, scope);
+//					lhs.get(i).visit(this, scope);
+//				}
+//			}
+//			scope.results = results;
 		}
 		return null;
 	}
@@ -226,22 +236,16 @@ public final class LavaEmitter implements PVisitor<Scope> {
 	@Override
 	public Void visitFunctionBody(FunctionBody value, Scope scope) {
 		Scope local = scope.newScope("local");
-		ParameterList params = value.parameterList;
-		if (params.varargs)
+		if (value.varargs)
 			throw new IllegalStateException("NYI");
-		for (String s : params.nameList)
+		for (String s : value.parameters)
 			local.registerLocal(s);
 		value.body.visit(this, local);
 
 		LuaChunk chunk = local.build();
-		chunk.paramCount = params.nameList.size();
+		chunk.paramCount = value.parameters.size();
 //		scope.pool.add(chunk);
 		return null;
-	}
-
-	@Override
-	public Void visitParameterList(ParameterList value, Scope scope) {
-		throw new IllegalStateException("NYI");
 	}
 
 	@Override

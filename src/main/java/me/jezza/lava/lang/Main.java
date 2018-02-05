@@ -8,7 +8,6 @@ import java.nio.file.Paths;
 
 import me.jezza.lava.lang.ast.ParseTree.Block;
 import me.jezza.lava.lang.interfaces.Lexer;
-import me.jezza.lava.runtime.Interpreter;
 import me.jezza.lava.runtime.Interpreter.LuaChunk;
 
 /**
@@ -35,7 +34,7 @@ public final class Main {
 //		System.out.println(speed);
 
 		LuaChunk chunk = nom(new File(ROOT, "lang.lua"));
-		Interpreter.test(chunk);
+//		Interpreter.test(chunk);
 	}
 
 	private static void run(String name) {
@@ -71,12 +70,14 @@ public final class Main {
 		LavaParser parser = new LavaParser(lexer);
 
 		long start = System.nanoTime();
-		Block chunk = parser.chunk();
+		Block block = parser.chunk();
 		long end = System.nanoTime();
 		long parserTime = end - start;
 		System.out.println("AST: " + parserTime);
 
-		String text = ASTPrinter.print(chunk);
+		SemanticPhase.run(block);
+
+		String text = ASTPrinter.print(block);
 		System.out.println(text);
 
 //		LoweringPhase.run(chunk);
@@ -91,12 +92,13 @@ public final class Main {
 
 
 		start = System.nanoTime();
-		LuaChunk emitted = LavaEmitter.emit(data.getName(), chunk);
+//		LuaChunk emitted = LavaEmitter.emit(data.getName(), chunk);
 		end = System.nanoTime();
 		long emitterTime = end - start;
 		System.out.println("Emitter: " + emitterTime);
 		System.out.println("Total: " + (parserTime + emitterTime));
-		return emitted;
+//		return emitted;
+		return null;
 	}
 
 	private static long nomTime(File data) throws IOException {

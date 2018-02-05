@@ -21,7 +21,6 @@ import me.jezza.lava.lang.ast.ParseTree.IfBlock;
 import me.jezza.lava.lang.ast.ParseTree.Label;
 import me.jezza.lava.lang.ast.ParseTree.Literal;
 import me.jezza.lava.lang.ast.ParseTree.LocalStatement;
-import me.jezza.lava.lang.ast.ParseTree.ParameterList;
 import me.jezza.lava.lang.ast.ParseTree.RepeatBlock;
 import me.jezza.lava.lang.ast.ParseTree.ReturnStatement;
 import me.jezza.lava.lang.ast.ParseTree.Statement;
@@ -146,32 +145,29 @@ public final class LavaParser extends AbstractParser {
 		ExpressionList prefix = new ExpressionList(List.of(left));
 		FunctionBody body = functionBody();
 		if (self) {
-			body.parameterList.nameList.add(0, "self");
+			body.parameters.add(0, "self");
 		}
 		return new Assignment(prefix, new ExpressionList(List.of(body)));
 	}
 
 	private FunctionBody functionBody() throws IOException {
 		consume('(');
-		ParameterList parameters;
+		List<String> parameters = new ArrayList<>();
+		boolean varargs = false;
 		if (!match(')')) {
-			List<String> names = new ArrayList<>();
-			boolean varargs;
 			do {
 				// @TODO Jezza - 08 Jun 2017: Probably not the best lookahead...
-				if (varargs = match(Tokens.DOTS)) {
+				if (match(Tokens.DOTS)) {
+					varargs = true;
 					break;
 				}
-				names.add(name());
+				parameters.add(name());
 			} while (match(','));
-			parameters = new ParameterList(names, varargs);
 			consume(')');
-		} else {
-			parameters = new ParameterList(new ArrayList<>(), false);
 		}
 		Block body = block();
 		consume(Tokens.END);
-		return new FunctionBody(parameters, body);
+		return new FunctionBody(parameters, varargs, body);
 	}
 
 	private String name() throws IOException {
@@ -540,7 +536,11 @@ public final class LavaParser extends AbstractParser {
 				List<Expression> expressions = new ArrayList<>();
 				expressions.add(primary);
 				do {
-					expressions.add(primaryExpression());
+					Expression expression = primaryExpression();
+					if (expression instanceof FunctionCall) {
+						throw new IllegalStateException("Syntax error (Function call not allowed on left-hand side of assign): " + expression);
+					}
+					expressions.add(expression);
 				} while (match(','));
 				leftSide = new ExpressionList(expressions);
 			} else if (primary instanceof ExpressionList){

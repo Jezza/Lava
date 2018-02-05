@@ -15,7 +15,6 @@ import me.jezza.lava.lang.ast.ParseTree.IfBlock;
 import me.jezza.lava.lang.ast.ParseTree.Label;
 import me.jezza.lava.lang.ast.ParseTree.Literal;
 import me.jezza.lava.lang.ast.ParseTree.LocalStatement;
-import me.jezza.lava.lang.ast.ParseTree.ParameterList;
 import me.jezza.lava.lang.ast.ParseTree.RepeatBlock;
 import me.jezza.lava.lang.ast.ParseTree.ReturnStatement;
 import me.jezza.lava.lang.ast.ParseTree.TableConstructor;
@@ -30,23 +29,7 @@ import me.jezza.lava.lang.ast.ParseTree.WhileLoop;
 public interface Visitor<P, R> {
 	R visitBlock(Block value, P userObject);
 
-	R visitAssignment(Assignment value, P userObject);
-
-	R visitFunctionCall(FunctionCall value, P userObject);
-
 	R visitExpressionList(ExpressionList value, P userObject);
-
-	R visitLocalStatement(LocalStatement value, P userObject);
-
-	R visitFunctionBody(FunctionBody value, P userObject);
-
-	R visitParameterList(ParameterList value, P userObject);
-
-	R visitLabel(Label value, P userObject);
-
-	R visitGoto(Goto value, P userObject);
-
-	R visitBreak(Break value, P userObject);
 
 	R visitDoBlock(DoBlock value, P userObject);
 
@@ -60,19 +43,33 @@ public interface Visitor<P, R> {
 
 	R visitForList(ForList value, P userObject);
 
-	R visitReturnStatement(ReturnStatement value, P userObject);
+	R visitFunctionBody(FunctionBody value, P userObject);
+
+	R visitLocalStatement(LocalStatement value, P userObject);
+
+	R visitAssignment(Assignment value, P userObject);
 
 	R visitUnaryOp(UnaryOp value, P userObject);
 
 	R visitBinaryOp(BinaryOp value, P userObject);
 
-	R visitLiteral(Literal value, P userObject);
-
-	R visitVarargs(Varargs value, P userObject);
+	R visitFunctionCall(FunctionCall value, P userObject);
 
 	R visitTableConstructor(TableConstructor value, P userObject);
 
 	R visitTableField(TableField value, P userObject);
+
+	R visitReturnStatement(ReturnStatement value, P userObject);
+
+	R visitLiteral(Literal value, P userObject);
+
+	R visitBreak(Break value, P userObject);
+
+	R visitGoto(Goto value, P userObject);
+
+	R visitLabel(Label value, P userObject);
+
+	R visitVarargs(Varargs value, P userObject);
 
 	interface PVisitor<T> extends Visitor<T, Void> {
 	}

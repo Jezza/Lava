@@ -2,6 +2,7 @@ package me.jezza.lava.lang.ast;
 
 import java.util.List;
 
+import me.jezza.lava.Strings;
 import me.jezza.lava.lang.interfaces.Visitor;
 import me.jezza.lava.lang.interfaces.Visitor.EVisitor;
 import me.jezza.lava.lang.interfaces.Visitor.PVisitor;
@@ -12,35 +13,44 @@ import me.jezza.lava.lang.interfaces.Visitor.RVisitor;
  */
 public abstract class ParseTree {
 	private static final int TYPE_BLOCK = 0;
-	private static final int TYPE_LABEL = 1;
-	private static final int TYPE_BREAK = 2;
-	private static final int TYPE_GOTO = 3;
-	private static final int TYPE_DO_BLOCK = 4;
-	private static final int TYPE_WHILE_LOOP = 5;
-	private static final int TYPE_REPEAT_BLOCK = 6;
-	private static final int TYPE_IF_BLOCK = 7;
-	private static final int TYPE_FOR_LOOP = 8;
-	private static final int TYPE_FOR_LIST = 9;
-	private static final int TYPE_FUNCTION_BODY = 10;
-	private static final int TYPE_LOCAL_STATEMENT = 11;
-	private static final int TYPE_RETURN_STATEMENT = 12;
-	private static final int TYPE_PARAMETER_LIST = 13;
-	private static final int TYPE_EXPRESSION_LIST = 14;
-	private static final int TYPE_UNARY_OP = 15;
-	private static final int TYPE_BINARY_OP = 16;
+	private static final int TYPE_EXPRESSION_LIST = 1;
+	private static final int TYPE_DO_BLOCK = 2;
+	private static final int TYPE_WHILE_LOOP = 3;
+	private static final int TYPE_REPEAT_BLOCK = 4;
+	private static final int TYPE_IF_BLOCK = 5;
+	private static final int TYPE_FOR_LOOP = 6;
+	private static final int TYPE_FOR_LIST = 7;
+	private static final int TYPE_FUNCTION_BODY = 8;
+	private static final int TYPE_LOCAL_STATEMENT = 9;
+	private static final int TYPE_ASSIGNMENT = 10;
+	private static final int TYPE_UNARY_OP = 11;
+	private static final int TYPE_BINARY_OP = 12;
+	private static final int TYPE_FUNCTION_CALL = 13;
+	private static final int TYPE_TABLE_CONSTRUCTOR = 14;
+	private static final int TYPE_TABLE_FIELD = 15;
+	private static final int TYPE_RETURN_STATEMENT = 16;
 	private static final int TYPE_LITERAL = 17;
-	private static final int TYPE_VARARGS = 18;
-	private static final int TYPE_FUNCTION_CALL = 19;
-//	private static final int TYPE_VARIABLE = 20;
-	private static final int TYPE_ASSIGNMENT = 21;
-	private static final int TYPE_TABLE_CONSTRUCTOR = 22;
-	private static final int TYPE_TABLE_FIELD = 23;
+	private static final int TYPE_BREAK = 18;
+	private static final int TYPE_GOTO = 19;
+	private static final int TYPE_LABEL = 20;
+	private static final int TYPE_VARARGS = 21;
 
 	private final int type;
+
+//	private int flags;
 
 	ParseTree(int type) {
 		this.type = type;
 	}
+
+//	public boolean is(int flags) {
+//		return (this.flags & flags) == flags;
+//	}
+//
+//	public ParseTree set(int flags) {
+//		this.flags |= flags;
+//		return this;
+//	}
 
 	public final void visit(EVisitor visitor) {
 		visit(visitor, null);
@@ -63,12 +73,8 @@ public abstract class ParseTree {
 		switch (type) {
 			case TYPE_BLOCK:
 				return visitor.visitBlock((Block) this, userObject);
-			case TYPE_LABEL:
-				return visitor.visitLabel((Label) this, userObject);
-			case TYPE_BREAK:
-				return visitor.visitBreak((Break) this, userObject);
-			case TYPE_GOTO:
-				return visitor.visitGoto((Goto) this, userObject);
+			case TYPE_EXPRESSION_LIST:
+				return visitor.visitExpressionList((ExpressionList) this, userObject);
 			case TYPE_DO_BLOCK:
 				return visitor.visitDoBlock((DoBlock) this, userObject);
 			case TYPE_WHILE_LOOP:
@@ -85,32 +91,36 @@ public abstract class ParseTree {
 				return visitor.visitFunctionBody((FunctionBody) this, userObject);
 			case TYPE_LOCAL_STATEMENT:
 				return visitor.visitLocalStatement((LocalStatement) this, userObject);
-			case TYPE_RETURN_STATEMENT:
-				return visitor.visitReturnStatement((ReturnStatement) this, userObject);
-			case TYPE_PARAMETER_LIST:
-				return visitor.visitParameterList((ParameterList) this, userObject);
-			case TYPE_EXPRESSION_LIST:
-				return visitor.visitExpressionList((ExpressionList) this, userObject);
+			case TYPE_ASSIGNMENT:
+				return visitor.visitAssignment((Assignment) this, userObject);
 			case TYPE_UNARY_OP:
 				return visitor.visitUnaryOp((UnaryOp) this, userObject);
 			case TYPE_BINARY_OP:
 				return visitor.visitBinaryOp((BinaryOp) this, userObject);
-			case TYPE_LITERAL:
-				return visitor.visitLiteral((Literal) this, userObject);
-			case TYPE_VARARGS:
-				return visitor.visitVarargs((Varargs) this, userObject);
 			case TYPE_FUNCTION_CALL:
 				return visitor.visitFunctionCall((FunctionCall) this, userObject);
-			case TYPE_ASSIGNMENT:
-				return visitor.visitAssignment((Assignment) this, userObject);
 			case TYPE_TABLE_CONSTRUCTOR:
 				return visitor.visitTableConstructor((TableConstructor) this, userObject);
 			case TYPE_TABLE_FIELD:
 				return visitor.visitTableField((TableField) this, userObject);
+			case TYPE_RETURN_STATEMENT:
+				return visitor.visitReturnStatement((ReturnStatement) this, userObject);
+			case TYPE_LITERAL:
+				return visitor.visitLiteral((Literal) this, userObject);
+			case TYPE_LABEL:
+				return visitor.visitLabel((Label) this, userObject);
+			case TYPE_BREAK:
+				return visitor.visitBreak((Break) this, userObject);
+			case TYPE_GOTO:
+				return visitor.visitGoto((Goto) this, userObject);
+			case TYPE_VARARGS:
+				return visitor.visitVarargs((Varargs) this, userObject);
 			default:
 				throw new IllegalStateException("Unknown subtype: " + type);
 		}
 	}
+
+
 
 	public abstract static class Statement extends ParseTree {
 		Statement(int type) {
@@ -131,29 +141,26 @@ public abstract class ParseTree {
 			super(TYPE_BLOCK);
 			this.statements = statements;
 		}
-	}
 
-	public static final class Label extends Statement {
-		public String name;
-
-		public Label(String name) {
-			super(TYPE_LABEL);
-			this.name = name;
+		@Override
+		public String toString() {
+			return Strings.format("Block{statements={}}",
+					statements);
 		}
 	}
 
-	public static final class Break extends Statement {
-		public Break() {
-			super(TYPE_BREAK);
+	public static final class ExpressionList extends Expression {
+		public List<Expression> list;
+
+		public ExpressionList(List<Expression> list) {
+			super(TYPE_EXPRESSION_LIST);
+			this.list = list;
 		}
-	}
 
-	public static final class Goto extends Statement {
-		public String label;
-
-		public Goto(String label) {
-			super(TYPE_GOTO);
-			this.label = label;
+		@Override
+		public String toString() {
+			return Strings.format("ExpressionList{list={}}",
+					list);
 		}
 	}
 
@@ -163,6 +170,12 @@ public abstract class ParseTree {
 		public DoBlock(Block body) {
 			super(TYPE_DO_BLOCK);
 			this.body = body;
+		}
+
+		@Override
+		public String toString() {
+			return Strings.format("DoBlock{body={}}",
+					body);
 		}
 	}
 
@@ -175,6 +188,13 @@ public abstract class ParseTree {
 			this.condition = condition;
 			this.body = body;
 		}
+
+		@Override
+		public String toString() {
+			return Strings.format("WhileLoop{condition={}, body={}}",
+					condition,
+					body);
+		}
 	}
 
 	public static final class RepeatBlock extends Statement {
@@ -185,6 +205,13 @@ public abstract class ParseTree {
 			super(TYPE_REPEAT_BLOCK);
 			this.body = body;
 			this.condition = condition;
+		}
+
+		@Override
+		public String toString() {
+			return Strings.format("RepeatBlock{body={}, condition={}}",
+					body,
+					condition);
 		}
 	}
 
@@ -199,6 +226,14 @@ public abstract class ParseTree {
 			this.thenPart = thenPart;
 			this.elsePart = elsePart;
 		}
+
+		@Override
+		public String toString() {
+			return Strings.format("IfBlock{condition={}, thenPart={}, elsePart={}}",
+					condition,
+					thenPart,
+					elsePart);
+		}
 	}
 
 	public static final class ForLoop extends Statement {
@@ -207,9 +242,9 @@ public abstract class ParseTree {
 		public Expression upperBound;
 		public Expression step;
 
-		public Statement body;
+		public Block body;
 
-		public ForLoop(String name, Expression lowerBound, Expression upperBound, Expression step, Statement body) {
+		public ForLoop(String name, Expression lowerBound, Expression upperBound, Expression step, Block body) {
 			super(TYPE_FOR_LOOP);
 			this.name = name;
 			this.lowerBound = lowerBound;
@@ -217,29 +252,57 @@ public abstract class ParseTree {
 			this.step = step;
 			this.body = body;
 		}
+
+		@Override
+		public String toString() {
+			return Strings.format("ForLoop{name=\"{}\", lowerBound={}, upperBound={}, step={}, body={}}",
+					name,
+					lowerBound,
+					upperBound,
+					step,
+					body);
+		}
 	}
 
 	public static final class ForList extends Statement {
 		public List<String> nameList;
 		public Expression expList;
-		public Statement body;
+		public Block body;
 
-		public ForList(List<String> nameList, Expression expList, Statement body) {
+		public ForList(List<String> nameList, Expression expList, Block body) {
 			super(TYPE_FOR_LIST);
 			this.nameList = nameList;
 			this.expList = expList;
 			this.body = body;
 		}
+
+		@Override
+		public String toString() {
+			return Strings.format("ForList{nameList={}, expList={}, body={}}",
+					nameList,
+					expList,
+					body);
+		}
 	}
 
 	public static final class FunctionBody extends Expression {
-		public ParameterList parameterList;
+		public List<String> parameters;
+		public boolean varargs;
 		public Block body;
 
-		public FunctionBody(ParameterList parameterList, Block body) {
+		public FunctionBody(List<String> parameters, boolean varargs, Block body) {
 			super(TYPE_FUNCTION_BODY);
-			this.parameterList = parameterList;
+			this.parameters = parameters;
+			this.varargs = varargs;
 			this.body = body;
+		}
+
+		@Override
+		public String toString() {
+			return Strings.format("FunctionBody{parameters={}, varargs={}, body={}}",
+					parameters,
+					varargs,
+					body);
 		}
 	}
 
@@ -252,34 +315,30 @@ public abstract class ParseTree {
 			this.lhs = lhs;
 			this.rhs = rhs;
 		}
-	}
 
-	public static final class ReturnStatement extends Statement {
-		public ExpressionList exprs;
-
-		public ReturnStatement(ExpressionList exprs) {
-			super(TYPE_RETURN_STATEMENT);
-			this.exprs = exprs;
+		@Override
+		public String toString() {
+			return Strings.format("LocalStatement{lhs={}, rhs={}}",
+					lhs,
+					rhs);
 		}
 	}
 
-	public static final class ParameterList extends Statement {
-		public List<String> nameList;
-		public boolean varargs;
+	public static final class Assignment extends Statement {
+		public ExpressionList lhs;
+		public ExpressionList rhs;
 
-		public ParameterList(List<String> nameList, boolean varargs) {
-			super(TYPE_PARAMETER_LIST);
-			this.nameList = nameList;
-			this.varargs = varargs;
+		public Assignment(ExpressionList lhs, ExpressionList rhs) {
+			super(TYPE_ASSIGNMENT);
+			this.lhs = lhs;
+			this.rhs = rhs;
 		}
-	}
 
-	public static final class ExpressionList extends Expression {
-		public List<Expression> list;
-
-		public ExpressionList(List<Expression> list) {
-			super(TYPE_EXPRESSION_LIST);
-			this.list = list;
+		@Override
+		public String toString() {
+			return Strings.format("Assignment{lhs={}, rhs={}}",
+					lhs,
+					rhs);
 		}
 	}
 
@@ -295,6 +354,13 @@ public abstract class ParseTree {
 			super(TYPE_UNARY_OP);
 			this.op = op;
 			this.arg = arg;
+		}
+
+		@Override
+		public String toString() {
+			return Strings.format("UnaryOp{op={}, arg={}}",
+					op,
+					arg);
 		}
 	}
 
@@ -330,6 +396,83 @@ public abstract class ParseTree {
 			this.left = left;
 			this.right = right;
 		}
+
+		@Override
+		public String toString() {
+			return Strings.format("BinaryOp{op={}, left={}, right={}}",
+					op,
+					left,
+					right);
+		}
+	}
+
+	public static final class FunctionCall extends Expression {
+		public Expression target;
+		public String name;
+		public Expression args;
+
+		public FunctionCall(Expression target, String name, Expression args) {
+			super(TYPE_FUNCTION_CALL);
+			this.target = target;
+			this.name = name;
+			this.args = args;
+		}
+
+		@Override
+		public String toString() {
+			return Strings.format("FunctionCall{target={}, name=\"{}\", args={}}",
+					target,
+					name,
+					args);
+		}
+	}
+
+	public static final class TableConstructor extends Expression {
+		public List<TableField> fields;
+
+		public TableConstructor(List<TableField> fields) {
+			super(TYPE_TABLE_CONSTRUCTOR);
+			this.fields = fields;
+		}
+
+		@Override
+		public String toString() {
+			return Strings.format("TableConstructor{fields={}}",
+					fields);
+		}
+	}
+
+	public static final class TableField extends Expression {
+		public Expression key;
+		public Expression value;
+
+		public TableField(Expression key, Expression value) {
+			super(TYPE_TABLE_FIELD);
+			this.key = key;
+			this.value = value;
+		}
+
+		@Override
+		public String toString() {
+			return Strings.format("TableField{key={}, value={}}",
+					key,
+					value);
+		}
+	}
+
+	public static final class ReturnStatement extends Statement {
+		public ExpressionList exprs;
+
+		public ReturnStatement(ExpressionList exprs) {
+			super(TYPE_RETURN_STATEMENT);
+			this.exprs = exprs;
+		}
+
+		@Override
+		public String toString() {
+			return Strings.format("ReturnStatement{exprs={}}",
+					exprs);
+		}
 	}
 
 	public static final class Literal extends Expression {
@@ -349,55 +492,59 @@ public abstract class ParseTree {
 			this.type = type;
 			this.value = value;
 		}
+
+		@Override
+		public String toString() {
+			return Strings.format("Literal{type={}, value={}}",
+					type,
+					value);
+		}
+	}
+
+	public static final class Break extends Statement {
+		public Break() {
+			super(TYPE_BREAK);
+		}
+
+		@Override
+		public String toString() {
+			return "Break{}";
+		}
+	}
+
+	public static final class Goto extends Statement {
+		public String label;
+
+		public Goto(String label) {
+			super(TYPE_GOTO);
+			this.label = label;
+		}
+
+		@Override
+		public String toString() {
+			return Strings.format("Goto{label=\"{}\"}",
+					label);
+		}
+	}
+
+	public static final class Label extends Statement {
+		public String name;
+
+		public Label(String name) {
+			super(TYPE_LABEL);
+			this.name = name;
+		}
+
+		@Override
+		public String toString() {
+			return Strings.format("Label{name=\"{}\"}",
+					name);
+		}
 	}
 
 	public static final class Varargs extends Expression {
 		public Varargs() {
 			super(TYPE_VARARGS);
-		}
-	}
-
-	public static final class FunctionCall extends Expression {
-		public Expression prefix;
-		public String name;
-		public Expression args;
-
-		public FunctionCall(Expression prefix, String name, Expression args) {
-			super(TYPE_FUNCTION_CALL);
-			this.prefix = prefix;
-			this.name = name;
-			this.args = args;
-		}
-	}
-
-	public static final class Assignment extends Statement {
-		public ExpressionList lhs;
-		public ExpressionList rhs;
-
-		public Assignment(ExpressionList lhs, ExpressionList rhs) {
-			super(TYPE_ASSIGNMENT);
-			this.lhs = lhs;
-			this.rhs = rhs;
-		}
-	}
-
-	public static final class TableConstructor extends Expression {
-		public List<TableField> fields;
-
-		public TableConstructor(List<TableField> fields) {
-			super(TYPE_TABLE_CONSTRUCTOR);
-			this.fields = fields;
-		}
-	}
-
-	public static final class TableField extends Expression {
-		public Expression key;
-		public Expression value;
-
-		public TableField(Expression key, Expression value) {
-			super(TYPE_TABLE_FIELD);
-			this.key = key;
-			this.value = value;
 		}
 	}
 }
