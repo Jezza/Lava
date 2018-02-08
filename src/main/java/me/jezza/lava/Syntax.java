@@ -979,13 +979,12 @@ final class Syntax {
 
 	private void exprstat() throws IOException {
 		// stat -> func | assignment
-		LHSAssign v = new LHSAssign();
-		primaryexp(v.v);
-		if (v.v.k == Expdesc.VCALL) {      // stat -> func
-			fs.setargc(v.v, 1); // call statement uses no results
+		Expdesc exp = new Expdesc();
+		primaryexp(exp);
+		if (exp.k == Expdesc.VCALL) {      // stat -> func
+			fs.setargc(exp, 1); // call statement uses no results
 		} else {      // stat -> assignment
-			v.prev = null;
-			assignment(v, 1);
+			assignment(new LHSAssign(exp), 1);
 		}
 	}
 
@@ -1017,16 +1016,16 @@ final class Syntax {
 	}
 
 	private void assignment(LHSAssign lh, int nvars) throws IOException {
-		Expdesc e = new Expdesc();
 		int kind = lh.v.k;
 		if (!(Expdesc.VLOCAL <= kind && kind <= Expdesc.VINDEXED))
 			throw xSyntaxError("syntax error");
+		Expdesc e = new Expdesc();
 		if (testnext(','))    /* assignment -> `,' primaryexp assignment */ {
-			LHSAssign nv = new LHSAssign(lh);
-			primaryexp(nv.v);
-			if (nv.v.k == Expdesc.VLOCAL)
-				check_conflict(lh, nv.v);
-			assignment(nv, nvars + 1);
+			Expdesc exp = new Expdesc();
+			primaryexp(exp);
+			if (exp.k == Expdesc.VLOCAL)
+				check_conflict(lh, exp);
+			assignment(new LHSAssign(exp, lh), nvars + 1);
 		} else    /* assignment -> `=' explist1 */ {
 			int nexps;
 			checknext('=');
@@ -1889,12 +1888,14 @@ final class Syntax {
 
 final class LHSAssign {
 	LHSAssign prev;
-	Expdesc v = new Expdesc();
+	Expdesc v;
 
-	LHSAssign() {
+	LHSAssign(Expdesc v) {
+		this(v, null);
 	}
 
-	LHSAssign(LHSAssign prev) {
+	LHSAssign(Expdesc v, LHSAssign prev) {
+		this.v = v;
 		this.prev = prev;
 	}
 }

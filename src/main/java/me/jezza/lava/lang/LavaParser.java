@@ -530,27 +530,31 @@ public final class LavaParser extends AbstractParser {
 		// Assignment or function call
 		if (primary instanceof FunctionCall) {
 			return new Assignment(null, new ExpressionList(List.of(primary)));
-		} else {
-			ExpressionList leftSide;
-			if (match(',')) {
-				List<Expression> expressions = new ArrayList<>();
-				expressions.add(primary);
-				do {
-					Expression expression = primaryExpression();
-					if (expression instanceof FunctionCall) {
-						throw new IllegalStateException("Syntax error (Function call not allowed on left-hand side of assign): " + expression);
-					}
-					expressions.add(expression);
-				} while (match(','));
-				leftSide = new ExpressionList(expressions);
-			} else if (primary instanceof ExpressionList){
-				leftSide = ((ExpressionList) primary);
-			} else {
-				leftSide = new ExpressionList(List.of(primary));
-			}
-			consume('=');
-			return new Assignment(leftSide, expressionList());
 		}
+		// a, b, c = 1, 2, 3
+		// a, b, c = 1, 2, 3
+
+
+
+		ExpressionList leftSide;
+		if (match(',')) {
+			List<Expression> expressions = new ArrayList<>();
+			expressions.add(primary);
+			do {
+				Expression expression = primaryExpression();
+				if (expression instanceof FunctionCall) {
+					throw new IllegalStateException("Syntax error (Function call not allowed on left-hand side of assign): " + expression);
+				}
+				expressions.add(expression);
+			} while (match(','));
+			leftSide = new ExpressionList(expressions);
+		} else if (primary instanceof ExpressionList){
+			leftSide = ((ExpressionList) primary);
+		} else {
+			leftSide = new ExpressionList(List.of(primary));
+		}
+		consume('=');
+		return new Assignment(leftSide, expressionList());
 	}
 
 	private static boolean blockFollowing(int type) {

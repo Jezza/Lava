@@ -32,7 +32,20 @@ public final class Main {
 
 	private static final int UPPER_LIMIT = 50;
 
-	public static void main(String[] args) throws Exception {
+	public static void main(String[] args) {
+		Lua L = new Lua();
+		BaseLib.open(L);
+
+		L.doString("local a = {\"Test\"}\n" +
+				"\n" +
+				"local b = 0\n" +
+				"\n" +
+				"a[b], b = \"Hello\", \"World\"\n" +
+				"\n" +
+				"print(a, \":::\", b);\n");
+	}
+
+	public static void main0(String[] args) throws Exception {
 		Lua L = new Lua();
 		BaseLib.open(L);
 		MathLib.open(L);

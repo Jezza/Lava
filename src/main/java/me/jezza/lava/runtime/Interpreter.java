@@ -22,8 +22,8 @@ import me.jezza.lava.runtime.OpCode.Implemented;
 /**
  * @author Jezza
  */
+@SuppressWarnings("Duplicates")
 public final class Interpreter {
-
 	private static final boolean DEBUG_MODE = true;
 	private static final Object NIL = "NIL";
 
@@ -226,9 +226,8 @@ public final class Interpreter {
 	private void dispatchNext(MethodHandle next, StackFrame frame) throws Throwable {
 		if (DEBUG_MODE) {
 			next.invokeExact(this, frame, OpCode.DEBUG);
-		} else {
-			next.invokeExact(this, frame, frame.decode1());
 		}
+		next.invokeExact(this, frame, frame.decode1());
 	}
 
 	private static final MethodHandle CONST1_MH = dispatcher();
@@ -408,8 +407,7 @@ public final class Interpreter {
 
 	public void execute() throws Throwable {
 		while (status == 0) {
-			StackFrame frame = currentFrame();
-			EXECUTE_MH.invokeExact(this, frame, frame.decode1());
+			dispatchNext(EXECUTE_MH, currentFrame());
 		}
 	}
 

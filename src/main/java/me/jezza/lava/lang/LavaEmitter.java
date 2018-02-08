@@ -1,7 +1,5 @@
 package me.jezza.lava.lang;
 
-import java.util.List;
-
 import me.jezza.lava.lang.LavaEmitter.Scope;
 import me.jezza.lava.lang.ast.ParseTree.Assignment;
 import me.jezza.lava.lang.ast.ParseTree.BinaryOp;
@@ -53,15 +51,13 @@ public final class LavaEmitter implements PVisitor<Scope> {
 		final ConstantPool locals;
 
 		int top;
-		int results;
-
-		int maxStackSize;
+		int max;
 
 		Scope(String name) {
 			this(name, null);
 		}
 
-		Scope(String name, Scope previous) {
+		private Scope(String name, Scope previous) {
 			this.name = name;
 			this.previous = previous;
 			this.w = new ByteCodeWriter();
@@ -75,8 +71,8 @@ public final class LavaEmitter implements PVisitor<Scope> {
 
 		public void reserve(int count) {
 			top += count;
-			if (top > maxStackSize) {
-				maxStackSize = top;
+			if (top > max) {
+				max = top;
 			}
 		}
 
@@ -91,10 +87,17 @@ public final class LavaEmitter implements PVisitor<Scope> {
 				w.write2(OpCode.RET, 0);
 			}
 			chunk.code = w.code();
-			chunk.maxStackSize = maxStackSize;
+			chunk.maxStackSize = max;
 			// chunk.chunks = chunks.toArray(new LuaChunk[0]);
 			return chunk;
 		}
+	}
+
+	@Override
+	public Void visitBlock(Block value, Scope scope) {
+		for (Statement statement : value.statements)
+			statement.visit(this, scope);
+		return null;
 	}
 
 //	class Block:
@@ -105,28 +108,28 @@ public final class LavaEmitter implements PVisitor<Scope> {
 
 	@Override
 	public Void visitFunctionCall(FunctionCall value, Scope scope) {
-		int top = scope.top;
-
-		// Load args
-		value.args.visit(this, scope);
-		// Load function
-		value.target.visit(this, scope);
-		// Call function
-		int count = value.args instanceof ExpressionList
-					? ((ExpressionList) value.args).list.size()
-					: 1;
-		scope.w.write2(OpCode.CALL, count, scope.results);
-		scope.top = top + scope.results;
+//		int top = scope.top;
+//
+//		// Load args
+//		value.args.visit(this, scope);
+//		// Load function
+//		value.target.visit(this, scope);
+//		// Call function
+//		int count = value.args instanceof ExpressionList
+//					? ((ExpressionList) value.args).list.size()
+//					: 1;
+//		scope.w.write2(OpCode.CALL, count, scope.results);
+//		scope.top = top + scope.results;
 		return null;
 	}
 
 	private void move(String name, Scope scope) {
-		int index = scope.registerLocal(name);
-		scope.w.write2(OpCode.MOV, scope.top - 1, index);
-		if (scope.top - 1 != index) {
-			scope.top--;
-			scope.w.write1(OpCode.POP);
-		}
+//		int index = scope.registerLocal(name);
+//		scope.w.write2(OpCode.MOV, scope.top - 1, index);
+//		if (scope.top - 1 != index) {
+//			scope.top--;
+//			scope.w.write1(OpCode.POP);
+//		}
 	}
 
 //	@Override
@@ -139,9 +142,9 @@ public final class LavaEmitter implements PVisitor<Scope> {
 
 	@Override
 	public Void visitAssignment(Assignment value, Scope scope) {
-		if (value.lhs == null) {
-			value.rhs.visit(this, scope);
-		} else {
+//		if (value.lhs == null) {
+//			value.rhs.visit(this, scope);
+//		} else {
 
 			// first, second = first(second), second(first);
 			//
@@ -151,15 +154,15 @@ public final class LavaEmitter implements PVisitor<Scope> {
 			// second = second(old_first);
 
 			// @TODO Jezza - 22 Jan 2018: Size check
-			value.rhs.visit(this, scope);
+//			value.rhs.visit(this, scope);
 
-			List<Expression> lhs = value.lhs.list;
+//			List<Expression> lhs = value.lhs.list;
 //			value.rhs.list;
 
 
-			for (Expression lh : lhs) {
+//			for (Expression lh : lhs) {
 //				lh.set(ASSIGNMENT).visit(this, scope);
-			}
+//			}
 //			int results = scope.results;
 //			int ls = lhs.size();
 //			int rs = rhs.size();
@@ -182,7 +185,7 @@ public final class LavaEmitter implements PVisitor<Scope> {
 //				}
 //			}
 //			scope.results = results;
-		}
+//		}
 		return null;
 	}
 
@@ -200,58 +203,51 @@ public final class LavaEmitter implements PVisitor<Scope> {
 
 	@Override
 	public Void visitLocalStatement(LocalStatement value, Scope scope) {
-		if (value.lhs == null) {
-			value.rhs.visit(this, scope);
-		} else {
-			List<String> lhs = value.lhs;
-			List<Expression> rhs = value.rhs.list;
-
-			int results = scope.results;
-
-			int ls = lhs.size();
-			int rs = rhs.size();
-			scope.results = ls;
-			// scope.reserve(ls);
-			if (ls > rs) {
-				for (int i = 0; i < ls; i++) {
-					if (i >= rs) {
-						scope.w.write1(OpCode.CONST_NIL);
-						scope.top++;
-					} else {
-						rhs.get(i).visit(this, scope);
-					}
-					move(lhs.get(i), scope);
-				}
-			} else {
-				for (int i = 0; i < ls; i++) {
-					rhs.get(i).visit(this, scope);
-					move(lhs.get(i), scope);
-				}
-			}
-			scope.results = results;
-		}
+//		if (value.lhs == null) {
+//			value.rhs.visit(this, scope);
+//		} else {
+//			List<String> lhs = value.lhs;
+//			List<Expression> rhs = value.rhs.list;
+//
+//			int results = scope.results;
+//
+//			int ls = lhs.size();
+//			int rs = rhs.size();
+//			scope.results = ls;
+//			// scope.reserve(ls);
+//			if (ls > rs) {
+//				for (int i = 0; i < ls; i++) {
+//					if (i >= rs) {
+//						scope.w.write1(OpCode.CONST_NIL);
+//						scope.top++;
+//					} else {
+//						rhs.get(i).visit(this, scope);
+//					}
+//					move(lhs.get(i), scope);
+//				}
+//			} else {
+//				for (int i = 0; i < ls; i++) {
+//					rhs.get(i).visit(this, scope);
+//					move(lhs.get(i), scope);
+//				}
+//			}
+//			scope.results = results;
+//		}
 		return null;
 	}
 
 	@Override
 	public Void visitFunctionBody(FunctionBody value, Scope scope) {
-		Scope local = scope.newScope("local");
-		if (value.varargs)
-			throw new IllegalStateException("NYI");
-		for (String s : value.parameters)
-			local.registerLocal(s);
-		value.body.visit(this, local);
-
-		LuaChunk chunk = local.build();
-		chunk.paramCount = value.parameters.size();
+//		Scope local = scope.newScope("local");
+//		if (value.varargs)
+//			throw new IllegalStateException("NYI");
+//		for (String s : value.parameters)
+//			local.registerLocal(s);
+//		value.body.visit(this, local);
+//
+//		LuaChunk chunk = local.build();
+//		chunk.paramCount = value.parameters.size();
 //		scope.pool.add(chunk);
-		return null;
-	}
-
-	@Override
-	public Void visitBlock(Block value, Scope scope) {
-		for (Statement statement : value.statements)
-			statement.visit(this, scope);
 		return null;
 	}
 
@@ -345,36 +341,36 @@ public final class LavaEmitter implements PVisitor<Scope> {
 
 	@Override
 	public Void visitLiteral(Literal value, Scope scope) {
-		ByteCodeWriter w = scope.w;
-		if (value.type == Literal.NAMESPACE) {
-			String name = (String) value.value;
-//			Scope current = scope;
-//			while (current != null) {
-//				int index = current.locals.add(name);
-//				if (index != -1) {
-//					// TODO: 18/06/2017 Upvalues should be added here.
-//					if (current != scope)
-//						throw new IllegalStateException("Upvalues aren't supported: " + name);
-//					w.write1(OpCodes.CONST1, index);
-//					scope.top++;
-//					return null;
-//				}
-//				current = current.previous;
+//		ByteCodeWriter w = scope.w;
+//		if (value.type == Literal.NAMESPACE) {
+//			String name = (String) value.value;
+////			Scope current = scope;
+////			while (current != null) {
+////				int index = current.locals.add(name);
+////				if (index != -1) {
+////					// TODO: 18/06/2017 Upvalues should be added here.
+////					if (current != scope)
+////						throw new IllegalStateException("Upvalues aren't supported: " + name);
+////					w.write1(OpCodes.CONST1, index);
+////					scope.top++;
+////					return null;
+////				}
+////				current = current.previous;
+////			}
+//			int index = scope.pool.add(name);
+//			w.write1(OpCode.CONST1, index);
+//			w.write1(OpCode.GET_GLOBAL);
+//			scope.top++;
+//		} else {
+//			// Load the literal
+//			int index = scope.pool.add(value.value);
+//			if (index < 256) {
+//				scope.w.write1(OpCode.CONST1, index);
+//			} else {
+//				scope.w.write2(OpCode.CONST2, index);
 //			}
-			int index = scope.pool.add(name);
-			w.write1(OpCode.CONST1, index);
-			w.write1(OpCode.GET_GLOBAL);
-			scope.top++;
-		} else {
-			// Load the literal
-			int index = scope.pool.add(value.value);
-			if (index < 256) {
-				scope.w.write1(OpCode.CONST1, index);
-			} else {
-				scope.w.write2(OpCode.CONST2, index);
-			}
-			scope.top++;
-		}
+//			scope.top++;
+//		}
 		return null;
 	}
 
