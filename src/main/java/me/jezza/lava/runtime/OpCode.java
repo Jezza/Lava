@@ -38,27 +38,7 @@ public final class OpCode {
 	}
 
 	/**
-	 * <b>CONST1: (1)</b>
-	 * <p>
-	 * <b>Other Bytes:</b>
-	 * <ol>
-	 *     <li>index into the constant pool</li>
-	 * </ol>
-	 * <b>Stack:</b>
-	 * <blockquote>
-	 *     [] -> [value]
-	 * </blockquote>
-	 * <b>Description:</b>
-	 * <blockquote>
-	 *     Load a constant onto the stack from the constant pool identified by the given index<br>
-	 *     Note: if you wish to load a constant that has an index greater than 1 byte, use CONST2.<br>
-	 * </blockquote>
-	 */
-	@Implemented
-	public static final byte CONST1 = 0;
-
-	/**
-	 * <b>CONST2: (2)</b>
+	 * <b>CONST: (2)</b>
 	 * <p>
 	 * <b>Other Bytes:</b>
 	 * <ol>
@@ -75,7 +55,7 @@ public final class OpCode {
 	 * </blockquote>
 	 */
 	@Implemented
-	public static final byte CONST2 = 1;
+	public static final byte CONST = 0;
 
 	/**
 	 * <b>CONST_NIL: (0)</b>
@@ -94,7 +74,7 @@ public final class OpCode {
 	 * </blockquote>
 	 */
 	@Implemented
-	public static final byte CONST_NIL = 2;
+	public static final byte CONST_NIL = 1;
 
 	/**
 	 * <b>CONST_TRUE: (0)</b>
@@ -113,7 +93,7 @@ public final class OpCode {
 	 * </blockquote>
 	 */
 	@Implemented
-	public static final byte CONST_TRUE = 3;
+	public static final byte CONST_TRUE = 2;
 
 	/**
 	 * <b>CONST_FALSE: (0)</b>
@@ -132,7 +112,7 @@ public final class OpCode {
 	 * </blockquote>
 	 */
 	@Implemented
-	public static final byte CONST_FALSE = 4;
+	public static final byte CONST_FALSE = 3;
 
 	/**
 	 * <b>LOAD_FUNCTION: (1)</b>
@@ -151,24 +131,25 @@ public final class OpCode {
 	 *     This function also prepares the function's upvalues.<br>
 	 * </blockquote>
 	 */
-	public static final byte LOAD_FUNCTION = 5;
+	public static final byte LOAD_FUNCTION = 4;
 
 	@Implemented
-	public static final byte MOV = 6;
+	public static final byte MOV = 5;
 	@Implemented
-	public static final byte POP = 7;
-	public static final byte DUP = 8;
+	public static final byte POP = 6;
+	public static final byte DUP = 7;
 
 
-	public static final byte GET_UPVAL = 9;
-	public static final byte SET_UPVAL = 10;
+	public static final byte GET_UPVAL = 8;
+	public static final byte SET_UPVAL = 9;
 
-	public static final byte NEW_TABLE = 11;
-	public static final byte GET_TABLE = 12;
-	public static final byte SET_TABLE = 13;
+	public static final byte NEW_TABLE = 10;
+	public static final byte GET_TABLE = 11;
+	@Implemented
+	public static final byte SET_TABLE = 12;
 
 	// TODO: 30/05/2017 Might be able to merge SET_LIST with NEW_TABLE
-	public static final byte SET_LIST = 14;
+	public static final byte SET_LIST = 13;
 
 	/**
 	 * <b>LOAD_FUNCTION: (1)</b>
@@ -187,11 +168,11 @@ public final class OpCode {
 	 * </blockquote>
 	 */
 	@Implemented
-	public static final byte GET_GLOBAL = 15;
-	public static final byte SET_GLOBAL = 16;
+	public static final byte GET_GLOBAL = 14;
+	public static final byte SET_GLOBAL = 15;
 
 
-	public static final byte SELF = 17;
+	public static final byte SELF = 16;
 
 	/**
 	 * <b>ADD: (0)</b>
@@ -210,18 +191,18 @@ public final class OpCode {
 	 * </blockquote>
 	 */
 	@Implemented
-	public static final byte ADD = 18;
-	public static final byte SUB = 19;
+	public static final byte ADD = 17;
+	public static final byte SUB = 18;
 	@Implemented
-	public static final byte MUL = 20;
-	public static final byte DIV = 21;
-	public static final byte MOD = 22;
-	public static final byte POW = 23;
-	public static final byte NEG = 24;
-	public static final byte NOT = 25;
+	public static final byte MUL = 19;
+	public static final byte DIV = 20;
+	public static final byte MOD = 21;
+	public static final byte POW = 22;
+	public static final byte NEG = 23;
+	public static final byte NOT = 24;
 
-	public static final byte LEN = 26;
-	public static final byte CONCAT = 27;
+	public static final byte LEN = 25;
+	public static final byte CONCAT = 26;
 
 	// Control flow ops don't have dispatchers.
 
@@ -246,28 +227,28 @@ public final class OpCode {
 	 * </blockquote>
 	 */
 	@Implemented
-	public static final byte CALL = 28;
-	public static final byte GOTO = 29;
-	public static final byte IFZ = 30;
-	public static final byte IFNZ = 31;
+	public static final byte CALL = 27;
+	public static final byte GOTO = 28;
+	public static final byte IFZ = 29;
+	public static final byte IFNZ = 30;
 	// TODO: 30/05/2017 Think about encoding equal and not equal
-	public static final byte LT = 32;
-	public static final byte LE = 33;
-	public static final byte TEST = 34;
-	public static final byte TEST_SET = 35;
-	public static final byte TAILCALL = 36;
+	public static final byte LT = 31;
+	public static final byte LE = 32;
+	public static final byte TEST = 33;
+	public static final byte TEST_SET = 34;
+	public static final byte TAILCALL = 35;
 
-	public static final byte FOR_PREP = 37;
-	public static final byte FOR_LOOP = 38;
-	public static final byte FOR_LOOP_TABLE = 39;
+	public static final byte FOR_PREP = 36;
+	public static final byte FOR_LOOP = 37;
+	public static final byte FOR_LOOP_TABLE = 38;
 
-	public static final byte CLOSE = 40;
+	public static final byte CLOSE = 39;
 	@Implemented
-	public static final byte RET = 41;
+	public static final byte RET = 40;
 
-	public static final byte PRINT = 42;
+	public static final byte PRINT = 41;
 	@Implemented
-	public static final byte DEBUG = 43;
+	public static final byte DEBUG = 42;
 
 	public static void main(String[] args) {
 		// Used when we move around values.

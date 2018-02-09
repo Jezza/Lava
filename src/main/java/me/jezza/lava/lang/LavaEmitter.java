@@ -1,6 +1,9 @@
 package me.jezza.lava.lang;
 
+import java.util.List;
+
 import me.jezza.lava.lang.LavaEmitter.Scope;
+import me.jezza.lava.lang.ast.ParseTree;
 import me.jezza.lava.lang.ast.ParseTree.Assignment;
 import me.jezza.lava.lang.ast.ParseTree.BinaryOp;
 import me.jezza.lava.lang.ast.ParseTree.Block;
@@ -95,8 +98,9 @@ public final class LavaEmitter implements PVisitor<Scope> {
 
 	@Override
 	public Void visitBlock(Block value, Scope scope) {
-		for (Statement statement : value.statements)
+		for (Statement statement : value.statements) {
 			statement.visit(this, scope);
+		}
 		return null;
 	}
 
@@ -108,29 +112,26 @@ public final class LavaEmitter implements PVisitor<Scope> {
 
 	@Override
 	public Void visitFunctionCall(FunctionCall value, Scope scope) {
-//		int top = scope.top;
-//
-//		// Load args
-//		value.args.visit(this, scope);
-//		// Load function
-//		value.target.visit(this, scope);
-//		// Call function
-//		int count = value.args instanceof ExpressionList
-//					? ((ExpressionList) value.args).list.size()
-//					: 1;
-//		scope.w.write2(OpCode.CALL, count, scope.results);
+		// Load args
+		int before = scope.top;
+		value.args.visit(this, scope);
+		int count = scope.top - before;
+		// Load function
+		value.target.visit(this, scope);
+		scope.w.write2(OpCode.CALL, count);
 //		scope.top = top + scope.results;
+//		throw new IllegalStateException("NYI");
 		return null;
 	}
 
-	private void move(String name, Scope scope) {
+//	private void move(String name, Scope scope) {
 //		int index = scope.registerLocal(name);
 //		scope.w.write2(OpCode.MOV, scope.top - 1, index);
 //		if (scope.top - 1 != index) {
 //			scope.top--;
 //			scope.w.write1(OpCode.POP);
 //		}
-	}
+//	}
 
 //	@Override
 //	public Void visitVariable(Variable variable, Scope scope) {
@@ -138,54 +139,46 @@ public final class LavaEmitter implements PVisitor<Scope> {
 //		return null;
 //	}
 
-	private static final int ASSIGNMENT = 0b1;
+	private void stackPop(Scope scope) {
+		scope.w.write1(OpCode.POP);
+		scope.top--;
+	}
+
+	private void stackNil(Scope scope) {
+		scope.w.write1(OpCode.CONST_NIL);
+		scope.top++;
+	}
 
 	@Override
 	public Void visitAssignment(Assignment value, Scope scope) {
-//		if (value.lhs == null) {
-//			value.rhs.visit(this, scope);
-//		} else {
+		if (value.lhs == null) {
+			value.rhs.visit(this, scope);
+		} else {
+			// @TODO Jezza - 09 Feb 2018: Assignment flattening
+			// @TODO Jezza - 09 Feb 2018: Conflict resolution
 
-			// first, second = first(second), second(first);
-			//
-			// old_second = second;
-			// old_first = first;
-			// first = first(second);
-			// second = second(old_first);
+			List<Expression> rhs = value.rhs.list;
+			List<Expression> lhs = value.lhs.list;
 
-			// @TODO Jezza - 22 Jan 2018: Size check
-//			value.rhs.visit(this, scope);
-
-//			List<Expression> lhs = value.lhs.list;
-//			value.rhs.list;
-
-
-//			for (Expression lh : lhs) {
-//				lh.set(ASSIGNMENT).visit(this, scope);
-//			}
-//			int results = scope.results;
-//			int ls = lhs.size();
-//			int rs = rhs.size();
-//			scope.results = ls;
-//			// scope.reserve(ls);
-//			if (ls > rs) {
-//				for (int i = 0; i < ls; i++) {
-//					if (i >= rs) {
-//						scope.w.write1(OpCode.CONST_NIL);
-//						scope.top++;
-//					} else {
-//						rhs.get(i).visit(this, scope);
-//					}
-//					lhs.get(i).visit(this, scope);
-//				}
-//			} else {
-//				for (int i = 0; i < ls; i++) {
-//					rhs.get(i).visit(this, scope);
-//					lhs.get(i).visit(this, scope);
-//				}
-//			}
-//			scope.results = results;
-//		}
+			int leftSize = lhs.size();
+			int rightSize = rhs.size();
+			int min = Math.min(leftSize, rightSize);
+			int i = 0;
+			for (; i < min; i++) {
+				rhs.get(i).visit(this, scope);
+				lhs.get(i).visit(this, scope);
+			}
+			if (leftSize < rightSize) {
+				for (; i < rightSize; i++) {
+					rhs.get(i).visit(this, scope);
+					stackPop(scope);
+				}
+			} else if (leftSize > rightSize) {
+				for (; i < leftSize; i++) {
+					stackNil(scope);
+				}
+			}
+		}
 		return null;
 	}
 
@@ -233,21 +226,25 @@ public final class LavaEmitter implements PVisitor<Scope> {
 //			}
 //			scope.results = results;
 //		}
-		return null;
+		throw new IllegalStateException("NYI");
 	}
 
 	@Override
 	public Void visitFunctionBody(FunctionBody value, Scope scope) {
-//		Scope local = scope.newScope("local");
-//		if (value.varargs)
-//			throw new IllegalStateException("NYI");
-//		for (String s : value.parameters)
-//			local.registerLocal(s);
-//		value.body.visit(this, local);
-//
-//		LuaChunk chunk = local.build();
+		Scope local = scope.newScope(scope.name + ":function");
+		if (value.varargs) {
+			throw new IllegalStateException("NYI");
+		}
+		for (String s : value.parameters) {
+			local.registerLocal(s);
+		}
+		value.body.visit(this, local);
+
+		LuaChunk chunk = local.build();
 //		chunk.paramCount = value.parameters.size();
-//		scope.pool.add(chunk);
+		int index = scope.pool.add(chunk);
+		scope.w.write2(OpCode.CONST, index);
+		scope.top++;
 		return null;
 	}
 
@@ -305,11 +302,11 @@ public final class LavaEmitter implements PVisitor<Scope> {
 
 	private static int unaryOpCode(int code) {
 		switch (code) {
-			case UnaryOp.OPR_MINUS:
+			case UnaryOp.OP_MINUS:
 				return OpCode.NEG;
-			case UnaryOp.OPR_NOT:
+			case UnaryOp.OP_NOT:
 				return OpCode.NOT;
-			case UnaryOp.OPR_LEN:
+			case UnaryOp.OP_LEN:
 				return OpCode.LEN;
 			default:
 				throw new IllegalStateException("Unsupported: " + code);
@@ -318,21 +315,32 @@ public final class LavaEmitter implements PVisitor<Scope> {
 
 	@Override
 	public Void visitBinaryOp(BinaryOp value, Scope scope) {
-		value.left.visit(this, scope);
-		value.right.visit(this, scope);
-		scope.w.write1(binaryOpCode(value.op));
+		if (value.is(ParseTree.FLAG_ASSIGNMENT)) {
+			if (value.op != BinaryOp.OP_INDEXED) {
+				throw new IllegalStateException("Illegal binary assignment op: " + value.op);
+			}
+			value.right.visit(this, scope);
+			value.left.visit(this, scope);
+			scope.w.write1(OpCode.SET_TABLE);
+		} else {
+			value.left.visit(this, scope);
+			value.right.visit(this, scope);
+			scope.w.write1(binaryOpCode(value.op));
+		}
 		return null;
 	}
 
 	private static int binaryOpCode(int code) {
 		switch (code) {
-			case BinaryOp.OPR_ADD:
+			case BinaryOp.OP_ADD:
 				return OpCode.ADD;
-			case BinaryOp.OPR_SUB:
+			case BinaryOp.OP_SUB:
 				return OpCode.SUB;
-			case BinaryOp.OPR_MUL:
+			case BinaryOp.OP_MUL:
 				return OpCode.MUL;
-			case BinaryOp.OPR_DIV:
+			case BinaryOp.OP_DIV:
+				return OpCode.DIV;
+			case BinaryOp.OP_INDEXED:
 				return OpCode.DIV;
 			default:
 				throw new IllegalStateException("Unsupported: " + code);
@@ -341,6 +349,32 @@ public final class LavaEmitter implements PVisitor<Scope> {
 
 	@Override
 	public Void visitLiteral(Literal value, Scope scope) {
+		if (value.is(ParseTree.FLAG_ASSIGNMENT)) {
+			if (value.type != Literal.NAMESPACE) {
+				throw new IllegalStateException("Attempted to load a non-namespace literal: " + value);
+			}
+			int index = scope.registerLocal((String) value.value);
+			if (scope.top == 0) {
+				if (index != 0) {
+					throw new IllegalStateException("Illegal stack state?");
+				}
+			} else if (scope.top >= 0 && scope.top - 1 != index) {
+				scope.w.write2(OpCode.MOV, scope.top - 1, index);
+				stackPop(scope);
+			}
+		} else if (value.type == Literal.NAMESPACE) {
+			int to = scope.top;
+			int from = scope.locals.add(value.value);
+			if (from != to) {
+				stackNil(scope);
+				scope.w.write2(OpCode.MOV, from, to);
+			}
+		} else {
+			int index = scope.pool.add(value.value);
+			scope.w.write2(OpCode.CONST, index);
+			scope.top++;
+		}
+
 //		ByteCodeWriter w = scope.w;
 //		if (value.type == Literal.NAMESPACE) {
 //			String name = (String) value.value;
@@ -362,13 +396,6 @@ public final class LavaEmitter implements PVisitor<Scope> {
 //			w.write1(OpCode.GET_GLOBAL);
 //			scope.top++;
 //		} else {
-//			// Load the literal
-//			int index = scope.pool.add(value.value);
-//			if (index < 256) {
-//				scope.w.write1(OpCode.CONST1, index);
-//			} else {
-//				scope.w.write2(OpCode.CONST2, index);
-//			}
 //			scope.top++;
 //		}
 		return null;

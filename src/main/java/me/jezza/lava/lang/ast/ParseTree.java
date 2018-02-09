@@ -35,22 +35,23 @@ public abstract class ParseTree {
 	private static final int TYPE_LABEL = 20;
 	private static final int TYPE_VARARGS = 21;
 
-	private final int type;
+	public static final int FLAG_ASSIGNMENT = 0x1;
 
-//	private int flags;
+	private final int type;
+	private int flags;
 
 	ParseTree(int type) {
 		this.type = type;
 	}
 
-//	public boolean is(int flags) {
-//		return (this.flags & flags) == flags;
-//	}
-//
-//	public ParseTree set(int flags) {
-//		this.flags |= flags;
-//		return this;
-//	}
+	public boolean is(int flags) {
+		return (this.flags & flags) == flags;
+	}
+
+	public ParseTree set(int flags) {
+		this.flags |= flags;
+		return this;
+	}
 
 	public final void visit(EVisitor visitor) {
 		visit(visitor, null);
@@ -343,9 +344,9 @@ public abstract class ParseTree {
 	}
 
 	public static final class UnaryOp extends Expression {
-		public static final int OPR_MINUS = 0;
-		public static final int OPR_NOT = 1;
-		public static final int OPR_LEN = 2;
+		public static final int OP_MINUS = 0;
+		public static final int OP_NOT = 1;
+		public static final int OP_LEN = 2;
 
 		public int op;
 		public Expression arg;
@@ -365,26 +366,26 @@ public abstract class ParseTree {
 	}
 
 	public static final class BinaryOp extends Expression {
-		public static final int OPR_ADD = 0;
-		public static final int OPR_SUB = 2;
-		public static final int OPR_MUL = 4;
-		public static final int OPR_DIV = 6;
-		public static final int OPR_MOD = 8;
+		public static final int OP_ADD = 0;
+		public static final int OP_SUB = 2;
+		public static final int OP_MUL = 4;
+		public static final int OP_DIV = 6;
+		public static final int OP_MOD = 8;
 
-		public static final int OPR_POW = 10;
-		public static final int OPR_CONCAT = 12;
+		public static final int OP_POW = 10;
+		public static final int OP_CONCAT = 12;
 
-		public static final int OPR_NE = 14;
-		public static final int OPR_EQ = 16;
+		public static final int OP_NE = 14;
+		public static final int OP_EQ = 16;
 
-		public static final int OPR_LT = 18;
-		public static final int OPR_LE = 20;
-		public static final int OPR_GT = 22;
-		public static final int OPR_GE = 24;
+		public static final int OP_LT = 18;
+		public static final int OP_LE = 20;
+		public static final int OP_GT = 22;
+		public static final int OP_GE = 24;
 
-		public static final int OPR_AND = 26;
-		public static final int OPR_OR = 28;
-		public static final int OPR_INDEXED = 30;
+		public static final int OP_AND = 26;
+		public static final int OP_OR = 28;
+		public static final int OP_INDEXED = 30;
 
 		public int op;
 		public Expression left;

@@ -10,14 +10,19 @@
 -- // get (a.c.b)
 --
 
-a, b = "1", "2"
+function test()
+	return "asd", "ets"
+end
+
+test("first")
+
+-- a e a a
 
 
+-- a, b = b, a
 
-a, b = b, a
 
-
-a, b = b[asd], a
+-- a, b = b[asd], a
 
 
 

@@ -198,28 +198,28 @@ public final class Interpreter {
 	StackFrame framePop() {
 		StackFrame lastFrame = frames[--frameIndex];
 		frames[frameIndex] = null;
-		int expected = lastFrame.expected; // Math.min(lastFrame.results, lastFrame.top - frame.top);
-		if (expected != 0) {
-			StackFrame frame = currentFrame();
-			int results = lastFrame.results;
-			if (results == 0) {
-				stackBuff(frame, expected);
-			} else {
-//				int diff = expected - (lastFrame.top - frame.top);
-//				if (diff > 0) {
-//					stackBuff(frame, diff);
-//				} else {
-//					throw new IllegalStateException("");
-				System.arraycopy(stack, (lastFrame.top - results) + expected - 1, stack, frame.top, lastFrame.results);
-				frame.top += expected;
-//				}
-//				stackBuff(frame, expected - lastFrame.top - frame.top);
-			}
-			// Null out elements that no longer have an associated frame.
-			for (int i = frame.top; i < lastFrame.top; i++)
-				stack[i] = NIL;
-//			stackShrink(frame, lastFrame.top - frame.top);
-		}
+//		int expected = lastFrame.expected; // Math.min(lastFrame.results, lastFrame.top - frame.top);
+//		if (expected != 0) {
+//			StackFrame frame = currentFrame();
+//			int results = lastFrame.results;
+//			if (results == 0) {
+//				stackBuff(frame, expected);
+//			} else {
+////				int diff = expected - (lastFrame.top - frame.top);
+////				if (diff > 0) {
+////					stackBuff(frame, diff);
+////				} else {
+////					throw new IllegalStateException("");
+//				System.arraycopy(stack, (lastFrame.top - results) + expected - 1, stack, frame.top, lastFrame.results);
+//				frame.top += expected;
+////				}
+////				stackBuff(frame, expected - lastFrame.top - frame.top);
+//			}
+//			// Null out elements that no longer have an associated frame.
+//			for (int i = frame.top; i < lastFrame.top; i++)
+//				stack[i] = NIL;
+////			stackShrink(frame, lastFrame.top - frame.top);
+//		}
 		return lastFrame;
 	}
 
@@ -230,8 +230,7 @@ public final class Interpreter {
 		next.invokeExact(this, frame, frame.decode1());
 	}
 
-	private static final MethodHandle CONST1_MH = dispatcher();
-	private static final MethodHandle CONST2_MH = dispatcher();
+	private static final MethodHandle CONST_MH = dispatcher();
 	private static final MethodHandle CONST_NIL_MH = dispatcher();
 	private static final MethodHandle CONST_TRUE_MH = dispatcher();
 	private static final MethodHandle CONST_FALSE_MH = dispatcher();
@@ -242,19 +241,16 @@ public final class Interpreter {
 	private static final MethodHandle DUP_MH = dispatcher();
 	private static final MethodHandle MOV_MH = dispatcher();
 
-	private void CONST1(StackFrame frame) throws Throwable {
-		int value = frame.decode1();
-		stackPush(frame, frame.constants[value]);
-		dispatchNext(CONST1_MH, frame);
-	}
-
-	private void CONST2(StackFrame frame) throws Throwable {
+	private void CONST(StackFrame frame) throws Throwable {
 		int value = frame.decode2();
-		stackPush(frame, frame.constants[value]);
-		dispatchNext(CONST2_MH, frame);
+		Object constant = frame.constants[value];
+		System.out.println("(CONST) k[" + value + "] -> "+ constant);
+		stackPush(frame, constant);
+		dispatchNext(CONST_MH, frame);
 	}
 
 	private void CONST_NIL(StackFrame frame) throws Throwable {
+		System.out.println("Loading NIL");
 		stackPush(frame, NIL);
 		dispatchNext(CONST_NIL_MH, frame);
 	}
@@ -298,6 +294,7 @@ public final class Interpreter {
 	}
 
 	private void POP(StackFrame frame) throws Throwable {
+		System.out.println("(POP)");
 		stackPop(frame);
 		dispatchNext(POP_MH, frame);
 	}
@@ -305,20 +302,21 @@ public final class Interpreter {
 	private void MOV(StackFrame frame) throws Throwable {
 		int from = frame.decode2();
 		int to = frame.decode2();
+		System.out.println("MOV " + from + " -> " + to);
 		stackSet(frame, from, to);
 		dispatchNext(MOV_MH, frame);
 	}
 
 	private void CALL(StackFrame frame) throws Throwable {
 		int params = frame.decode2();
-		int expected = frame.decode2();
+//		int expected = frame.decode2();
 		Object o = stackPop(frame);
 		if (o instanceof Callback) {
 			StackFrame newFrame = newFrame();
 			newFrame.top = frame.top;
 			frame.top -= params;
 			newFrame.base = frame.top;
-			newFrame.expected = expected;
+//			newFrame.expected = expected;
 			newFrame.results = ((Callback) o).call(this, newFrame);
 
 			DEBUG(null);
@@ -348,10 +346,21 @@ public final class Interpreter {
 
 			frame.top -= Math.min(params, expectedCount);
 			newFrame.base = frame.top;
-			newFrame.expected = expected;
+//			newFrame.expected = expected;
 		} else {
 			throw new IllegalStateException("Expected call object on stack, but got: " + o);
 		}
+	}
+
+	private void SET_TABLE(StackFrame frame) throws Throwable {
+		Object table = stackPop(frame);
+		Object key = stackPop(frame);
+		Object value = stackPop(frame);
+
+		System.out.println("Table: " + table);
+		System.out.println("Key: " + key);
+		System.out.println("Value: " + value);
+		throw new IllegalStateException("Not Yet Implemented!");
 	}
 
 	private void RET(StackFrame frame) throws Throwable {
@@ -483,12 +492,12 @@ public final class Interpreter {
 	private static LuaChunk forLoop() {
 		ConstantPool pool = new ConstantPool();
 		ByteCodeWriter w = new ByteCodeWriter();
-		w.write1(OpCode.CONST1, pool.add(10));
+		w.write2(OpCode.CONST, pool.add(10));
 		w.write1(OpCode.GOTO);
 		int jump = w.mark();
 		w.write4(-1);
 		int mark = w.mark();
-		w.write1(OpCode.CONST1, pool.add(-1));
+		w.write2(OpCode.CONST, pool.add(-1));
 		w.write1(OpCode.ADD);
 		int returnJump = w.mark();
 		w.patch4(jump, returnJump);
@@ -508,7 +517,7 @@ public final class Interpreter {
 		ByteCodeWriter w = new ByteCodeWriter();
 
 		for (int i = 0; i < count; i++)
-			w.write1(OpCode.CONST1, pool.add(i));
+			w.write2(OpCode.CONST, pool.add(i));
 		w.write1(OpCode.RET);
 
 		LuaChunk chunk = new LuaChunk("returnChunk");
@@ -543,8 +552,8 @@ public final class Interpreter {
 		ConstantPool pool = new ConstantPool();
 //
 		ByteCodeWriter w = new ByteCodeWriter(0);
-		w.write1(OpCode.CONST1, pool.add(1));
-		w.write1(OpCode.CONST1, pool.add("test"));
+		w.write2(OpCode.CONST, pool.add(1));
+		w.write2(OpCode.CONST, pool.add("test"));
 		w.write1(OpCode.GET_GLOBAL);
 		w.write2(OpCode.CALL, 1, 1);
 //		w.write1(OpCode.CONST1, pool.add(25));
@@ -596,7 +605,7 @@ public final class Interpreter {
 		private int base;
 		private int top;
 
-		private int expected;
+//		private int expected;
 		private int results;
 
 //		private int tailcalls;

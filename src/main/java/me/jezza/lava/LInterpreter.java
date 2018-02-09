@@ -530,12 +530,12 @@ public final class LInterpreter {
 	private static LuaChunk forLoop() {
 		ConstantPool pool = new ConstantPool();
 		ByteCodeWriter w = new ByteCodeWriter();
-		w.write1(OpCode.CONST1, pool.add(10));
+		w.write2(OpCode.CONST, pool.add(10));
 		w.write1(OpCode.GOTO);
 		int jump = w.mark();
 		w.write4(-1);
 		int mark = w.mark();
-		w.write1(OpCode.CONST1, pool.add(-1));
+		w.write2(OpCode.CONST, pool.add(-1));
 		w.write1(OpCode.ADD);
 		int returnJump = w.mark();
 		w.patch4(jump, returnJump);
@@ -555,7 +555,7 @@ public final class LInterpreter {
 		ByteCodeWriter w = new ByteCodeWriter();
 
 		for (int i = 0; i < count; i++)
-			w.write1(OpCode.CONST1, pool.add(i));
+			w.write2(OpCode.CONST, pool.add(i));
 		w.write1(OpCode.RET);
 
 		LuaChunk chunk = new LuaChunk("returnChunk");

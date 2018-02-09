@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import me.jezza.lava.lang.ast.ParseTree;
 import me.jezza.lava.lang.ast.ParseTree.Assignment;
 import me.jezza.lava.lang.ast.ParseTree.BinaryOp;
 import me.jezza.lava.lang.ast.ParseTree.Block;
@@ -136,12 +137,13 @@ public final class LavaParser extends AbstractParser {
 		consume(Tokens.FUNCTION);
 		Expression left = new Literal(Literal.NAMESPACE, name());
 		while (match('.')) {
-			left = new BinaryOp(BinaryOp.OPR_INDEXED, left, new Literal(Literal.STRING, name()));
+			left = new BinaryOp(BinaryOp.OP_INDEXED, left, new Literal(Literal.STRING, name()));
 		}
 		boolean self = match(':');
 		if (self) {
-			left = new BinaryOp(BinaryOp.OPR_INDEXED, left, new Literal(Literal.STRING, name()));
+			left = new BinaryOp(BinaryOp.OP_INDEXED, left, new Literal(Literal.STRING, name()));
 		}
+		left.set(ParseTree.FLAG_ASSIGNMENT);
 		ExpressionList prefix = new ExpressionList(List.of(left));
 		FunctionBody body = functionBody();
 		if (self) {
@@ -329,35 +331,35 @@ public final class LavaParser extends AbstractParser {
 	private static int binaryOp(int type) {
 		switch (type) {
 			case '+':
-				return BinaryOp.OPR_ADD;
+				return BinaryOp.OP_ADD;
 			case '-':
-				return BinaryOp.OPR_SUB;
+				return BinaryOp.OP_SUB;
 			case '*':
-				return BinaryOp.OPR_MUL;
+				return BinaryOp.OP_MUL;
 			case '/':
-				return BinaryOp.OPR_DIV;
+				return BinaryOp.OP_DIV;
 			case '%':
-				return BinaryOp.OPR_MOD;
+				return BinaryOp.OP_MOD;
 			case '^':
-				return BinaryOp.OPR_POW;
+				return BinaryOp.OP_POW;
 			case Tokens.CONCAT:
-				return BinaryOp.OPR_CONCAT;
+				return BinaryOp.OP_CONCAT;
 			case Tokens.NE:
-				return BinaryOp.OPR_NE;
+				return BinaryOp.OP_NE;
 			case Tokens.EQ:
-				return BinaryOp.OPR_EQ;
+				return BinaryOp.OP_EQ;
 			case '<':
-				return BinaryOp.OPR_LT;
+				return BinaryOp.OP_LT;
 			case Tokens.LE:
-				return BinaryOp.OPR_LE;
+				return BinaryOp.OP_LE;
 			case '>':
-				return BinaryOp.OPR_GT;
+				return BinaryOp.OP_GT;
 			case Tokens.GE:
-				return BinaryOp.OPR_GE;
+				return BinaryOp.OP_GE;
 			case Tokens.AND:
-				return BinaryOp.OPR_AND;
+				return BinaryOp.OP_AND;
 			case Tokens.OR:
-				return BinaryOp.OPR_OR;
+				return BinaryOp.OP_OR;
 			default:
 				return -1;
 		}
@@ -365,11 +367,11 @@ public final class LavaParser extends AbstractParser {
 
 	private static int unaryOp(int type) {
 		if (type == '-') {
-			return UnaryOp.OPR_MINUS;
+			return UnaryOp.OP_MINUS;
 		} else if (type == Tokens.NOT) {
-			return UnaryOp.OPR_NOT;
+			return UnaryOp.OP_NOT;
 		} else if (type == '#') {
-			return UnaryOp.OPR_LEN;
+			return UnaryOp.OP_LEN;
 		} else {
 			return -1;
 		}
@@ -498,13 +500,13 @@ public final class LavaParser extends AbstractParser {
 				case '.': {  // field
 					consume();
 					Literal right = new Literal(Literal.STRING, name());
-					left = new BinaryOp(BinaryOp.OPR_INDEXED, left, right);
+					left = new BinaryOp(BinaryOp.OP_INDEXED, left, right);
 					break;
 				}
 				case '[': { // '[' exp ']'
 					consume();
 					Expression right = expression();
-					left = new BinaryOp(BinaryOp.OPR_INDEXED, left, right);
+					left = new BinaryOp(BinaryOp.OP_INDEXED, left, right);
 					consume(']');
 					// chain field
 					break;
@@ -531,11 +533,7 @@ public final class LavaParser extends AbstractParser {
 		if (primary instanceof FunctionCall) {
 			return new Assignment(null, new ExpressionList(List.of(primary)));
 		}
-		// a, b, c = 1, 2, 3
-		// a, b, c = 1, 2, 3
-
-
-
+		primary.set(ParseTree.FLAG_ASSIGNMENT);
 		ExpressionList leftSide;
 		if (match(',')) {
 			List<Expression> expressions = new ArrayList<>();
@@ -545,6 +543,7 @@ public final class LavaParser extends AbstractParser {
 				if (expression instanceof FunctionCall) {
 					throw new IllegalStateException("Syntax error (Function call not allowed on left-hand side of assign): " + expression);
 				}
+				expression.set(ParseTree.FLAG_ASSIGNMENT);
 				expressions.add(expression);
 			} while (match(','));
 			leftSide = new ExpressionList(expressions);

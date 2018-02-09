@@ -252,56 +252,65 @@ public final class ASTPrinter implements EVisitor {
 
 	@Override
 	public Void visitBinaryOp(BinaryOp value, Void userObject) {
-		boolean indexed = value.op == BinaryOp.OPR_INDEXED;
+		boolean indexed = value.op == BinaryOp.OP_INDEXED;
+		if (value.is(ParseTree.FLAG_ASSIGNMENT)) {
+			assert indexed;
+			text.append("set_table(");
+			value.left.visit(this);
+			text.append(',');
+			value.right.visit(this);
+			text.append(", &TOP)");
+			return null;
+		}
 
 		value.left.visit(this);
 		switch (value.op) {
-			case BinaryOp.OPR_ADD:
+			case BinaryOp.OP_ADD:
 				text.append(" + ");
 				break;
-			case BinaryOp.OPR_SUB:
+			case BinaryOp.OP_SUB:
 				text.append(" - ");
 				break;
-			case BinaryOp.OPR_MUL:
+			case BinaryOp.OP_MUL:
 				text.append(" * ");
 				break;
-			case BinaryOp.OPR_DIV:
+			case BinaryOp.OP_DIV:
 				text.append(" / ");
 				break;
-			case BinaryOp.OPR_MOD:
+			case BinaryOp.OP_MOD:
 				text.append(" & ");
 				break;
-			case BinaryOp.OPR_POW:
+			case BinaryOp.OP_POW:
 				text.append(" ^ ");
 				break;
-			case BinaryOp.OPR_CONCAT:
+			case BinaryOp.OP_CONCAT:
 				text.append(" .. ");
 				break;
-			case BinaryOp.OPR_NE:
+			case BinaryOp.OP_NE:
 				text.append(" ~= ");
 				break;
-			case BinaryOp.OPR_EQ:
+			case BinaryOp.OP_EQ:
 				text.append(" == ");
 				break;
-			case BinaryOp.OPR_LT:
+			case BinaryOp.OP_LT:
 				text.append(" < ");
 				break;
-			case BinaryOp.OPR_LE:
+			case BinaryOp.OP_LE:
 				text.append(" <= ");
 				break;
-			case BinaryOp.OPR_GT:
+			case BinaryOp.OP_GT:
 				text.append(" > ");
 				break;
-			case BinaryOp.OPR_GE:
+			case BinaryOp.OP_GE:
 				text.append(" >= ");
 				break;
-			case BinaryOp.OPR_AND:
+			case BinaryOp.OP_AND:
 				text.append(" and ");
 				break;
-			case BinaryOp.OPR_OR:
+			case BinaryOp.OP_OR:
 				text.append(" or ");
 				break;
-			case BinaryOp.OPR_INDEXED:
+			case BinaryOp.OP_INDEXED:
 				text.append('[');
 				break;
 			default:
@@ -326,9 +335,13 @@ public final class ASTPrinter implements EVisitor {
 			case Literal.NIL:
 				text.append("nil");
 				break;
+			case Literal.NAMESPACE:
+				if (value.is(ParseTree.FLAG_ASSIGNMENT)) {
+					text.append("set(").append(value.value).append(')');
+					return null;
+				}
 			case Literal.INTEGER:
 			case Literal.DOUBLE:
-			case Literal.NAMESPACE:
 				text.append(value.value);
 				break;
 			case Literal.STRING:
