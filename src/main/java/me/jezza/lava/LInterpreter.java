@@ -541,7 +541,7 @@ public final class LInterpreter {
 		w.patch4(jump, returnJump);
 		w.write1(OpCode.DUP);
 		w.write4(OpCode.IFNZ, mark);
-		w.write1(OpCode.RET);
+		w.write1(OpCode.RETURN);
 
 		LuaChunk chunk = new LuaChunk("forLoopChunk");
 		chunk.paramCount = 0;
@@ -556,7 +556,7 @@ public final class LInterpreter {
 
 		for (int i = 0; i < count; i++)
 			w.write2(OpCode.CONST, pool.add(i));
-		w.write1(OpCode.RET);
+		w.write1(OpCode.RETURN);
 
 		LuaChunk chunk = new LuaChunk("returnChunk");
 		chunk.paramCount = 0;
@@ -574,7 +574,7 @@ public final class LInterpreter {
 //			w.write1(Ops.PRINT);
 			w.write1(OpCode.POP);
 //		w.write1(Ops.DEBUG);
-		w.write1(OpCode.RET);
+		w.write1(OpCode.RETURN);
 
 		LuaChunk chunk = new LuaChunk("acceptChunk");
 		chunk.paramCount = count;

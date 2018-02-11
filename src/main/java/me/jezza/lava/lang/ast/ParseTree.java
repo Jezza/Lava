@@ -1,5 +1,6 @@
 package me.jezza.lava.lang.ast;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import me.jezza.lava.Strings;
@@ -153,9 +154,19 @@ public abstract class ParseTree {
 	public static final class ExpressionList extends Expression {
 		public List<Expression> list;
 
+		public ExpressionList(Expression value) {
+			super(TYPE_EXPRESSION_LIST);
+			list = new ArrayList<>();
+			list.add(value);
+		}
+
 		public ExpressionList(List<Expression> list) {
 			super(TYPE_EXPRESSION_LIST);
 			this.list = list;
+		}
+
+		public int size() {
+			return list.size();
 		}
 
 		@Override
@@ -411,12 +422,16 @@ public abstract class ParseTree {
 		public Expression target;
 		public String name;
 		public Expression args;
+		public int argCount;
 
 		public FunctionCall(Expression target, String name, Expression args) {
 			super(TYPE_FUNCTION_CALL);
 			this.target = target;
 			this.name = name;
 			this.args = args;
+			argCount = args instanceof ExpressionList
+					? ((ExpressionList) args).size()
+					: 1;
 		}
 
 		@Override

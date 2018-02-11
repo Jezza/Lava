@@ -13,8 +13,12 @@ public final class ConstantPool {
 		this.pool = new ArrayList<>();
 	}
 
+	public int size() {
+		return pool.size();
+	}
+
 	public int add(Object o) {
-		int i = pool.indexOf(o);
+		int i = indexOf(o);
 		if (i == -1) {
 			i = pool.size();
 			pool.add(o);
@@ -24,5 +28,9 @@ public final class ConstantPool {
 
 	public Object[] build() {
 		return pool.toArray(new Object[0]);
+	}
+
+	public int indexOf(Object value) {
+		return pool.indexOf(value);
 	}
 }

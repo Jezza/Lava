@@ -35,7 +35,8 @@ public final class Main {
 //		System.out.println(speed);
 
 		LuaChunk chunk = nom(new File(ROOT, "lang.lua"));
-		Interpreter.test(chunk);
+		Interpreter.testChunk(chunk, 1);
+//		Interpreter.testChunk(chunk, 1_000_000);
 	}
 
 	private static void run(String name) {

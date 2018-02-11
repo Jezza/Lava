@@ -2,7 +2,6 @@ package me.jezza.lava.lang;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import me.jezza.lava.lang.ast.ParseTree;
@@ -99,7 +98,7 @@ public final class LavaParser extends AbstractParser {
 				consume();
 				// @CLEANUP Jezza - 20 Jan 2018: This is a bit messy...
 				ExpressionList expressions = blockFollowing(current().type) || match(';')
-						? new ExpressionList(Collections.emptyList())
+						? new ExpressionList(new ArrayList<>())
 						: expressionList();
 				match(';');
 				return new ReturnStatement(expressions);
@@ -149,6 +148,8 @@ public final class LavaParser extends AbstractParser {
 		if (self) {
 			body.parameters.add(0, "self");
 		}
+//		function test() end
+//		test = function() end
 		return new Assignment(prefix, new ExpressionList(List.of(body)));
 	}
 
@@ -319,7 +320,7 @@ public final class LavaParser extends AbstractParser {
 	public ExpressionList expressionList() throws IOException {
 		Expression first = expression();
 		if (!match(','))
-			return new ExpressionList(List.of(first));
+			return new ExpressionList(first);
 		List<Expression> expressions = new ArrayList<>();
 		expressions.add(first);
 		do {
@@ -482,7 +483,7 @@ public final class LavaParser extends AbstractParser {
 				consume(')');
 				return value;
 			}
-			return new ExpressionList(Collections.emptyList());
+			return new ExpressionList(new ArrayList<>());
 		} else if (type == '{') {
 			return tableConstructor();
 		} else if (type == Tokens.STRING) {
@@ -527,11 +528,11 @@ public final class LavaParser extends AbstractParser {
 		}
 	}
 
-	private Statement expressionStatement() throws IOException {
+	private Assignment expressionStatement() throws IOException {
 		Expression primary = primaryExpression();
 		// Assignment or function call
 		if (primary instanceof FunctionCall) {
-			return new Assignment(null, new ExpressionList(List.of(primary)));
+			return new Assignment(null, new ExpressionList(primary));
 		}
 		primary.set(ParseTree.FLAG_ASSIGNMENT);
 		ExpressionList leftSide;
@@ -550,10 +551,25 @@ public final class LavaParser extends AbstractParser {
 		} else if (primary instanceof ExpressionList){
 			leftSide = ((ExpressionList) primary);
 		} else {
-			leftSide = new ExpressionList(List.of(primary));
+			leftSide = new ExpressionList(primary);
 		}
 		consume('=');
-		return new Assignment(leftSide, expressionList());
+		ExpressionList rightSide = expressionList();
+
+
+		int count = leftSide.size() - rightSide.size();
+		if (count > 0) {
+			Expression expression = rightSide.list.get(rightSide.list.size() - 1);
+			if (!(expression instanceof FunctionCall)) {
+				// a, b = "", [nil]
+				do {
+					rightSide.list.add(new Literal(Literal.NIL, null));
+				} while (--count > 0);
+			}
+//		} if (count < 0) {
+//			 a = b, c
+		}
+		return new Assignment(leftSide, rightSide);
 	}
 
 	private static boolean blockFollowing(int type) {

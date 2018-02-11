@@ -42,8 +42,10 @@ public final class OpCode {
 	 * <p>
 	 * <b>Other Bytes:</b>
 	 * <ol>
-	 *     <li>indexbyte1</li>
-	 *     <li>indexbyte2</li>
+	 *     <li>pool_index_byte_1</li>
+	 *     <li>pool_index_byte_2</li>
+	 *     <li>stack_index_byte_1</li>
+	 *     <li>stack_index_byte_2</li>
 	 * </ol>
 	 * <b>Stack:</b>
 	 * <blockquote>
@@ -51,7 +53,9 @@ public final class OpCode {
 	 * </blockquote>
 	 * <b>Description:</b>
 	 * <blockquote>
-	 *     Load a constant onto the stack from the constant pool as identified by the index (indexbyte1 << 8 + indexbyte2)<br>
+	 *     Loads a constant from the constant pool as identified
+	 *     by the index (pool_index_byte_1 << 8 + pool_index_byte_2)
+	 *     into the stack with the index (stack_index_byte_1 << 8 + stack_index_byte_2)
 	 * </blockquote>
 	 */
 	@Implemented
@@ -92,7 +96,7 @@ public final class OpCode {
 	 *     Load true onto the stack<br>
 	 * </blockquote>
 	 */
-	@Implemented
+//	@Implemented
 	public static final byte CONST_TRUE = 2;
 
 	/**
@@ -111,7 +115,7 @@ public final class OpCode {
 	 *     Load false onto the stack<br>
 	 * </blockquote>
 	 */
-	@Implemented
+//	@Implemented
 	public static final byte CONST_FALSE = 3;
 
 	/**
@@ -134,8 +138,8 @@ public final class OpCode {
 	public static final byte LOAD_FUNCTION = 4;
 
 	@Implemented
-	public static final byte MOV = 5;
-	@Implemented
+	public static final byte MOVE = 5;
+//	@Implemented
 	public static final byte POP = 6;
 	public static final byte DUP = 7;
 
@@ -145,7 +149,7 @@ public final class OpCode {
 
 	public static final byte NEW_TABLE = 10;
 	public static final byte GET_TABLE = 11;
-	@Implemented
+//	@Implemented
 	public static final byte SET_TABLE = 12;
 
 	// TODO: 30/05/2017 Might be able to merge SET_LIST with NEW_TABLE
@@ -167,7 +171,7 @@ public final class OpCode {
 	 *     Loads a global onto the stack identified by the current value on top of the stack<br>
 	 * </blockquote>
 	 */
-	@Implemented
+//	@Implemented
 	public static final byte GET_GLOBAL = 14;
 	public static final byte SET_GLOBAL = 15;
 
@@ -244,7 +248,7 @@ public final class OpCode {
 
 	public static final byte CLOSE = 39;
 	@Implemented
-	public static final byte RET = 40;
+	public static final byte RETURN = 40;
 
 	public static final byte PRINT = 41;
 	@Implemented

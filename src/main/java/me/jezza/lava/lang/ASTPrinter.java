@@ -259,7 +259,7 @@ public final class ASTPrinter implements EVisitor {
 			value.left.visit(this);
 			text.append(',');
 			value.right.visit(this);
-			text.append(", &TOP)");
+			text.append(", &VAL)");
 			return null;
 		}
 

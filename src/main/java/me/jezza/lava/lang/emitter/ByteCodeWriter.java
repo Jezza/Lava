@@ -85,6 +85,27 @@ public final class ByteCodeWriter {
 		write4(third);
 	}
 
+	public void write1(int code, int second, int third, int fourth) {
+		write1(code);
+		write1(second);
+		write1(third);
+		write1(fourth);
+	}
+
+	public void write2(int code, int second, int third, int fourth) {
+		write1(code);
+		write2(second);
+		write2(third);
+		write2(fourth);
+	}
+
+	public void write4(int code, int second, int third, int fourth) {
+		write1(code);
+		write4(second);
+		write4(third);
+		write4(fourth);
+	}
+
 	public int mark() {
 		return index;
 	}

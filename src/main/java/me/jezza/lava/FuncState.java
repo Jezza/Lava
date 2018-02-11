@@ -1022,10 +1022,11 @@ final class FuncState {
 	 * Equivalent to <code>luaK_exp2val</code>.
 	 */
 	void kExp2val(Expdesc e) {
-		if (e.hasjumps())
+		if (e.hasjumps()) {
 			kExp2anyreg(e);
-		else
+		} else {
 			kDischargevars(e);
+		}
 	}
 
 	private int boolK(boolean b) {
