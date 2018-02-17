@@ -1,4 +1,4 @@
-package me.jezza.lava.lang.ast;
+package me.jezza.lava.lang;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -121,8 +121,6 @@ public abstract class ParseTree {
 				throw new IllegalStateException("Unknown subtype: " + type);
 		}
 	}
-
-
 
 	public abstract static class Statement extends ParseTree {
 		Statement(int type) {

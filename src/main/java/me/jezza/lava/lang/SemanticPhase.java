@@ -4,14 +4,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 import me.jezza.lava.lang.SemanticPhase.Context;
-import me.jezza.lava.lang.ast.ParseTree.Assignment;
-import me.jezza.lava.lang.ast.ParseTree.Block;
-import me.jezza.lava.lang.ast.ParseTree.Literal;
+import me.jezza.lava.lang.ParseTree.Assignment;
+import me.jezza.lava.lang.ParseTree.Block;
+import me.jezza.lava.lang.ParseTree.Literal;
 
 /**
  * @author Jezza
  */
-public final class SemanticPhase extends AbstractVisitor<Context, Object> {
+public final class SemanticPhase extends AbstractScanner<Context, Object> {
 	static final class Context {
 		List<String> names;
 	}
@@ -26,6 +26,22 @@ public final class SemanticPhase extends AbstractVisitor<Context, Object> {
 		value.rhs.visit(this, userObject);
 		List<String> right = userObject.names;
 		userObject.names = null;
+
+//		a = {}
+//		b = {}
+//
+//		function value(val)
+//				print("v:" .. val);
+//		return val;
+//		end
+//
+//		a[value(0)], b[value(1)] = value(2), value(3)
+//
+//		print("---")
+//		local a__1 = value(0)
+//		local b__1 = value(1)
+//		a[a__1] = value(2)
+//		b[b__1] = value(3)
 
 		System.out.println(left + " :: " + right);
 		return null;

@@ -6,7 +6,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import me.jezza.lava.lang.ast.ParseTree.Block;
+import me.jezza.lava.lang.ParseTree.Block;
 import me.jezza.lava.lang.interfaces.Lexer;
 import me.jezza.lava.runtime.Interpreter;
 import me.jezza.lava.runtime.Interpreter.LuaChunk;
