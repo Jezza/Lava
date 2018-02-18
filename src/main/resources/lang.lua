@@ -10,9 +10,27 @@
 -- // get (a.c.b)
 --
 
+local a,b,c,d;
+
+local function test()
+end
+
+a, c = test()
+
+
 -- table = "table"
 
-a = 1 + 2
+-- local first = "a", "b", test()
+
+
+-- local a = 0;
+
+-- a = 0;
+
+-- a = c + 2
+
+-- function test(a, b, c, d)
+-- end
 
 
 -- table.key = "value"

@@ -22,15 +22,15 @@ public abstract class ParseTree {
 	private static final int TYPE_FOR_LOOP = 6;
 	private static final int TYPE_FOR_LIST = 7;
 	private static final int TYPE_FUNCTION_BODY = 8;
-	private static final int TYPE_LOCAL_STATEMENT = 9;
-	private static final int TYPE_ASSIGNMENT = 10;
-	private static final int TYPE_UNARY_OP = 11;
-	private static final int TYPE_BINARY_OP = 12;
-	private static final int TYPE_FUNCTION_CALL = 13;
-	private static final int TYPE_TABLE_CONSTRUCTOR = 14;
-	private static final int TYPE_TABLE_FIELD = 15;
-	private static final int TYPE_RETURN_STATEMENT = 16;
-	private static final int TYPE_LITERAL = 17;
+	private static final int TYPE_ASSIGNMENT = 9;
+	private static final int TYPE_UNARY_OP = 10;
+	private static final int TYPE_BINARY_OP = 11;
+	private static final int TYPE_FUNCTION_CALL = 12;
+	private static final int TYPE_TABLE_CONSTRUCTOR = 13;
+	private static final int TYPE_TABLE_FIELD = 14;
+	private static final int TYPE_RETURN_STATEMENT = 15;
+	private static final int TYPE_LITERAL = 16;
+	private static final int TYPE_NAME = 17;
 	private static final int TYPE_BREAK = 18;
 	private static final int TYPE_GOTO = 19;
 	private static final int TYPE_LABEL = 20;
@@ -40,17 +40,24 @@ public abstract class ParseTree {
 
 	private final int type;
 	private int flags;
+	
+	public Block block;
 
 	ParseTree(int type) {
 		this.type = type;
 	}
 
-	public boolean is(int flags) {
+	public final boolean is(int flags) {
 		return (this.flags & flags) == flags;
 	}
 
-	public ParseTree set(int flags) {
+	public final ParseTree set(int flags) {
 		this.flags |= flags;
+		return this;
+	}
+	
+	public final ParseTree unset(int flags) {
+		this.flags &= ~flags;
 		return this;
 	}
 
@@ -91,8 +98,6 @@ public abstract class ParseTree {
 				return visitor.visitForList((ForList) this, userObject);
 			case TYPE_FUNCTION_BODY:
 				return visitor.visitFunctionBody((FunctionBody) this, userObject);
-			case TYPE_LOCAL_STATEMENT:
-				return visitor.visitLocalStatement((LocalStatement) this, userObject);
 			case TYPE_ASSIGNMENT:
 				return visitor.visitAssignment((Assignment) this, userObject);
 			case TYPE_UNARY_OP:
@@ -109,6 +114,8 @@ public abstract class ParseTree {
 				return visitor.visitReturnStatement((ReturnStatement) this, userObject);
 			case TYPE_LITERAL:
 				return visitor.visitLiteral((Literal) this, userObject);
+			case TYPE_NAME:
+				return visitor.visitName((Name) this, userObject);
 			case TYPE_LABEL:
 				return visitor.visitLabel((Label) this, userObject);
 			case TYPE_BREAK:
@@ -135,10 +142,20 @@ public abstract class ParseTree {
 	}
 
 	public static class Block extends Statement {
+		public static final int VARARGS = -1;
+		
+		public String name;
+		public Block parent;
+
 		public List<Statement> statements;
 
-		public Block(List<Statement> statements) {
+		public List<String> names;
+
+		public int parameterCount;
+
+		public Block(String name, List<Statement> statements) {
 			super(TYPE_BLOCK);
+			this.name = name;
 			this.statements = statements;
 		}
 
@@ -154,7 +171,7 @@ public abstract class ParseTree {
 
 		public ExpressionList(Expression value) {
 			super(TYPE_EXPRESSION_LIST);
-			list = new ArrayList<>();
+			list = new ArrayList<>(1);
 			list.add(value);
 		}
 
@@ -275,32 +292,32 @@ public abstract class ParseTree {
 	}
 
 	public static final class ForList extends Statement {
-		public List<String> nameList;
-		public Expression expList;
+		public List<Name> nameList;
+		public Expression expressions;
 		public Block body;
 
-		public ForList(List<String> nameList, Expression expList, Block body) {
+		public ForList(List<Name> nameList, Expression expressions, Block body) {
 			super(TYPE_FOR_LIST);
 			this.nameList = nameList;
-			this.expList = expList;
+			this.expressions = expressions;
 			this.body = body;
 		}
 
 		@Override
 		public String toString() {
-			return Strings.format("ForList{nameList={}, expList={}, body={}}",
+			return Strings.format("ForList{nameList={}, expressions={}, body={}}",
 					nameList,
-					expList,
+					expressions,
 					body);
 		}
 	}
 
 	public static final class FunctionBody extends Expression {
-		public List<String> parameters;
+		public List<Name> parameters;
 		public boolean varargs;
 		public Block body;
 
-		public FunctionBody(List<String> parameters, boolean varargs, Block body) {
+		public FunctionBody(List<Name> parameters, boolean varargs, Block body) {
 			super(TYPE_FUNCTION_BODY);
 			this.parameters = parameters;
 			this.varargs = varargs;
@@ -316,27 +333,13 @@ public abstract class ParseTree {
 		}
 	}
 
-	public static final class LocalStatement extends Statement {
-		public List<String> lhs;
-		public ExpressionList rhs;
-
-		public LocalStatement(List<String> lhs, ExpressionList rhs) {
-			super(TYPE_LOCAL_STATEMENT);
-			this.lhs = lhs;
-			this.rhs = rhs;
-		}
-
-		@Override
-		public String toString() {
-			return Strings.format("LocalStatement{lhs={}, rhs={}}",
-					lhs,
-					rhs);
-		}
-	}
-
 	public static final class Assignment extends Statement {
 		public ExpressionList lhs;
 		public ExpressionList rhs;
+
+		public Assignment(Expression lhs, Expression rhs) {
+			this(lhs != null ? new ExpressionList(lhs) : null, new ExpressionList(rhs));
+		}
 
 		public Assignment(ExpressionList lhs, ExpressionList rhs) {
 			super(TYPE_ASSIGNMENT);
@@ -420,7 +423,9 @@ public abstract class ParseTree {
 		public Expression target;
 		public String name;
 		public Expression args;
+
 		public int argCount;
+		public int expectedResults;
 
 		public FunctionCall(Expression target, String name, Expression args) {
 			super(TYPE_FUNCTION_CALL);
@@ -488,6 +493,35 @@ public abstract class ParseTree {
 					exprs);
 		}
 	}
+	
+	public static final class Name extends Expression {
+		public static final int FLAG_LOCAL = 0x2;
+		public static final int FLAG_UPVAL = 0x4;
+		public static final int FLAG_GLOBAL = 0x8;
+		public static final int FLAG_UNCHECKED = 0x10;
+
+		public String value;
+		public int index;
+
+		public Name(String value) {
+			this(value, FLAG_UNCHECKED);
+		}
+
+		public Name(String value, int flags) {
+			super(TYPE_NAME);
+			this.value = value;
+			if (flags != 0) {
+				set(flags);
+			}
+			index = -1;
+		}
+
+		@Override
+		public String toString() {
+			return Strings.format("Name{value=\"{}\"}",
+					value);
+		}
+	}
 
 	public static final class Literal extends Expression {
 		public static final int INTEGER = 1;
@@ -495,8 +529,7 @@ public abstract class ParseTree {
 		public static final int STRING = 3;
 		public static final int TRUE = 4;
 		public static final int FALSE = 5;
-		public static final int NAMESPACE = 6;
-		public static final int NIL = 7;
+		public static final int NIL = 6;
 
 		public int type;
 		public Object value;

@@ -257,7 +257,7 @@ public final class Interpreter {
 	private void CONST_NIL(StackFrame frame) throws Throwable {
 		int index = frame.decode2();
 		if (DEBUG_MODE) {
-			System.out.println("(NIL)");
+			System.out.println("(NIL) -> slot[" + index + ']');
 		}
 		stackSet(frame, index, NIL);
 		dispatchNext(CONST_NIL_MH, frame);

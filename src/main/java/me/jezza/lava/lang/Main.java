@@ -77,7 +77,7 @@ public final class Main {
 		long parserTime = end - start;
 		System.out.println("AST: " + parserTime);
 
-//		SemanticPhase.run(block);
+		SemanticAnalysis.run(block);
 
 		String text = ASTPrinter.print(block);
 		System.out.println(text);

@@ -16,7 +16,7 @@ import me.jezza.lava.lang.ParseTree.Goto;
 import me.jezza.lava.lang.ParseTree.IfBlock;
 import me.jezza.lava.lang.ParseTree.Label;
 import me.jezza.lava.lang.ParseTree.Literal;
-import me.jezza.lava.lang.ParseTree.LocalStatement;
+import me.jezza.lava.lang.ParseTree.Name;
 import me.jezza.lava.lang.ParseTree.RepeatBlock;
 import me.jezza.lava.lang.ParseTree.ReturnStatement;
 import me.jezza.lava.lang.ParseTree.TableConstructor;
@@ -38,7 +38,7 @@ public class AbstractScanner<P, R> implements Visitor<P, R> {
 	}
 
 	private R scanThenReduce(ParseTree node, P userObject, R value) {
-		return reduce(scan(node, userObject), value);
+		return reduce(scan(node, userObject), value, userObject);
 	}
 
 	public R scan(Iterable<? extends ParseTree> nodes, P userObject) {
@@ -58,10 +58,10 @@ public class AbstractScanner<P, R> implements Visitor<P, R> {
 	}
 
 	private R scanThenReduce(Iterable<? extends ParseTree> nodes, P userObject, R value) {
-		return reduce(scan(nodes, userObject), value);
+		return reduce(scan(nodes, userObject), value, userObject);
 	}
 
-	public R reduce(R left, R right) {
+	public R reduce(R left, R right, P userObject) {
 		return left;
 	}
 
@@ -109,22 +109,22 @@ public class AbstractScanner<P, R> implements Visitor<P, R> {
 
 	@Override
 	public R visitForList(ForList value, P userObject) {
-		R returnValue = scan(value.expList, userObject);
+		R returnValue = scan(value.nameList, userObject);
+		returnValue = scanThenReduce(value.expressions, userObject, returnValue);
 		return scanThenReduce(value.body, userObject, returnValue);
 	}
 
 	@Override
 	public R visitFunctionBody(FunctionBody value, P userObject) {
-		return scan(value.body, userObject);
-	}
-
-	@Override
-	public R visitLocalStatement(LocalStatement value, P userObject) {
-		return scan(value.rhs, userObject);
+		R returnValue = scan(value.parameters, userObject);
+		return scanThenReduce(value.body, userObject, returnValue);
 	}
 
 	@Override
 	public R visitAssignment(Assignment value, P userObject) {
+		if (value.lhs == null) {
+			return scan(value.rhs, userObject);
+		}
 		R returnValue = scan(value.lhs, userObject);
 		return scanThenReduce(value.rhs, userObject, returnValue);
 	}
@@ -164,6 +164,11 @@ public class AbstractScanner<P, R> implements Visitor<P, R> {
 
 	@Override
 	public R visitLiteral(Literal value, P userObject) {
+		return null;
+	}
+
+	@Override
+	public R visitName(Name value, P userObject) {
 		return null;
 	}
 

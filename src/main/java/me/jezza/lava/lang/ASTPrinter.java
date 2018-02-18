@@ -1,5 +1,8 @@
 package me.jezza.lava.lang;
 
+import static me.jezza.lava.lang.ParseTree.FLAG_ASSIGNMENT;
+import static me.jezza.lava.lang.ParseTree.Name.FLAG_LOCAL;
+
 import java.util.Iterator;
 
 import me.jezza.lava.lang.ParseTree.Assignment;
@@ -16,7 +19,7 @@ import me.jezza.lava.lang.ParseTree.Goto;
 import me.jezza.lava.lang.ParseTree.IfBlock;
 import me.jezza.lava.lang.ParseTree.Label;
 import me.jezza.lava.lang.ParseTree.Literal;
-import me.jezza.lava.lang.ParseTree.LocalStatement;
+import me.jezza.lava.lang.ParseTree.Name;
 import me.jezza.lava.lang.ParseTree.RepeatBlock;
 import me.jezza.lava.lang.ParseTree.ReturnStatement;
 import me.jezza.lava.lang.ParseTree.Statement;
@@ -133,19 +136,9 @@ public final class ASTPrinter implements EVisitor {
 	}
 
 	@Override
-	public Void visitLocalStatement(LocalStatement value, Void userObject) {
-		indent();
-		text.append("local ");
-		join(value.lhs.iterator(), ", ");
-		text.append(" = ");
-		value.rhs.visit(this);
-		return null;
-	}
-
-	@Override
 	public Void visitFunctionBody(FunctionBody value, Void userObject) {
 		text.append("function(");
-		join(value.parameters.iterator(), ", ");
+		visit(value.parameters.iterator(), ", ");
 		if (value.varargs) {
 			text.append(value.parameters.isEmpty() ? "..." : ", ...");
 		}
@@ -252,7 +245,7 @@ public final class ASTPrinter implements EVisitor {
 	@Override
 	public Void visitBinaryOp(BinaryOp value, Void userObject) {
 		boolean indexed = value.op == BinaryOp.OP_INDEXED;
-		if (value.is(ParseTree.FLAG_ASSIGNMENT)) {
+		if (value.is(FLAG_ASSIGNMENT)) {
 			assert indexed;
 			text.append("set_table(");
 			value.left.visit(this);
@@ -334,11 +327,6 @@ public final class ASTPrinter implements EVisitor {
 			case Literal.NIL:
 				text.append("nil");
 				break;
-			case Literal.NAMESPACE:
-				if (value.is(ParseTree.FLAG_ASSIGNMENT)) {
-					text.append("set(").append(value.value).append(')');
-					return null;
-				}
 			case Literal.INTEGER:
 			case Literal.DOUBLE:
 				text.append(value.value);
@@ -348,6 +336,22 @@ public final class ASTPrinter implements EVisitor {
 				text.append(value.value);
 				text.append('"');
 				break;
+		}
+		return null;
+	}
+
+	@Override
+	public Void visitName(Name value, Void userObject) {
+		boolean local = value.is(FLAG_LOCAL);
+		boolean assign = value.is(FLAG_ASSIGNMENT);
+		if (local && assign) {
+			text.append("local(set(").append(value.value).append("))");
+		} else if (local) {
+			text.append("local(").append(value.value).append(')');
+		} else if (assign) {
+			text.append("set(").append(value.value).append(')');
+		} else {
+			text.append(value.value);
 		}
 		return null;
 	}

@@ -6,31 +6,40 @@ import java.util.List;
 /**
  * @author Jezza
  */
-public class AllocationList {
+public final class AllocationList {
+	private static final String ANY = "<any>";
+	private static final String FREE = "<free>";
+	
 	private final List<Object> list;
 
 	public AllocationList() {
 		this.list = new ArrayList<>();
 	}
 
-	public int registerAny() {
-		int index = list.size();
-		list.add("<any>");
+	public int allocate() {
+		int index = list.indexOf(FREE);
+		if (index == -1) {
+			index = list.size();
+			list.add(ANY);
+		} else {
+			list.set(index, ANY);
+		}
 		return index;
 	}
 
-	public int register(Object o) {
+	public int allocate(Object o) {
 		int i = indexOf(o);
-		if (i == -1) {
-			i = list.size();
-			list.add(o);
-		}
-		return i;
+		return i != -1
+				? i
+				: allocate();
 	}
 
 	public void free(int value) {
-		Object removed = list.remove(value);
-		System.out.println("Removed: " + removed);
+		list.set(value, FREE);
+	}
+	
+	public int max() {
+		return list.size();
 	}
 
 	public int size() {

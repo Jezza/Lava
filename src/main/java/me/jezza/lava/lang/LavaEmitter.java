@@ -1,5 +1,8 @@
 package me.jezza.lava.lang;
 
+import static me.jezza.lava.lang.ParseTree.FLAG_ASSIGNMENT;
+import static me.jezza.lava.lang.ParseTree.Name.FLAG_LOCAL;
+
 import java.util.List;
 
 import me.jezza.lava.lang.LavaEmitter.ExpDesc;
@@ -19,7 +22,7 @@ import me.jezza.lava.lang.ParseTree.Goto;
 import me.jezza.lava.lang.ParseTree.IfBlock;
 import me.jezza.lava.lang.ParseTree.Label;
 import me.jezza.lava.lang.ParseTree.Literal;
-import me.jezza.lava.lang.ParseTree.LocalStatement;
+import me.jezza.lava.lang.ParseTree.Name;
 import me.jezza.lava.lang.ParseTree.RepeatBlock;
 import me.jezza.lava.lang.ParseTree.ReturnStatement;
 import me.jezza.lava.lang.ParseTree.Statement;
@@ -85,38 +88,39 @@ public final class LavaEmitter implements Visitor<Scope, ExpDesc> {
 			return chunk;
 		}
 
-		ExpDesc find(Object value) {
-			int poolIndex = locals.indexOf(value);
-			if (poolIndex >= 0) {
-				return new ExpDesc(ExpDesc.LOCAL, poolIndex);
-			}
-			if (previous != null) {
-				ExpDesc desc = previous.find(value);
-				if (desc.type == ExpDesc.GLOBAL) {
-					return desc;
-				}
+//		ExpDesc find(Object value) {
+//			int poolIndex = locals.indexOf(value);
+//			if (poolIndex >= 0) {
+//				return new ExpDesc(ExpDesc.LOCAL, poolIndex);
+//			}
+//			if (previous != null) {
+//				ExpDesc desc = previous.find(value);
+//				if (desc.type == ExpDesc.GLOBAL) {
+//					return desc;
+//				}
 //				} else if (op.type == ExpOp.LOCAL) {
 //					op.type = ExpOp.UPVAL;
-				throw new IllegalStateException("NYI (UPVAL)");
-			}
-			poolIndex = pool.add(value);
-			return new ExpDesc(ExpDesc.GLOBAL, poolIndex);
-		}
+//				throw new IllegalStateException("NYI (UPVAL)");
+//			}
+//			poolIndex = pool.add(value);
+//			return new ExpDesc(ExpDesc.GLOBAL, poolIndex);
+//		}
 
-		int registerLocal(String name) {
-			return locals.register(name);
-		}
+//		int registerLocal(String name) {
+//			return locals.register(name);
+//		}
 
-		int emitAny(ExpDesc desc) {
-			int index = locals.registerAny();
+		int emit(ExpDesc desc) {
+			int index = locals.allocate();
 			emit(desc, index);
 			return index;
 		}
 
-		void emitThenFree(ExpDesc desc) {
-			int index = locals.registerAny();
+		int emitThenFree(ExpDesc desc) {
+			int index = locals.allocate();
 			emit(desc, index);
 			locals.free(index);
+			return index;
 		}
 
 		void emit(ExpDesc desc, int target) {
@@ -126,8 +130,8 @@ public final class LavaEmitter implements Visitor<Scope, ExpDesc> {
 			switch (desc.type) {
 				case ExpDesc.CONSTANT_INTEGER:
 				case ExpDesc.CONSTANT_DOUBLE:
-					desc.target = pool.add(desc.payload);
 				case ExpDesc.CONSTANT: {
+					desc.target = pool.add(desc.payload);
 					w.write2(OpCode.CONST, desc.target, target);
 					break;
 				}
@@ -177,6 +181,7 @@ public final class LavaEmitter implements Visitor<Scope, ExpDesc> {
 
 		static final int BINARY = 9;
 		static final int RELOCATABLE0 = 10;
+		static final int CALL = 10;
 
 		int type;
 		int target;
@@ -226,7 +231,9 @@ public final class LavaEmitter implements Visitor<Scope, ExpDesc> {
 		// Load function
 		value.target.visit(this, scope);
 		scope.w.write2(OpCode.CALL, value.argCount);
-		return null;
+//		ExpDesc desc = new ExpDesc(ExpDesc.CALL);
+//		return null;
+		throw new IllegalStateException("TBD");
 	}
 
 //	private ExpOp move(String name, Scope scope) {
@@ -243,11 +250,6 @@ public final class LavaEmitter implements Visitor<Scope, ExpDesc> {
 //		move(variable.name, scope);
 //		return null;
 //	}
-
-	private void stackPop(Scope scope) {
-		scope.w.write1(OpCode.POP);
-//		scope.free();
-	}
 
 	@Override
 	public ExpDesc visitAssignment(Assignment value, Scope scope) {
@@ -298,8 +300,8 @@ public final class LavaEmitter implements Visitor<Scope, ExpDesc> {
 		throw new IllegalStateException("NYI");
 	}
 
-	@Override
-	public ExpDesc visitLocalStatement(LocalStatement value, Scope scope) {
+//	@Override
+//	public ExpDesc visitLocalStatement(LocalStatement value, Scope scope) {
 //		if (value.lhs == null) {
 //			value.rhs.visit(this, scope);
 //		} else {
@@ -330,8 +332,8 @@ public final class LavaEmitter implements Visitor<Scope, ExpDesc> {
 //			}
 //			scope.results = results;
 //		}
-		throw new IllegalStateException("NYI");
-	}
+//		throw new IllegalStateException("NYI");
+//	}
 
 	@Override
 	public ExpDesc visitFunctionBody(FunctionBody value, Scope scope) {
@@ -339,15 +341,11 @@ public final class LavaEmitter implements Visitor<Scope, ExpDesc> {
 		if (value.varargs) {
 			throw new IllegalStateException("NYI");
 		}
-		for (String s : value.parameters) {
-			local.registerLocal(s);
-		}
 		value.body.visit(this, local);
 
 		LuaChunk chunk = local.build();
 		chunk.paramCount = value.parameters.size();
-		int index = scope.pool.add(chunk);
-		return new ExpDesc(ExpDesc.CONSTANT, index);
+		return new ExpDesc(ExpDesc.CONSTANT, chunk);
 	}
 
 	@Override
@@ -421,7 +419,7 @@ public final class LavaEmitter implements Visitor<Scope, ExpDesc> {
 
 	@Override
 	public ExpDesc visitBinaryOp(BinaryOp value, Scope scope) {
-		if (value.is(ParseTree.FLAG_ASSIGNMENT)) {
+		if (value.is(FLAG_ASSIGNMENT)) {
 			if (value.op != BinaryOp.OP_INDEXED) {
 				throw new IllegalStateException("Illegal binary assignment op: " + value.op);
 			}
@@ -437,12 +435,10 @@ public final class LavaEmitter implements Visitor<Scope, ExpDesc> {
 			// Should I do that here or in the parser?
 
 			int op = binaryOpCode(value.op);
-			int leftSlot = scope.emitAny(left);
-			int rightSlot = scope.emitAny(right);
 			ExpDesc desc = new ExpDesc(ExpDesc.BINARY);
 			desc.target = op;
-			desc.left = leftSlot;
-			desc.right = rightSlot;
+			desc.left = scope.emit(left);
+			desc.right = scope.emitThenFree(right);
 			return desc;
 		}
 	}
@@ -466,22 +462,8 @@ public final class LavaEmitter implements Visitor<Scope, ExpDesc> {
 
 	@Override
 	public ExpDesc visitLiteral(Literal value, Scope scope) {
-		if (value.is(ParseTree.FLAG_ASSIGNMENT)) {
-			if (value.type != Literal.NAMESPACE) {
-				throw new IllegalStateException("Attempted to load a non-namespace literal: " + value);
-			}
-			int to = scope.registerLocal((String) value.value);
-			ExpDesc target = scope.active;
-			if (target == null) {
-				throw new IllegalStateException("No active expression");
-			}
-			scope.emit(target, to);
-		} else if (value.type == Literal.NAMESPACE) {
-			return scope.find(value.value);
-		} else {
-			int type = descriptorType(value.type);
-			return new ExpDesc(type, value.value);
-		}
+		int type = descriptorType(value.type);
+		return new ExpDesc(type, value.value);
 
 //		ByteCodeWriter w = scope.w;
 //		if (value.type == Literal.NAMESPACE) {
@@ -506,7 +488,6 @@ public final class LavaEmitter implements Visitor<Scope, ExpDesc> {
 //		} else {
 //			scope.top++;
 //		}
-		return null;
 	}
 
 	private static int descriptorType(int literalType) {
@@ -523,11 +504,32 @@ public final class LavaEmitter implements Visitor<Scope, ExpDesc> {
 				return ExpDesc.CONSTANT_INTEGER;
 			case Literal.DOUBLE:
 				return ExpDesc.CONSTANT_DOUBLE;
-			case Literal.NAMESPACE:
-				throw new IllegalStateException("Literal [NAMESPACE] shouldn't directly be converted to a descriptor.");
 			default:
 				throw new IllegalStateException("Unsupported literal type conversion.");
 		}
+	}
+
+	@Override
+	public ExpDesc visitName(Name value, Scope scope) {
+		boolean local = value.is(FLAG_LOCAL);
+		boolean assign = value.is(FLAG_ASSIGNMENT);
+		if (local && assign) {
+			ExpDesc target = scope.active;
+			if (target == null) {
+				throw new IllegalStateException("No active expression");
+			}
+			scope.emit(target, value.index);
+			return null;
+		} else if (local) {
+			return new ExpDesc(ExpDesc.LOCAL, value.index);
+		} else if (assign) {
+			if (value.index == -1) {
+				throw new IllegalStateException("set_global not yet supported");
+			}
+			throw new IllegalStateException("ad");
+		}
+		throw new IllegalStateException("get_global not yet supported");
+//		return new ExpDesc(ExpDesc.GLOBAL, value.index);
 	}
 
 	@Override

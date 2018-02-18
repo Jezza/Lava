@@ -14,7 +14,7 @@ import me.jezza.lava.lang.ParseTree.Goto;
 import me.jezza.lava.lang.ParseTree.IfBlock;
 import me.jezza.lava.lang.ParseTree.Label;
 import me.jezza.lava.lang.ParseTree.Literal;
-import me.jezza.lava.lang.ParseTree.LocalStatement;
+import me.jezza.lava.lang.ParseTree.Name;
 import me.jezza.lava.lang.ParseTree.RepeatBlock;
 import me.jezza.lava.lang.ParseTree.ReturnStatement;
 import me.jezza.lava.lang.ParseTree.TableConstructor;
@@ -45,8 +45,6 @@ public interface Visitor<P, R> {
 
 	R visitFunctionBody(FunctionBody value, P userObject);
 
-	R visitLocalStatement(LocalStatement value, P userObject);
-
 	R visitAssignment(Assignment value, P userObject);
 
 	R visitUnaryOp(UnaryOp value, P userObject);
@@ -62,6 +60,8 @@ public interface Visitor<P, R> {
 	R visitReturnStatement(ReturnStatement value, P userObject);
 
 	R visitLiteral(Literal value, P userObject);
+
+	R visitName(Name value, P userObject);
 
 	R visitBreak(Break value, P userObject);
 
