@@ -57,8 +57,8 @@ public final class LavaEmitter implements Visitor<Scope, ExpDesc> {
 		final ConstantPool pool;
 		final AllocationList locals;
 
-		int top;
-		int max;
+//		int top;
+//		int max;
 		ExpDesc active;
 
 		Scope(String name) {
@@ -84,7 +84,7 @@ public final class LavaEmitter implements Visitor<Scope, ExpDesc> {
 				w.write2(OpCode.RETURN, 0);
 			}
 			chunk.code = w.code();
-			chunk.maxStackSize = max + 1;
+			chunk.maxStackSize = locals.max();
 			return chunk;
 		}
 
@@ -109,60 +109,6 @@ public final class LavaEmitter implements Visitor<Scope, ExpDesc> {
 //		int registerLocal(String name) {
 //			return locals.register(name);
 //		}
-
-		int emit(ExpDesc desc) {
-			int index = locals.allocate();
-			emit(desc, index);
-			return index;
-		}
-
-		int emitThenFree(ExpDesc desc) {
-			int index = locals.allocate();
-			emit(desc, index);
-			locals.free(index);
-			return index;
-		}
-
-		void emit(ExpDesc desc, int target) {
-			if (target > max) {
-				max = target;
-			}
-			switch (desc.type) {
-				case ExpDesc.CONSTANT_INTEGER:
-				case ExpDesc.CONSTANT_DOUBLE:
-				case ExpDesc.CONSTANT: {
-					desc.target = pool.add(desc.payload);
-					w.write2(OpCode.CONST, desc.target, target);
-					break;
-				}
-				case ExpDesc.CONSTANT_NIL: {
-					w.write2(OpCode.CONST_NIL, target);
-					break;
-				}
-				case ExpDesc.CONSTANT_TRUE: {
-					w.write2(OpCode.CONST_TRUE, target);
-					break;
-				}
-				case ExpDesc.CONSTANT_FALSE: {
-					w.write2(OpCode.CONST_FALSE, target);
-					break;
-				}
-				case ExpDesc.BINARY: {
-					int op = desc.target;
-					int leftSlot = desc.left;
-					int rightSlot = desc.right;
-					w.write2(op, leftSlot, rightSlot, target);
-					break;
-				}
-				case ExpDesc.VOID:
-					break;
-				default:
-					throw new IllegalStateException("Unsupported ExpOp type: " + desc.type);
-			}
-			desc.type = ExpDesc.VOID;
-			desc.target = -1;
-			desc.payload = null;
-		}
 	}
 
 	static final class ExpDesc {
@@ -208,6 +154,71 @@ public final class LavaEmitter implements Visitor<Scope, ExpDesc> {
 			this.type = type;
 			this.payload = payload;
 		}
+
+		int emit(Scope scope) {
+			int index = scope.locals.allocate();
+			emit(scope, index);
+			return index;
+		}
+
+		int emitThenFree(Scope scope) {
+			int index = scope.locals.allocate();
+			emit(scope, index);
+			scope.locals.free(index);
+			return index;
+		}
+		
+		void emit(Scope scope, int target) {
+//			if (target > max) {
+//				max = target;
+//			}
+			switch (type) {
+				case CONSTANT_INTEGER:
+				case CONSTANT_DOUBLE:
+				case CONSTANT: {
+					this.target = scope.pool.add(payload);
+					scope.w.write2(OpCode.CONST, this.target, target);
+					break;
+				}
+				case ExpDesc.CONSTANT_NIL: {
+					scope.w.write2(OpCode.CONST_NIL, target);
+					break;
+				}
+				case ExpDesc.CONSTANT_TRUE: {
+					scope.w.write2(OpCode.CONST_TRUE, target);
+					break;
+				}
+				case ExpDesc.CONSTANT_FALSE: {
+					scope.w.write2(OpCode.CONST_FALSE, target);
+					break;
+				}
+				case ExpDesc.CALL: {
+					int base = this.target;
+					int paramCount = left;
+					int expected = right;
+					scope.w.write2(OpCode.CALL, base, paramCount, expected);
+					if (--right > 0) {
+						return;
+					}
+					break;
+				}
+				case ExpDesc.BINARY: {
+					int op = this.target;
+					int leftSlot = left;
+					int rightSlot = right;
+					scope.w.write2(op, leftSlot, rightSlot, target);
+					break;
+				}
+				case ExpDesc.VOID:
+					break;
+				default:
+					throw new IllegalStateException("Unsupported ExpOp type: " + type);
+			}
+			type = ExpDesc.VOID;
+			this.target = -1;
+			payload = null;
+			scope.active = null;
+		}
 	}
 
 	@Override
@@ -227,13 +238,22 @@ public final class LavaEmitter implements Visitor<Scope, ExpDesc> {
 	@Override
 	public ExpDesc visitFunctionCall(FunctionCall value, Scope scope) {
 		// Load args
-		value.args.visit(this, scope);
+		List<Expression> args = value.args.list;
+		int count = args.size();
+		// Also need one for the function call
+		int index = scope.locals.allocate(count + 1);
+		for (int i = 0; i < count; i++) {
+			Expression expression = args.get(i);
+			ExpDesc exp = expression.visit(this, scope);
+			exp.emit(scope, index + i);
+		}
 		// Load function
-		value.target.visit(this, scope);
-		scope.w.write2(OpCode.CALL, value.argCount);
-//		ExpDesc desc = new ExpDesc(ExpDesc.CALL);
-//		return null;
-		throw new IllegalStateException("TBD");
+		ExpDesc target = value.target.visit(this, scope);
+		target.emit(scope, index + count + 1);
+		ExpDesc desc = new ExpDesc(ExpDesc.CALL, index);
+		desc.left = count;
+		desc.right = value.expectedResults;
+		return desc;
 	}
 
 //	private ExpOp move(String name, Scope scope) {
@@ -255,7 +275,7 @@ public final class LavaEmitter implements Visitor<Scope, ExpDesc> {
 	public ExpDesc visitAssignment(Assignment value, Scope scope) {
 		if (value.lhs == null) {
 			ExpDesc desc = value.rhs.visit(this, scope);
-			scope.emitThenFree(desc);
+			desc.emitThenFree(scope);
 		} else {
 			// @TODO Jezza - 09 Feb 2018: Assignment flattening
 			// @TODO Jezza - 09 Feb 2018: Conflict resolution
@@ -268,22 +288,23 @@ public final class LavaEmitter implements Visitor<Scope, ExpDesc> {
 			int min = Math.min(leftSize, rightSize);
 			int i = 0;
 			for (; i < min; i++) {
-				scope.active = rhs.get(i).visit(this, scope);
+				if (scope.active == null) {
+					scope.active = rhs.get(i).visit(this, scope);
+				}
 				lhs.get(i).visit(this, scope);
-				scope.active = null;
 			}
-			if (leftSize < rightSize) {
-				throw new IllegalStateException("NYI (assignment buffering)");
+//			if (leftSize < rightSize) {
+//				throw new IllegalStateException("NYI (assignment buffering)");
 //				for (; i < rightSize; i++) {
 //					rhs.get(i).visit(this, scope);
 //					stackPop(scope);
 //				}
-			} else if (leftSize > rightSize) {
-				throw new IllegalStateException("Parser should have already handled this.");
+//			} else if (leftSize > rightSize) {
+//				throw new IllegalStateException("Parser should have already handled this.");
 //				for (; i < leftSize; i++) {
 //					stackNil(scope);
 //				}
-			}
+//			}
 		}
 		return null;
 	}
@@ -437,8 +458,8 @@ public final class LavaEmitter implements Visitor<Scope, ExpDesc> {
 			int op = binaryOpCode(value.op);
 			ExpDesc desc = new ExpDesc(ExpDesc.BINARY);
 			desc.target = op;
-			desc.left = scope.emit(left);
-			desc.right = scope.emitThenFree(right);
+			desc.left = left.emit(scope);
+			desc.right = right.emitThenFree(scope);
 			return desc;
 		}
 	}
@@ -518,7 +539,7 @@ public final class LavaEmitter implements Visitor<Scope, ExpDesc> {
 			if (target == null) {
 				throw new IllegalStateException("No active expression");
 			}
-			scope.emit(target, value.index);
+			target.emit(scope, value.index);
 			return null;
 		} else if (local) {
 			return new ExpDesc(ExpDesc.LOCAL, value.index);

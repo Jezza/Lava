@@ -422,19 +422,15 @@ public abstract class ParseTree {
 	public static final class FunctionCall extends Expression {
 		public Expression target;
 		public String name;
-		public Expression args;
+		public ExpressionList args;
 
-		public int argCount;
 		public int expectedResults;
 
-		public FunctionCall(Expression target, String name, Expression args) {
+		public FunctionCall(Expression target, String name, ExpressionList args) {
 			super(TYPE_FUNCTION_CALL);
 			this.target = target;
 			this.name = name;
 			this.args = args;
-			argCount = args instanceof ExpressionList
-					? ((ExpressionList) args).size()
-					: 1;
 		}
 
 		@Override

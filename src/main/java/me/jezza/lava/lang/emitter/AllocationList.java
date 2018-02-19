@@ -26,6 +26,14 @@ public final class AllocationList {
 		}
 		return index;
 	}
+	
+	public int allocate(int count) {
+		int index = list.size();
+		for (int i = 0; i < count; i++) {
+			list.add(ANY);
+		}
+		return index;
+	}
 
 	public int allocate(Object o) {
 		int i = indexOf(o);

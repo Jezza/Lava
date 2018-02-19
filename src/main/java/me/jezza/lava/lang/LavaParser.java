@@ -517,20 +517,20 @@ public final class LavaParser extends AbstractParser {
 		}
 	}
 
-	public Expression functionArguments() throws IOException {
+	public ExpressionList functionArguments() throws IOException {
 		int type = current().type;
 		if (type == '(') {
 			consume();
 			if (!match(')')) {
-				Expression value = expressionList();
+				ExpressionList value = expressionList();
 				consume(')');
 				return value;
 			}
 			return new ExpressionList(new ArrayList<>());
 		} else if (type == '{') {
-			return tableConstructor();
+			return new ExpressionList(tableConstructor());
 		} else if (type == Tokens.STRING) {
-			return new Literal(Tokens.STRING, consume().text);
+			return new ExpressionList(new Literal(Tokens.STRING, consume().text));
 		} else {
 			throw new IllegalStateException("Syntax: " + current());
 		}

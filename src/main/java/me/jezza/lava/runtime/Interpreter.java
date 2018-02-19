@@ -332,13 +332,15 @@ public final class Interpreter {
 	}
 
 	private void CALL(StackFrame frame) throws Throwable {
+		int base = frame.decode2();
 		int params = frame.decode2();
-//		Object o = stackPop(frame);
-//		if (DEBUG_MODE) {
-//			System.out.println("(CALL) " + o + " :: " + params);
-//		}
-		throw new IllegalStateException("Functions don't work anymore.");
-//		if (o instanceof Callback) {
+		int results = frame.decode2();
+
+		Object o = stackGet(frame, base + params + 1);
+		if (DEBUG_MODE) {
+			System.out.println("(CALL) " + o + " :: " + params);
+		}
+		if (o instanceof Callback) {
 //			StackFrame newFrame = newFrame();
 //			newFrame.top = frame.top;
 //			frame.top -= params;
@@ -349,7 +351,7 @@ public final class Interpreter {
 //			// @TODO Jezza - 29 May 2017: Support frame reordering
 //			framePop();
 //			DEBUG(null);
-//		} else if (o instanceof LuaChunk) {
+		} else if (o instanceof LuaChunk) {
 //			LuaChunk chunk = (LuaChunk) o;
 //			int expected = chunk.paramCount;
 //			if (params > expected) {
@@ -364,9 +366,9 @@ public final class Interpreter {
 //			}
 //			frame.top -= Math.min(params, expected);
 //			newFrame.base = frame.top;
-//		} else {
-//			throw new IllegalStateException("Expected call object on stack, but got: " + o);
-//		}
+		} else {
+			throw new IllegalStateException("Expected call object on stack, but got: " + o);
+		}
 	}
 
 //	private void SET_TABLE(StackFrame frame) throws Throwable {
