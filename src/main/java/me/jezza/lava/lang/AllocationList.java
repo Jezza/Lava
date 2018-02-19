@@ -1,4 +1,4 @@
-package me.jezza.lava.lang.emitter;
+package me.jezza.lava.lang;
 
 import java.util.ArrayList;
 import java.util.List;

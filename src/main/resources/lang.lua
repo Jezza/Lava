@@ -10,13 +10,17 @@
 -- // get (a.c.b)
 --
 
-local a,b,c,d;
+-- local a,b,c,d;
+
+-- local function test()
+-- end
+
+-- a, c = test()
 
 local function test()
 end
 
-a, c = test()
-
+local a = test("asd", "asdd");
 
 -- table = "table"
 

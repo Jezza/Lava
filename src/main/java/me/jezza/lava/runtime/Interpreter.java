@@ -15,8 +15,8 @@ import java.util.Map;
 import java.util.stream.LongStream;
 import java.util.stream.LongStream.Builder;
 
-import me.jezza.lava.lang.emitter.ByteCodeWriter;
-import me.jezza.lava.lang.emitter.ConstantPool;
+import me.jezza.lava.lang.ByteCodeWriter;
+import me.jezza.lava.lang.ConstantPool;
 import me.jezza.lava.runtime.OpCode.Implemented;
 
 /**
@@ -288,9 +288,9 @@ public final class Interpreter {
 //	}
 
 	private void ADD(StackFrame frame) throws Throwable {
+		int target = frame.decode2();
 		int leftSlot = frame.decode2();
 		int rightSlot = frame.decode2();
-		int target = frame.decode2();
 
 		int left = (int) stackGet(frame, leftSlot);
 		int right = (int) stackGet(frame, rightSlot);
@@ -301,9 +301,9 @@ public final class Interpreter {
 	}
 
 	private void MUL(StackFrame frame) throws Throwable {
+		int target = frame.decode2();
 		int leftSlot = frame.decode2();
 		int rightSlot = frame.decode2();
-		int target = frame.decode2();
 
 		int left = (int) stackGet(frame, leftSlot);
 		int right = (int) stackGet(frame, rightSlot);
@@ -351,6 +351,7 @@ public final class Interpreter {
 //			// @TODO Jezza - 29 May 2017: Support frame reordering
 //			framePop();
 //			DEBUG(null);
+			throw new IllegalStateException("Java callback");
 		} else if (o instanceof LuaChunk) {
 //			LuaChunk chunk = (LuaChunk) o;
 //			int expected = chunk.paramCount;
@@ -366,6 +367,7 @@ public final class Interpreter {
 //			}
 //			frame.top -= Math.min(params, expected);
 //			newFrame.base = frame.top;
+			throw new IllegalStateException("Lua callback");
 		} else {
 			throw new IllegalStateException("Expected call object on stack, but got: " + o);
 		}

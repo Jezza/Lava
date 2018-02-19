@@ -13,8 +13,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import me.jezza.lava.lang.emitter.ByteCodeWriter;
-import me.jezza.lava.lang.emitter.ConstantPool;
+import me.jezza.lava.lang.ByteCodeWriter;
+import me.jezza.lava.lang.ConstantPool;
 import me.jezza.lava.runtime.OpCode;
 
 /**
