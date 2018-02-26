@@ -29,7 +29,6 @@ import me.jezza.lava.lang.ParseTree.TableConstructor;
 import me.jezza.lava.lang.ParseTree.TableField;
 import me.jezza.lava.lang.ParseTree.UnaryOp;
 import me.jezza.lava.lang.ParseTree.Varargs;
-import me.jezza.lava.lang.ParseTree.WhileLoop;
 import me.jezza.lava.lang.interfaces.Visitor;
 import me.jezza.lava.runtime.Interpreter.LuaChunk;
 import me.jezza.lava.runtime.OpCode;
@@ -338,14 +337,10 @@ public final class LavaEmitter implements Visitor<Scope, Object> {
 
 	@Override
 	public Object visitExpressionList(ExpressionList value, Scope scope) {
-		for (Expression expression : value.list)
+		for (Expression expression : value.list) {
 			expression.visit(this, scope);
+		}
 		return null;
-	}
-
-	@Override
-	public Object visitLabel(Label value, Scope scope) {
-		throw new IllegalStateException("NYI");
 	}
 
 	@Override
@@ -365,6 +360,11 @@ public final class LavaEmitter implements Visitor<Scope, Object> {
 	}
 
 	@Override
+	public Object visitLabel(Label value, Scope scope) {
+		throw new IllegalStateException("NYI");
+	}
+
+	@Override
 	public Object visitGoto(Goto value, Scope scope) {
 		throw new IllegalStateException("NYI");
 	}
@@ -376,11 +376,6 @@ public final class LavaEmitter implements Visitor<Scope, Object> {
 
 	@Override
 	public Object visitDoBlock(DoBlock value, Scope scope) {
-		throw new IllegalStateException("NYI");
-	}
-
-	@Override
-	public Object visitWhileLoop(WhileLoop value, Scope scope) {
 		throw new IllegalStateException("NYI");
 	}
 

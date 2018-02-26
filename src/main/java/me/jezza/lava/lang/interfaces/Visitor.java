@@ -21,7 +21,6 @@ import me.jezza.lava.lang.ParseTree.TableConstructor;
 import me.jezza.lava.lang.ParseTree.TableField;
 import me.jezza.lava.lang.ParseTree.UnaryOp;
 import me.jezza.lava.lang.ParseTree.Varargs;
-import me.jezza.lava.lang.ParseTree.WhileLoop;
 
 /**
  * @author Jezza
@@ -32,8 +31,6 @@ public interface Visitor<P, R> {
 	R visitExpressionList(ExpressionList value, P userObject);
 
 	R visitDoBlock(DoBlock value, P userObject);
-
-	R visitWhileLoop(WhileLoop value, P userObject);
 
 	R visitRepeatBlock(RepeatBlock value, P userObject);
 

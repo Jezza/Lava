@@ -23,7 +23,6 @@ import me.jezza.lava.lang.ParseTree.TableConstructor;
 import me.jezza.lava.lang.ParseTree.TableField;
 import me.jezza.lava.lang.ParseTree.UnaryOp;
 import me.jezza.lava.lang.ParseTree.Varargs;
-import me.jezza.lava.lang.ParseTree.WhileLoop;
 import me.jezza.lava.lang.interfaces.Visitor;
 
 /**
@@ -78,12 +77,6 @@ public class AbstractScanner<P, R> implements Visitor<P, R> {
 	@Override
 	public R visitDoBlock(DoBlock value, P userObject) {
 		return scan(value.body, userObject);
-	}
-
-	@Override
-	public R visitWhileLoop(WhileLoop value, P userObject) {
-		R returnValue = scan(value.condition, userObject);
-		return scanThenReduce(value.body, userObject, returnValue);
 	}
 
 	@Override

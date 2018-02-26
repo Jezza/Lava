@@ -32,7 +32,6 @@ import me.jezza.lava.lang.ParseTree.TableConstructor;
 import me.jezza.lava.lang.ParseTree.TableField;
 import me.jezza.lava.lang.ParseTree.UnaryOp;
 import me.jezza.lava.lang.ParseTree.Varargs;
-import me.jezza.lava.lang.ParseTree.WhileLoop;
 import me.jezza.lava.lang.base.AbstractParser;
 import me.jezza.lava.lang.interfaces.Lexer;
 
@@ -201,14 +200,16 @@ public final class LavaParser extends AbstractParser {
 		return new RepeatBlock(body, condition);
 	}
 
-	private WhileLoop whileLoop() throws IOException {
+	private Statement whileLoop() throws IOException {
 		consume(Tokens.WHILE);
 		Expression condition = expression();
 		consume(Tokens.DO);
 		Block body = block();
 		consume(Tokens.END);
-		// @CLEANUP Jezza - 26 Feb 2018: Lowering : While (cond) (body) -> If (cond) Repeat (body) Until (cond)
-		return new WhileLoop(condition, body);
+		// Lowering: While (cond) (body) -> If (cond) Repeat (body) Until (cond)
+		RepeatBlock repeatBlock = new RepeatBlock(body, condition);
+		Block loop = new Block("while_body", repeatBlock);
+		return new IfBlock(condition, loop, null);
 	}
 
 	private Goto gotoStatement() throws IOException {

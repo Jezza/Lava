@@ -16,7 +16,6 @@ public abstract class ParseTree {
 	private static final int TYPE_BLOCK = 0;
 	private static final int TYPE_EXPRESSION_LIST = 1;
 	private static final int TYPE_DO_BLOCK = 2;
-	private static final int TYPE_WHILE_LOOP = 3;
 	private static final int TYPE_REPEAT_BLOCK = 4;
 	private static final int TYPE_IF_BLOCK = 5;
 	private static final int TYPE_FOR_LOOP = 6;
@@ -86,8 +85,6 @@ public abstract class ParseTree {
 				return visitor.visitExpressionList((ExpressionList) this, userObject);
 			case TYPE_DO_BLOCK:
 				return visitor.visitDoBlock((DoBlock) this, userObject);
-			case TYPE_WHILE_LOOP:
-				return visitor.visitWhileLoop((WhileLoop) this, userObject);
 			case TYPE_REPEAT_BLOCK:
 				return visitor.visitRepeatBlock((RepeatBlock) this, userObject);
 			case TYPE_IF_BLOCK:
@@ -153,6 +150,11 @@ public abstract class ParseTree {
 
 		public int parameterCount;
 
+		public Block(String name, Statement statement) {
+			this(name, new ArrayList<>(1));
+			statements.add(statement);
+		}
+
 		public Block(String name, List<Statement> statements) {
 			super(TYPE_BLOCK);
 			this.name = name;
@@ -170,8 +172,7 @@ public abstract class ParseTree {
 		public List<Expression> list;
 
 		public ExpressionList(Expression value) {
-			super(TYPE_EXPRESSION_LIST);
-			list = new ArrayList<>(1);
+			this(new ArrayList<>(1));
 			list.add(value);
 		}
 
@@ -202,24 +203,6 @@ public abstract class ParseTree {
 		@Override
 		public String toString() {
 			return Strings.format("DoBlock{body={}}",
-					body);
-		}
-	}
-
-	public static final class WhileLoop extends Statement {
-		public Expression condition;
-		public Block body;
-
-		public WhileLoop(Expression condition, Block body) {
-			super(TYPE_WHILE_LOOP);
-			this.condition = condition;
-			this.body = body;
-		}
-
-		@Override
-		public String toString() {
-			return Strings.format("WhileLoop{condition={}, body={}}",
-					condition,
 					body);
 		}
 	}

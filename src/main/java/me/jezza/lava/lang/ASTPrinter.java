@@ -27,7 +27,6 @@ import me.jezza.lava.lang.ParseTree.TableConstructor;
 import me.jezza.lava.lang.ParseTree.TableField;
 import me.jezza.lava.lang.ParseTree.UnaryOp;
 import me.jezza.lava.lang.ParseTree.Varargs;
-import me.jezza.lava.lang.ParseTree.WhileLoop;
 import me.jezza.lava.lang.interfaces.Visitor.EVisitor;
 
 /**
@@ -181,12 +180,6 @@ public final class ASTPrinter implements EVisitor {
 	@Override
 	public Void visitDoBlock(DoBlock value, Void userObject) {
 		text.append("do");
-		return null;
-	}
-
-	@Override
-	public Void visitWhileLoop(WhileLoop value, Void userObject) {
-		text.append("while");
 		return null;
 	}
 
