@@ -231,7 +231,7 @@ public final class ASTPrinter implements EVisitor {
 	public Void visitReturnStatement(ReturnStatement value, Void userObject) {
 		indent();
 		text.append("return ");
-		value.exprs.visit(this);
+		value.expressions.visit(this);
 		text.append(';');
 		return null;
 	}

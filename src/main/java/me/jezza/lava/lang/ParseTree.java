@@ -41,7 +41,7 @@ public abstract class ParseTree {
 	private final int type;
 	private int flags;
 	
-	public Block block;
+//	public Block block;
 
 	ParseTree(int type) {
 		this.type = type;
@@ -476,17 +476,17 @@ public abstract class ParseTree {
 	}
 
 	public static final class ReturnStatement extends Statement {
-		public ExpressionList exprs;
+		public ExpressionList expressions;
 
-		public ReturnStatement(ExpressionList exprs) {
+		public ReturnStatement(ExpressionList expressions) {
 			super(TYPE_RETURN_STATEMENT);
-			this.exprs = exprs;
+			this.expressions = expressions;
 		}
 
 		@Override
 		public String toString() {
-			return Strings.format("ReturnStatement{exprs={}}",
-					exprs);
+			return Strings.format("ReturnStatement{expressions={}}",
+					expressions);
 		}
 	}
 	

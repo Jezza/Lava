@@ -51,7 +51,7 @@ public final class LavaEmitter implements Visitor<Scope, Object> {
 		final Scope previous;
 		final ByteCodeWriter w;
 		final ConstantPool pool;
-//		final AllocationList locals;
+		final AllocationList allocator;
 
 //		int top;
 //		int max;
@@ -64,9 +64,9 @@ public final class LavaEmitter implements Visitor<Scope, Object> {
 		private Scope(String name, Scope previous) {
 			this.name = name;
 			this.previous = previous;
-			this.w = new ByteCodeWriter();
-			this.pool = new ConstantPool();
-//			locals = new AllocationList();
+			w = new ByteCodeWriter();
+			pool = new ConstantPool();
+			allocator = new AllocationList();
 		}
 
 		Scope newScope(String name) {
@@ -80,19 +80,21 @@ public final class LavaEmitter implements Visitor<Scope, Object> {
 				w.write2(OpCode.RETURN, 0);
 			}
 			chunk.code = w.code();
-			chunk.maxStackSize = index + 1;
+			chunk.maxStackSize = max + 1;
 			return chunk;
 		}
 		
-		
 		private int[] indices = new int[2048];
-		private int index;
+		private int index = -1;
 		private int max;
 		
 		// @TODO Jezza - 19 Feb 2018: 
 		private boolean[] registers = new boolean[2048];
-		
+
 		public int allocate() {
+			if (index == -1) {
+				index = 0;
+			}
 			for (int i = 0, l = registers.length; i < l; i++) {
 				if (!registers[i]) {
 					registers[i] = true;
@@ -114,6 +116,9 @@ public final class LavaEmitter implements Visitor<Scope, Object> {
 			registers[index] = false;
 			return index;
 		}
+		
+//		public void allocate(Address desc) {
+//		}
 
 //		ExpDesc find(Object value) {
 //			int poolIndex = locals.indexOf(value);
@@ -138,7 +143,7 @@ public final class LavaEmitter implements Visitor<Scope, Object> {
 //		}
 	}
 
-//	static final class ExpDesc {
+	static final class Address {
 //		static final int VOID = 0;
 //		static final int CONSTANT = 1;
 //
@@ -246,7 +251,7 @@ public final class LavaEmitter implements Visitor<Scope, Object> {
 //			payload = null;
 //			scope.active = null;
 //		}
-//	}
+	}
 
 	@Override
 	public Object visitBlock(Block value, Scope scope) {
@@ -268,55 +273,53 @@ public final class LavaEmitter implements Visitor<Scope, Object> {
 
 	@Override
 	public Object visitFunctionCall(FunctionCall value, Scope scope) {
+		int base = scope.allocate();
+		scope.pop();
+		// Load function
+		value.target.visit(this, scope);
 		// Load args
 		List<Expression> args = value.args.list;
 		int count = args.size();
-		int index = scope.allocate() - 1;
-		scope.pop();
 		for (int i = 0; i < count; i++) {
 			args.get(i).visit(this, scope);
 		}
-		// Load function
-		value.target.visit(this, scope);
-		scope.w.write2(OpCode.CALL, index, count, value.expectedResults);
+		scope.w.write2(OpCode.CALL, base, count, value.expectedResults);
+		for (int i = 0; i < count + 1; i++) {
+			scope.pop();
+		}
+		for (int i = 0; i < value.expectedResults; i++) {
+			scope.allocate();
+		}
 		return null;
 	}
-
-//	private ExpOp move(String name, Scope scope) {
-//		int index = scope.registerLocal(name);
-//		scope.w.write2(OpCode.MOV, scope.top - 1, index);
-//		if (scope.top - 1 != index) {
-//			scope.top--;
-//			scope.w.write1(OpCode.POP);
-//		}
-//	}
-
-//	@Override
-//	public ExpOp visitVariable(Variable variable, Scope scope) {
-//		move(variable.name, scope);
-//		return null;
-//	}
 
 	@Override
 	public Object visitAssignment(Assignment value, Scope scope) {
 		if (value.lhs == null) {
 			value.rhs.visit(this, scope);
-			scope.pop();
 		} else {
 			// @TODO Jezza - 09 Feb 2018: Assignment flattening
 			// @TODO Jezza - 09 Feb 2018: Conflict resolution
-
-			List<Expression> rhs = value.rhs.list;
+			if (value.lhs.size() != value.rhs.size()) {
+				throw new IllegalStateException("assert");
+			}
+			value.rhs.visit(this, scope);
 			List<Expression> lhs = value.lhs.list;
-
-			int leftSize = lhs.size();
-			int rightSize = rhs.size();
-			int min = Math.min(leftSize, rightSize);
-			int i = 0;
-			for (; i < min; i++) {
-				rhs.get(i).visit(this, scope);
+			for (int i = lhs.size() - 1; i >= 0; i--) {
 				lhs.get(i).visit(this, scope);
 			}
+
+//			List<Expression> rhs = value.rhs.list;
+//			List<Expression> lhs = value.lhs.list;
+//
+//			int leftSize = lhs.size();
+//			int rightSize = rhs.size();
+//			int min = Math.min(leftSize, rightSize);
+//			int i = 0;
+//			for (; i < min; i++) {
+//				rhs.get(i).visit(this, scope);
+//				lhs.get(i).visit(this, scope);
+//			}
 //			if (leftSize < rightSize) {
 //				throw new IllegalStateException("NYI (assignment buffering)");
 //				for (; i < rightSize; i++) {
@@ -345,41 +348,6 @@ public final class LavaEmitter implements Visitor<Scope, Object> {
 		throw new IllegalStateException("NYI");
 	}
 
-//	@Override
-//	public ExpDesc visitLocalStatement(LocalStatement value, Scope scope) {
-//		if (value.lhs == null) {
-//			value.rhs.visit(this, scope);
-//		} else {
-//			List<String> lhs = value.lhs;
-//			List<Expression> rhs = value.rhs.list;
-//
-//			int results = scope.results;
-//
-//			int ls = lhs.size();
-//			int rs = rhs.size();
-//			scope.results = ls;
-//			// scope.reserve(ls);
-//			if (ls > rs) {
-//				for (int i = 0; i < ls; i++) {
-//					if (i >= rs) {
-//						scope.w.write1(OpCode.CONST_NIL);
-//						scope.top++;
-//					} else {
-//						rhs.get(i).visit(this, scope);
-//					}
-//					move(lhs.get(i), scope);
-//				}
-//			} else {
-//				for (int i = 0; i < ls; i++) {
-//					rhs.get(i).visit(this, scope);
-//					move(lhs.get(i), scope);
-//				}
-//			}
-//			scope.results = results;
-//		}
-//		throw new IllegalStateException("NYI");
-//	}
-
 	@Override
 	public Object visitFunctionBody(FunctionBody value, Scope scope) {
 		if (value.varargs) {
@@ -389,7 +357,7 @@ public final class LavaEmitter implements Visitor<Scope, Object> {
 		value.body.visit(this, local);
 
 		LuaChunk chunk = local.build();
-		chunk.paramCount = value.parameters.size();
+//		chunk.params = value.parameters.size();
 		int index  = scope.pool.add(chunk);
 		int register = scope.allocate();
 		scope.w.write2(OpCode.CONST, index, register);
@@ -438,10 +406,15 @@ public final class LavaEmitter implements Visitor<Scope, Object> {
 
 	@Override
 	public Object visitReturnStatement(ReturnStatement value, Scope scope) {
-		ExpressionList exprs = value.exprs;
-		exprs.visit(this, scope);
-		int count = exprs.size();
-		scope.w.write1(OpCode.RETURN, count);
+		ExpressionList expressions = value.expressions;
+		if (expressions.size() != 0) {
+			int position = scope.allocate();
+			scope.pop();
+			expressions.visit(this, scope);
+			scope.w.write1(OpCode.RETURN, expressions.size(), position);
+		} else {
+			scope.w.write1(OpCode.RETURN, 0, 0);
+		}
 		return null;
 	}
 
@@ -526,13 +499,13 @@ public final class LavaEmitter implements Visitor<Scope, Object> {
 				break;
 			}
 			case Literal.TRUE: {
-				int allocate = scope.allocate();
-				scope.w.write2(OpCode.CONST_TRUE, allocate);
+				int register = scope.allocate();
+				scope.w.write2(OpCode.CONST_TRUE, register);
 				break;
 			}
 			case Literal.NIL: {
-				int allocate = scope.allocate();
-				scope.w.write2(OpCode.CONST_NIL, allocate);
+				int register = scope.allocate();
+				scope.w.write2(OpCode.CONST_NIL, register);
 				break;
 			}
 			default:
@@ -540,33 +513,6 @@ public final class LavaEmitter implements Visitor<Scope, Object> {
 		}
 		return null;
 	}
-
-//		int type = descriptorType(value.type);
-//		return new ExpDesc(type, value.value);
-
-//		ByteCodeWriter w = scope.w;
-//		if (value.type == Literal.NAMESPACE) {
-//			String name = (String) value.value;
-////			Scope current = scope;
-////			while (current != null) {
-////				int index = current.locals.add(name);
-////				if (index != -1) {
-////					// TODO: 18/06/2017 Upvalues should be added here.
-////					if (current != scope)
-////						throw new IllegalStateException("Upvalues aren't supported: " + name);
-////					w.write1(OpCodes.CONST1, index);
-////					scope.top++;
-////					return null;
-////				}
-////				current = current.previous;
-////			}
-//			int index = scope.pool.add(name);
-//			w.write1(OpCode.CONST1, index);
-//			w.write1(OpCode.GET_GLOBAL);
-//			scope.top++;
-//		} else {
-//			scope.top++;
-//		}
 
 //	private static int descriptorType(int literalType) {
 //		switch (literalType) {

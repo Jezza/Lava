@@ -186,6 +186,14 @@ public final class Interpreter {
 			stack = newData;
 		}
 	}
+	
+	void stackCopy(int source, int dest, int length) {
+		if (DEBUG_MODE) {
+			System.out.println("COPY (" + source + ") -> (" + dest + "; " + length + ")");
+		}
+		System.arraycopy(stack, source, stack, dest, length);
+	}
+	
 
 	private StackFrame currentFrame() {
 		return frames[frameIndex - 1];
@@ -207,13 +215,15 @@ public final class Interpreter {
 		}
 	}
 
-	StackFrame framePop() {
+	StackFrame framePop(int position) {
 		StackFrame lastFrame = frames[--frameIndex];
 		frames[frameIndex] = null;
 		StackFrame frame = currentFrame();
 		int results = lastFrame.results;
 		if (results > 0) {
-			throw new IllegalStateException("Function returns no longer work.");
+//			stackCheck(frame.base + frame.origin + frame.results);
+			stackCopy(lastFrame.base + position, frame.base + frame.origin, results);
+//			throw new IllegalStateException("Function returns no longer work.");
 //			do {
 //				stackMove(frame, lastFrame.top - results, frame.top++);
 //			} while (--results > 0);
@@ -332,13 +342,16 @@ public final class Interpreter {
 	}
 
 	private void CALL(StackFrame frame) throws Throwable {
+		// Start of all the shit.
 		int base = frame.decode2();
+		// How many parameters there are.
 		int params = frame.decode2();
+		// How many returned results are handled.
 		int results = frame.decode2();
 
-		Object o = stackGet(frame, base + params + 1);
+		Object o = stackGet(frame, base);
 		if (DEBUG_MODE) {
-			System.out.println("(CALL) " + o + " :: " + params);
+			System.out.println("CALL " + o + '(' + params + ')');
 		}
 		if (o instanceof Callback) {
 //			StackFrame newFrame = newFrame();
@@ -351,23 +364,26 @@ public final class Interpreter {
 //			// @TODO Jezza - 29 May 2017: Support frame reordering
 //			framePop();
 //			DEBUG(null);
-			throw new IllegalStateException("Java callback");
+			throw new IllegalStateException("java callback");
 		} else if (o instanceof LuaChunk) {
-//			LuaChunk chunk = (LuaChunk) o;
-//			int expected = chunk.paramCount;
+			LuaChunk chunk = (LuaChunk) o;
 //			if (params > expected) {
 //				stackShrink(frame, params - expected);
 //			}
-//			StackFrame newFrame = newFrame();
-//			newFrame.code = chunk.code;
-//			newFrame.constants = chunk.constants;
-//			newFrame.top = frame.top;
+			frame.origin = base;
+			StackFrame newFrame = newFrame();
+			populateFrame(newFrame, chunk);
+			newFrame.results = results;
+			newFrame.base = frame.base + frame.max;
+			stackCheck(newFrame.base + newFrame.max);
+			Arrays.fill(stack, newFrame.base, newFrame.base + newFrame.max, NIL);
+			stackCopy(frame.base + base + 1, newFrame.base, params);
+			
 //			if (params < expected) {
 //				stackBuff(newFrame, expected);
 //			}
 //			frame.top -= Math.min(params, expected);
 //			newFrame.base = frame.top;
-			throw new IllegalStateException("Lua callback");
 		} else {
 			throw new IllegalStateException("Expected call object on stack, but got: " + o);
 		}
@@ -388,10 +404,11 @@ public final class Interpreter {
 		if (frameIndex > 1) {
 			// @TODO Jezza - 20 Jan 2018: Is it acceptable to ignore any arguments given by the bytecode?
 			frame.results = frame.decode1();
+			int position = frame.decode1();
 			if (DEBUG_MODE) {
 				System.out.println("RETURN " + frame.results);
 			}
-			framePop();
+			framePop(position);
 		} else {
 			status = 1;
 		}
@@ -404,25 +421,34 @@ public final class Interpreter {
 	private void DEBUG(StackFrame f) throws Throwable {
 		if (!DEBUG_MODE)
 			return;
-		System.out.println(buildStackView(stack, frames, frameIndex));
+		System.out.println(buildStackView(stack, frames));
 	}
 
-	private static String buildStackView(Object[] stack, StackFrame[] frames, int frameIndex) {
+	private static String buildStackView(Object[] stack, StackFrame[] frames) {
 		StringBuilder b = new StringBuilder();
 		b.append("Stack: [");
-		int stackIndex = 0;
-		// [[][][]]
-		for (int i = 0; i < frameIndex; i++) {
-			StackFrame frame = frames[i];
-			b.append('[');
-			while (frame.base <= stackIndex && stackIndex < frame.max) {
-				b.append(String.valueOf(stack[stackIndex++]));
-				if (stackIndex < frame.max)
-					b.append(", ");
+		int index = 0;
+		for (int i = 0, l = stack.length; i < l; i++) {
+			if (index >= frames.length) {
+				b.append(stack[i]);
+			} else {
+				StackFrame frame = frames[index];
+				if (frame == null) {
+					b.append(stack[i]);
+				} else if (frame.base == i) {
+					b.append('[');
+					b.append(stack[i]);
+				} else if (frame.base + frame.max - 1 == i) {
+					b.append(stack[i]);
+					b.append(']');
+					index++;
+				} else {
+					b.append(stack[i]);
+				}
 			}
-			b.append(']');
-			if (i + 1 < frameIndex)
+			if (i + 1 < l) {
 				b.append(", ");
+			}
 		}
 		return b.append(']').toString();
 	}
@@ -504,14 +530,15 @@ public final class Interpreter {
 
 	public static StackFrame buildFrame(LuaChunk chunk) {
 		StackFrame frame = new StackFrame();
-
-		frame.code = chunk.code;
-		frame.constants = chunk.constants;
-		frame.max = chunk.maxStackSize;
-
+		populateFrame(frame, chunk);
 		return frame;
 	}
 
+	public static void populateFrame(StackFrame frame, LuaChunk chunk) {
+		frame.code = chunk.code;
+		frame.constants = chunk.constants;
+		frame.max = chunk.maxStackSize;
+	}
 
 	private static void test(StackFrame frame) throws Throwable {
 		Interpreter interpreter = new Interpreter(frame);
@@ -538,7 +565,6 @@ public final class Interpreter {
 		w.write1(OpCode.RETURN);
 
 		LuaChunk chunk = new LuaChunk("forLoopChunk");
-		chunk.paramCount = 0;
 		chunk.code = w.code();
 		chunk.constants = pool.build();
 		return chunk;
@@ -553,7 +579,6 @@ public final class Interpreter {
 		w.write1(OpCode.RETURN);
 
 		LuaChunk chunk = new LuaChunk("returnChunk");
-		chunk.paramCount = 0;
 		chunk.code = w.code();
 		chunk.constants = pool.build();
 		return chunk;
@@ -571,13 +596,12 @@ public final class Interpreter {
 		w.write1(OpCode.RETURN);
 
 		LuaChunk chunk = new LuaChunk("acceptChunk");
-		chunk.paramCount = count;
 		chunk.code = w.code();
 		chunk.constants = pool.build();
 		return chunk;
 	}
 
-	public static void main(String[] args) throws Throwable {
+	public static void main0(String[] args) throws Throwable {
 //		File root = new File("C:\\Users\\Jezza\\Desktop\\JavaProjects\\Lava\\src\\main\\resources");
 //		LuaChunk chunk = Language.parse(root, "main.lang");
 
@@ -648,8 +672,8 @@ public final class Interpreter {
 
 		private int max;
 
-//		private int expected;
 		private int results;
+		private int origin;
 
 //		private int tailcalls;
 
@@ -685,8 +709,7 @@ public final class Interpreter {
 	public static final class LuaChunk {
 		public final String name;
 
-		public int paramCount;
-
+		public int params;
 		public int maxStackSize;
 
 		public byte[] code;

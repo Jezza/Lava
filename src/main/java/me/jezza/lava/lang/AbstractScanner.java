@@ -159,7 +159,7 @@ public class AbstractScanner<P, R> implements Visitor<P, R> {
 
 	@Override
 	public R visitReturnStatement(ReturnStatement value, P userObject) {
-		return scan(value.exprs, userObject);
+		return scan(value.expressions, userObject);
 	}
 
 	@Override

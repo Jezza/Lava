@@ -10,17 +10,30 @@
 -- // get (a.c.b)
 --
 
--- local a,b,c,d;
+-- local a0,b0,c0,d0;
 
 -- local function test()
 -- end
 
 -- a, c = test()
 
-local function test()
+-- local a = "a";
+-- local b = "b";
+-- b, a = a, b
+-- local test, asdsd = "asdasddsasd", "asasdasd"
+
+
+local function test(a, b)
+	return b, "third";
 end
 
-local a = test("asd", "asdd");
+local a = test("first", "second");
+
+test(a, "fourth")
+
+local a = test;
+
+a = a("hello", a)
 
 -- table = "table"
 
@@ -62,18 +75,9 @@ local a = test("asd", "asdd");
 
 -- a e a a
 
-
 -- a, b = b, a
 
-
 -- a, b = b[asd], a
-
-
-
-
-
-
-
 
 --
 -- print(b)

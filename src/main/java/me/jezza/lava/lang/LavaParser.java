@@ -207,6 +207,7 @@ public final class LavaParser extends AbstractParser {
 		consume(Tokens.DO);
 		Block body = block();
 		consume(Tokens.END);
+		// @CLEANUP Jezza - 26 Feb 2018: Lowering : While (cond) (body) -> If (cond) Repeat (body) Until (cond)
 		return new WhileLoop(condition, body);
 	}
 

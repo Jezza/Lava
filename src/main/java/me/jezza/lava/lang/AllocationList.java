@@ -41,6 +41,9 @@ public final class AllocationList {
 				? i
 				: allocate();
 	}
+	
+//	public int pop() {
+//	}
 
 	public void free(int value) {
 		list.set(value, FREE);

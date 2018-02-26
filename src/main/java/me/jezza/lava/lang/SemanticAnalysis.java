@@ -21,7 +21,7 @@ public final class SemanticAnalysis extends AbstractScanner<Block, Object> {
 
 	@Override
 	public Object scan(ParseTree node, Block userObject) {
-		node.block = userObject;
+//		node.block = userObject;
 		return super.scan(node, userObject);
 	}
 
