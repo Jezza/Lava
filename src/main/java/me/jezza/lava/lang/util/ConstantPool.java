@@ -1,4 +1,4 @@
-package me.jezza.lava.lang;
+package me.jezza.lava.lang.util;
 
 import java.util.ArrayList;
 import java.util.List;

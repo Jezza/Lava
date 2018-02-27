@@ -1,4 +1,4 @@
-package me.jezza.lava.lang;
+package me.jezza.lava.lang.util;
 
 /**
  * @author Jezza

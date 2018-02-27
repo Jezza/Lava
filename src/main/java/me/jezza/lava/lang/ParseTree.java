@@ -414,6 +414,7 @@ public abstract class ParseTree {
 			this.target = target;
 			this.name = name;
 			this.args = args;
+			expectedResults = 1;
 		}
 
 		@Override

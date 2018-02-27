@@ -30,6 +30,8 @@ import me.jezza.lava.lang.ParseTree.TableField;
 import me.jezza.lava.lang.ParseTree.UnaryOp;
 import me.jezza.lava.lang.ParseTree.Varargs;
 import me.jezza.lava.lang.interfaces.Visitor;
+import me.jezza.lava.lang.util.ByteCodeWriter;
+import me.jezza.lava.lang.util.ConstantPool;
 import me.jezza.lava.runtime.Interpreter.LuaChunk;
 import me.jezza.lava.runtime.OpCode;
 
@@ -50,7 +52,7 @@ public final class LavaEmitter implements Visitor<Scope, Object> {
 		final Scope previous;
 		final ByteCodeWriter w;
 		final ConstantPool pool;
-		final AllocationList allocator;
+//		final AllocationList allocator;
 
 //		int top;
 //		int max;
@@ -65,7 +67,7 @@ public final class LavaEmitter implements Visitor<Scope, Object> {
 			this.previous = previous;
 			w = new ByteCodeWriter();
 			pool = new ConstantPool();
-			allocator = new AllocationList();
+//			allocator = new AllocationList();
 		}
 
 		Scope newScope(String name) {

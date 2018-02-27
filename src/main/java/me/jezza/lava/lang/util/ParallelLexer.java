@@ -1,4 +1,4 @@
-package me.jezza.lava.lang;
+package me.jezza.lava.lang.util;
 
 import java.io.IOException;
 import java.util.concurrent.BlockingDeque;
@@ -6,6 +6,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingDeque;
 
 import me.jezza.lava.Times;
+import me.jezza.lava.lang.Token;
+import me.jezza.lava.lang.Tokens;
 import me.jezza.lava.lang.interfaces.Lexer;
 
 /**

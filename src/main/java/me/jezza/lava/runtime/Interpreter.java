@@ -7,16 +7,16 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.invoke.MutableCallSite;
 import java.lang.reflect.Field;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
+import java.util.Deque;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.LongStream;
 import java.util.stream.LongStream.Builder;
 
-import me.jezza.lava.lang.ByteCodeWriter;
-import me.jezza.lava.lang.ConstantPool;
+import me.jezza.lava.lang.util.ByteCodeWriter;
+import me.jezza.lava.lang.util.ConstantPool;
 import me.jezza.lava.runtime.OpCode.Implemented;
 
 /**
@@ -24,7 +24,7 @@ import me.jezza.lava.runtime.OpCode.Implemented;
  */
 @SuppressWarnings("Duplicates")
 public final class Interpreter {
-	private static final boolean DEBUG_MODE = true;
+	private static final boolean DEBUG_MODE = false;
 	private static final Object NIL = "NIL";
 
 //	enum Ops {
@@ -109,29 +109,22 @@ public final class Interpreter {
 
 	private static final MethodHandle EXECUTE_MH = dispatcher();
 
-	private static final int STACK_GROWTH_RATE = 8;
 	private static final int FRAME_GROWTH_RATE = 8;
 
 	int status;
 
-	Object[] stack;
+	Registers registers;
 
-	int frameIndex;
-	StackFrame[] frames;
+	Deque<StackFrame> frames0;
 
-	Map<Object, Object> globals;
-
-	public Interpreter() {
-		this(new StackFrame());
-	}
+//	Map<Object, Object> globals;
 
 	public Interpreter(StackFrame initialFrame) {
 		status = 0;
-		stack = new Object[initialFrame.max];
-		Arrays.fill(stack, 0, initialFrame.max, NIL);
-		frameIndex = 1;
-		frames = new StackFrame[]{initialFrame};
-		globals = new HashMap<>();
+		registers = new Registers(initialFrame.max, NIL);
+		frames0 = new ArrayDeque<>();
+		frames0.push(initialFrame);
+//		globals = new HashMap<>();
 	}
 
 //	void stackPush(StackFrame frame, Object o) {
@@ -160,72 +153,44 @@ public final class Interpreter {
 //		return result;
 //	}
 
-	void stackMove(StackFrame frame, int from, int to) {
-		stackCheck(frame.base + to);
-		stackCheck(frame.base + from);
-		if (from != to) {
-			stack[frame.base + to] = stack[frame.base + from];
-		}
+	void regMove(StackFrame frame, int from, int to) {
+		registers.move(frame.base + from, frame.base + to);
 	}
 
-	void stackSet(StackFrame frame, int index, Object object) {
-		stackCheck(frame.base + index);
-		stack[frame.base + index] = object;
+	void regSet(StackFrame frame, int index, Object object) {
+		registers.set(frame.base + index, object);
 	}
 
-	Object stackGet(StackFrame frame, int index) {
-		return stack[frame.base + index];
+	Object regGet(StackFrame frame, int index) {
+		return registers.get(frame.base + index).value;
 	}
 
-	void stackCheck(int length) {
-		if (length >= stack.length) {
-			int l = stack.length;
-			Object[] newData = new Object[l + STACK_GROWTH_RATE];
-			System.arraycopy(stack, 0, newData, 0, l);
-//			Arrays.fill(newData, l, newData.length, NIL);
-			stack = newData;
-		}
-	}
-	
-	void stackCopy(int source, int dest, int length) {
+	void regCopy(int source, int dest, int length) {
 		if (DEBUG_MODE) {
 			System.out.println("COPY (" + source + ") -> (" + dest + "; " + length + ")");
 		}
-		System.arraycopy(stack, source, stack, dest, length);
+		registers.copy(source, dest, length);
 	}
-	
 
 	private StackFrame currentFrame() {
-		return frames[frameIndex - 1];
+		return frames0.peek();
 	}
 
 	StackFrame newFrame() {
-		frameCheck(1);
 		StackFrame frame = new StackFrame();
-		frames[frameIndex++] = frame;
+		frames0.push(frame);
 		return frame;
 	}
 
-	void frameCheck(int length) {
-		if (frameIndex + length >= frames.length) {
-			int l = frames.length;
-			StackFrame[] newData = new StackFrame[l + FRAME_GROWTH_RATE];
-			System.arraycopy(frames, 0, newData, 0, l);
-			frames = newData;
-		}
-	}
-
 	StackFrame framePop(int position) {
-		StackFrame lastFrame = frames[--frameIndex];
-		frames[frameIndex] = null;
+		StackFrame lastFrame = frames0.pop();
 		StackFrame frame = currentFrame();
 		int results = lastFrame.results;
 		if (results > 0) {
 //			stackCheck(frame.base + frame.origin + frame.results);
-			stackCopy(lastFrame.base + position, frame.base + frame.origin, results);
-//			throw new IllegalStateException("Function returns no longer work.");
+			regCopy(lastFrame.base + position, frame.base + frame.origin, results);
 //			do {
-//				stackMove(frame, lastFrame.top - results, frame.top++);
+//				regMove(frame, lastFrame.top - results, frame.top++);
 //			} while (--results > 0);
 		}
 //		// Null out elements that no longer have an associated frame.
@@ -260,7 +225,7 @@ public final class Interpreter {
 		if (DEBUG_MODE) {
 			System.out.println("(CONST) k[" + poolIndex + "]=("+ constant + ") -> slot[" + stackIndex + ']');
 		}
-		stackSet(frame, stackIndex, constant);
+		regSet(frame, stackIndex, constant);
 		dispatchNext(CONST_MH, frame);
 	}
 
@@ -269,7 +234,7 @@ public final class Interpreter {
 		if (DEBUG_MODE) {
 			System.out.println("(NIL) -> slot[" + index + ']');
 		}
-		stackSet(frame, index, NIL);
+		regSet(frame, index, NIL);
 		dispatchNext(CONST_NIL_MH, frame);
 	}
 
@@ -302,10 +267,17 @@ public final class Interpreter {
 		int leftSlot = frame.decode2();
 		int rightSlot = frame.decode2();
 
-		int left = (int) stackGet(frame, leftSlot);
-		int right = (int) stackGet(frame, rightSlot);
+		Object leftObj = regGet(frame, leftSlot);
+		Object rightObj = regGet(frame, rightSlot);
 
-		stackSet(frame, target, left + right);
+		if (DEBUG_MODE) {
+			System.out.println("ADD (s[" + leftSlot + "] = " + leftObj + ") + (s[" + rightSlot + "] = " + rightObj + ')');
+		}
+
+		int left = (int) leftObj;
+		int right = (int) rightObj;
+
+		regSet(frame, target, left + right);
 
 		dispatchNext(ADD_MH, frame);
 	}
@@ -315,10 +287,17 @@ public final class Interpreter {
 		int leftSlot = frame.decode2();
 		int rightSlot = frame.decode2();
 
-		int left = (int) stackGet(frame, leftSlot);
-		int right = (int) stackGet(frame, rightSlot);
+		Object leftObj = regGet(frame, leftSlot);
+		Object rightObj = regGet(frame, rightSlot);
 
-		stackSet(frame, target, left * right);
+		if (DEBUG_MODE) {
+			System.out.println("MUL (s[" + leftSlot + "] = " + leftObj + ") * (s[" + rightSlot + "] = " + rightObj + ')');
+		}
+
+		int left = (int) leftObj;
+		int right = (int) rightObj;
+
+		regSet(frame, target, left * right);
 
 		dispatchNext(MUL_MH, frame);
 	}
@@ -337,7 +316,7 @@ public final class Interpreter {
 		if (DEBUG_MODE) {
 			System.out.println("MOVE " + from + " -> " + to);
 		}
-		stackMove(frame, from, to);
+		regMove(frame, from, to);
 		dispatchNext(MOV_MH, frame);
 	}
 
@@ -349,7 +328,7 @@ public final class Interpreter {
 		// How many returned results are handled.
 		int results = frame.decode2();
 
-		Object o = stackGet(frame, base);
+		Object o = regGet(frame, base);
 		if (DEBUG_MODE) {
 			System.out.println("CALL " + o + '(' + params + ')');
 		}
@@ -375,9 +354,9 @@ public final class Interpreter {
 			populateFrame(newFrame, chunk);
 			newFrame.results = results;
 			newFrame.base = frame.base + frame.max;
-			stackCheck(newFrame.base + newFrame.max);
-			Arrays.fill(stack, newFrame.base, newFrame.base + newFrame.max, NIL);
-			stackCopy(frame.base + base + 1, newFrame.base, params);
+//			stackCheck(newFrame.base + newFrame.max);
+//			Arrays.fill(stack, newFrame.base, newFrame.base + newFrame.max, NIL);
+			regCopy(frame.base + base + 1, newFrame.base, params);
 			
 //			if (params < expected) {
 //				stackBuff(newFrame, expected);
@@ -401,8 +380,9 @@ public final class Interpreter {
 //	}
 
 	private void RETURN(StackFrame frame) throws Throwable {
-		if (frameIndex > 1) {
-			// @TODO Jezza - 20 Jan 2018: Is it acceptable to ignore any arguments given by the bytecode?
+		// @MAYBE Jezza - 27 Feb 2018: Should we unroll the last frame?
+		if (frames0.size() > 1) {
+			// @MAYBE Jezza - 20 Jan 2018: Is it acceptable to ignore any arguments given by the bytecode?
 			frame.results = frame.decode1();
 			int position = frame.decode1();
 			if (DEBUG_MODE) {
@@ -419,9 +399,10 @@ public final class Interpreter {
 	}
 
 	private void DEBUG(StackFrame f) throws Throwable {
-		if (!DEBUG_MODE)
+		if (!DEBUG_MODE) {
 			return;
-		System.out.println(buildStackView(stack, frames));
+		}
+		System.out.println(registers);
 	}
 
 	private static String buildStackView(Object[] stack, StackFrame[] frames) {
