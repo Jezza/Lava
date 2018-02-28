@@ -49,11 +49,22 @@ final class Registers {
 	}
 
 	void copy(int source, int dest, int length) {
+		shift(source, dest, length, false);
+	}
+
+	void move(int source, int dest, int length) {
+		shift(source, dest, length, true);
+	}
+
+	private void shift(int source, int dest, int length, boolean destroy) {
 		check(source + length);
 		check(dest + length);
 		Slot[] registers = this.registers;
 		for (int i = 0; i < length; i++) {
 			registers[dest + i].value = registers[source + i].value;
+			if (destroy) {
+				registers[source + i] = new Slot(emptyValue);
+			}
 		}
 	}
 	

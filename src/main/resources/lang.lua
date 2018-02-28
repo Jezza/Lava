@@ -22,15 +22,59 @@
 -- b, a = a, b
 -- local test, asdsd = "asdasddsasd", "asasdasd"
 
-local a = "a";
+-- local a = "a";
+-- local function test()
+-- 	print(a);
+-- end
+-- 
+-- test();
 
-local function change(parameter)
-	a = parameter
-end
+--local x = 5;
+--local call = function()
+--	local y = 0;
+--	return function()
+--		y = y + 1
+--		return x + y;
+--	end
+--end
+--
+--local adder = call();
+--
+--print(adder());
+--print(adder());
+--print(adder());
 
-change("b");
+--local x = 5;
+--local call_0;
+--do
+--	local y = 0;
+--	call_0 = function()
+--		y = y + 1;
+--		return x + y;
+--	end
+--end
+--local call_1;
+--do
+--	local y = 0;
+--	call_1 = function()
+--		y = y + 1;
+--        return x + y;
+--	end
+--end
+--
+--print(call_0());
+--print(call_1());
 
-print(a);
+-- local function change(parameter)
+-- 	local function change()
+-- 		a = parameter
+-- 	end
+-- 	change()
+-- end
+-- 
+-- change("b");
+-- 
+-- print(a);
 
 -- table = "table"
 

@@ -1,8 +1,11 @@
 package me.jezza.lava.lang;
 
 import static me.jezza.lava.lang.ParseTree.FLAG_ASSIGNMENT;
+import static me.jezza.lava.lang.ParseTree.Name.FLAG_GLOBAL;
 import static me.jezza.lava.lang.ParseTree.Name.FLAG_LOCAL;
+import static me.jezza.lava.lang.ParseTree.Name.FLAG_UPVAL;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import me.jezza.lava.lang.LavaEmitter.Scope;
@@ -51,7 +54,8 @@ public final class LavaEmitter implements Visitor<Scope, Object> {
 		final String name;
 		final Scope previous;
 		final ByteCodeWriter w;
-		final ConstantPool pool;
+		final ConstantPool<Object> pool;
+		final List<Name> upvalues;
 //		final AllocationList allocator;
 
 //		int top;
@@ -66,7 +70,8 @@ public final class LavaEmitter implements Visitor<Scope, Object> {
 			this.name = name;
 			this.previous = previous;
 			w = new ByteCodeWriter();
-			pool = new ConstantPool();
+			pool = new ConstantPool<>();
+			upvalues = new ArrayList<>();
 //			allocator = new AllocationList();
 		}
 
@@ -82,7 +87,20 @@ public final class LavaEmitter implements Visitor<Scope, Object> {
 			}
 			chunk.code = w.code();
 			chunk.maxStackSize = max + 1;
+			chunk.upvalues = upvalues.toArray(new Name[0]);
 			return chunk;
+		}
+
+		public int upvalue(Name name) {
+			for (int i = 0, size = upvalues.size(); i < size; i++) {
+				Name other = upvalues.get(i);
+				if (other.value.equals(name.value)) {
+					return i;
+				}
+			}
+			int value = upvalues.size();
+			upvalues.add(name);
+			return value;
 		}
 		
 		private int[] indices = new int[2048];
@@ -256,7 +274,7 @@ public final class LavaEmitter implements Visitor<Scope, Object> {
 
 	@Override
 	public Object visitBlock(Block value, Scope scope) {
-		for (int i = 0, l = value.names.size(); i < l; i++) {
+		for (Name name : value.names) {
 			scope.allocate();
 		}
 		for (Statement statement : value.statements) {
@@ -356,7 +374,7 @@ public final class LavaEmitter implements Visitor<Scope, Object> {
 //		chunk.params = value.parameters.size();
 		int index  = scope.pool.add(chunk);
 		int register = scope.allocate();
-		scope.w.write2(OpCode.CONST, index, register);
+		scope.w.write2(OpCode.LOAD_FUNC, index, register);
 		return null;
 	}
 
@@ -377,7 +395,17 @@ public final class LavaEmitter implements Visitor<Scope, Object> {
 
 	@Override
 	public Object visitDoBlock(DoBlock value, Scope scope) {
-		throw new IllegalStateException("NYI");
+		Scope local = scope.newScope(scope.name + ":do_end");
+		value.body.visit(this, local);
+
+		LuaChunk chunk = local.build();
+		int index  = scope.pool.add(chunk);
+		int register = scope.allocate();
+		scope.pop();
+		// @CLEANUP Jezza - 28 Feb 2018: Not the best solution...
+		scope.w.write2(OpCode.CONST, index, register);
+		scope.w.write2(OpCode.CALL, register, 0, 0);
+		return null;
 	}
 
 	@Override
@@ -477,6 +505,12 @@ public final class LavaEmitter implements Visitor<Scope, Object> {
 				throw new IllegalStateException("Unsupported: " + code);
 		}
 	}
+	
+	private void loadConstant(Object value, Scope scope) {
+		int constant = scope.pool.add(value);
+		int register = scope.allocate();
+		scope.w.write2(OpCode.CONST, constant, register);
+	}
 
 	@Override
 	public Object visitLiteral(Literal value, Scope scope) {
@@ -484,9 +518,7 @@ public final class LavaEmitter implements Visitor<Scope, Object> {
 			case Literal.STRING:
 			case Literal.DOUBLE:
 			case Literal.INTEGER: {
-				int constant = scope.pool.add(value.value);
-				int register = scope.allocate();
-				scope.w.write2(OpCode.CONST, constant, register);
+				loadConstant(value.value, scope);
 				break;
 			}
 			case Literal.FALSE: {
@@ -510,63 +542,50 @@ public final class LavaEmitter implements Visitor<Scope, Object> {
 		return null;
 	}
 
-//	private static int descriptorType(int literalType) {
-//		switch (literalType) {
-//			case Literal.NIL:
-//				return ExpDesc.CONSTANT_NIL;
-//			case Literal.TRUE:
-//				return ExpDesc.CONSTANT_TRUE;
-//			case Literal.FALSE:
-//				return ExpDesc.CONSTANT_FALSE;
-//			case Literal.STRING:
-//				return ExpDesc.CONSTANT;
-//			case Literal.INTEGER:
-//				return ExpDesc.CONSTANT_INTEGER;
-//			case Literal.DOUBLE:
-//				return ExpDesc.CONSTANT_DOUBLE;
-//			default:
-//				throw new IllegalStateException("Unsupported literal type conversion.");
-//		}
-//	}
-
 	@Override
 	public Object visitName(Name value, Scope scope) {
-		boolean local = value.is(FLAG_LOCAL);
-		boolean assign = value.is(FLAG_ASSIGNMENT);
-		if (local && assign) {
-			int register = scope.pop();
-			scope.w.write2(OpCode.MOVE, register, value.index);
-		} else if (local) {
-			int register = scope.allocate();
-			scope.w.write2(OpCode.MOVE, value.index, register);
-		} else if (assign) {
-			if (value.index == -1) {
-				{
-					int constant = scope.pool.add(value.value);
-					int register = scope.allocate();
-					scope.w.write2(OpCode.CONST, constant, register);
-				}
-				int constant = scope.pop();
-				int register = scope.pop();
-				scope.w.write2(OpCode.SET_GLOBAL, constant, register);
-			} else {
-				throw new IllegalStateException("set_upvalue not yet supported");
-			}
+		if (value.is(FLAG_ASSIGNMENT)) {
+			assignName(value, scope);
 		} else {
-			if (value.index == -1) {
-				{
-					int constant = scope.pool.add(value.value);
-					int register = scope.allocate();
-					scope.w.write2(OpCode.CONST, constant, register);
-				}
-				int constant = scope.pop();
-				int register = scope.allocate();
-				scope.w.write2(OpCode.GET_GLOBAL, constant, register);
-			} else {
-				throw new IllegalStateException("get_upvalue not yet supported");
-			}
+			loadName(value, scope);
 		}
 		return null;
+	}
+	
+	private void assignName(Name value, Scope scope) {
+		if (value.is(FLAG_LOCAL)) {
+			int register = scope.pop();
+			scope.w.write2(OpCode.MOVE, register, value.index);
+		} else if (value.is(FLAG_GLOBAL)) {
+			loadConstant(value.value, scope);
+			int constant = scope.pop();
+			int register = scope.pop();
+			scope.w.write2(OpCode.SET_GLOBAL, constant, register);
+		} else if (value.is(FLAG_UPVAL)) {
+			int register = scope.pop();
+			int index = scope.upvalue(value);
+			scope.w.write2(OpCode.SET_UPVAL, register, index);
+		} else {
+			throw new IllegalStateException("Invalid name state: " + value);
+		}
+	}
+
+	private void loadName(Name value, Scope scope) {
+		if (value.is(FLAG_LOCAL)) {
+			int register = scope.allocate();
+			scope.w.write2(OpCode.MOVE, value.index, register);
+		} else if (value.is(FLAG_GLOBAL)) {
+			loadConstant(value.value, scope);
+			int constant = scope.pop();
+			int register = scope.allocate();
+			scope.w.write2(OpCode.GET_GLOBAL, constant, register);
+		} else if (value.is(FLAG_UPVAL)) {
+			int index = scope.upvalue(value);
+			int register = scope.allocate();
+			scope.w.write2(OpCode.GET_UPVAL, index, register);
+		} else {
+			throw new IllegalStateException("Invalid name state: " + value);
+		}
 	}
 
 	@Override

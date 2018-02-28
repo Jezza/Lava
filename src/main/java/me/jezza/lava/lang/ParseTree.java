@@ -482,6 +482,7 @@ public abstract class ParseTree {
 
 		public String value;
 		public int index;
+		public int level;
 
 		public Name(String value) {
 			this(value, FLAG_UNCHECKED);
@@ -498,8 +499,10 @@ public abstract class ParseTree {
 
 		@Override
 		public String toString() {
-			return Strings.format("Name{value=\"{}\"}",
-					value);
+			return Strings.format("Name{value=\"{}\", index={}, level={}}",
+					value,
+					index,
+					level);
 		}
 	}
 

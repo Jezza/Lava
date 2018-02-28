@@ -6,8 +6,8 @@ import java.util.List;
 /**
  * @author Jezza
  */
-public final class ConstantPool {
-	private final List<Object> pool;
+public final class ConstantPool<T> {
+	private final List<T> pool;
 
 	public ConstantPool() {
 		this.pool = new ArrayList<>();
@@ -17,7 +17,7 @@ public final class ConstantPool {
 		return pool.size();
 	}
 
-	public int add(Object o) {
+	public int add(T o) {
 		int i = indexOf(o);
 		if (i == -1) {
 			i = pool.size();
@@ -29,8 +29,12 @@ public final class ConstantPool {
 	public Object[] build() {
 		return pool.toArray(new Object[0]);
 	}
+	
+	public T[] build(T[] array) {
+		return pool.toArray(array);
+	}
 
-	public int indexOf(Object value) {
+	public int indexOf(T value) {
 		return pool.indexOf(value);
 	}
 }

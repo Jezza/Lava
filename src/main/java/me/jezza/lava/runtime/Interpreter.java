@@ -9,12 +9,15 @@ import java.lang.invoke.MutableCallSite;
 import java.lang.reflect.Field;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Deque;
 import java.util.Iterator;
 import java.util.List;
 import java.util.stream.LongStream;
 import java.util.stream.LongStream.Builder;
 
+import me.jezza.lava.Strings;
+import me.jezza.lava.lang.ParseTree.Name;
 import me.jezza.lava.runtime.OpCode.Implemented;
 import me.jezza.lava.runtime.Registers.Slot;
 
@@ -63,7 +66,7 @@ public final class Interpreter {
 				throw new AssertionError(e);
 			}
 
-			// TEMP
+			// @TODO Jezza - 28 Feb 2018: The annotations are obviously just temporary.
 			Field[] fields = OpCode.class.getDeclaredFields();
 			List<MethodHandle> handles = new ArrayList<>();
 			for (Field field : fields) {
@@ -117,12 +120,16 @@ public final class Interpreter {
 		registers.set(frame.base + index, object);
 	}
 
-	Object get(StackFrame frame, int index) {
+	Slot raw(StackFrame frame, int index) {
 		Slot slot = registers.get(frame.base + index);
 		if (DEBUG_MODE) {
 			System.out.println("GET s[" + index + "] = " + slot);
 		}
-		return slot.value;
+		return slot;
+	}
+
+	Object get(StackFrame frame, int index) {
+		return raw(frame, index).value;
 	}
 
 	void copy(int source, int dest, int length) {
@@ -130,6 +137,13 @@ public final class Interpreter {
 			System.out.println("COPY " + source + " -> " + dest + " (" + length + ')');
 		}
 		registers.copy(source, dest, length);
+	}
+
+	void move(int source, int dest, int length) {
+		if (DEBUG_MODE) {
+			System.out.println("MOVE_DESTROY " + source + " -> " + dest + " (" + length + ')');
+		}
+		registers.move(source, dest, length);
 	}
 
 	private StackFrame currentFrame() {
@@ -151,15 +165,9 @@ public final class Interpreter {
 		}
 		int destination = frame.base + frame.origin;
 
-		copy(lastFrame.base + position, destination, Math.min(expected, results));
+		move(lastFrame.base + position, destination, Math.min(expected, results));
 
-		if (expected > results) {
-			registers.clear(destination + results, destination + expected);
-		}
-
-		// @TODO Jezza - 28 Feb 2018: Clear out old frames without wiping on registers now being used by this frame.
-		// Null out elements that no longer have an associated frame.
-//		registers.clear(lastFrame.base, lastFrame.base + lastFrame.max);
+		registers.clear(destination + results, lastFrame.base + lastFrame.max);
 		return lastFrame;
 	}
 
@@ -174,58 +182,98 @@ public final class Interpreter {
 	private static final MethodHandle CONST_NIL_MH = dispatcher();
 	private static final MethodHandle CONST_TRUE_MH = dispatcher();
 	private static final MethodHandle CONST_FALSE_MH = dispatcher();
-	private static final MethodHandle GETGLOBAL_MH = dispatcher();
-	private static final MethodHandle SETGLOBAL_MH = dispatcher();
+	private static final MethodHandle LOAD_FUNC_MH = dispatcher();
+	private static final MethodHandle GET_GLOBAL_MH = dispatcher();
+	private static final MethodHandle SET_GLOBAL_MH = dispatcher();
 	private static final MethodHandle ADD_MH = dispatcher();
 	private static final MethodHandle MUL_MH = dispatcher();
-	private static final MethodHandle POP_MH = dispatcher();
-	private static final MethodHandle DUP_MH = dispatcher();
-	private static final MethodHandle MOV_MH = dispatcher();
+	private static final MethodHandle MOVE_MH = dispatcher();
+	private static final MethodHandle GET_UPVAL_MH = dispatcher();
+	private static final MethodHandle SET_UPVAL_MH = dispatcher();
 
 	private void CONST(StackFrame frame) throws Throwable {
 		int poolIndex = frame.decode2();
 		int register = frame.decode2();
 		Object constant = frame.constants[poolIndex];
-		if (DEBUG_MODE) {
-			System.out.println("(CONST) k[" + poolIndex + "]=(" + constant + ") -> slot[" + register + ']');
-		}
 		set(frame, register, constant);
 		dispatchNext(CONST_MH, frame);
 	}
 
 	private void CONST_NIL(StackFrame frame) throws Throwable {
 		int index = frame.decode2();
-		if (DEBUG_MODE) {
-			System.out.println("(NIL) -> slot[" + index + ']');
-		}
 		set(frame, index, NIL);
 		dispatchNext(CONST_NIL_MH, frame);
 	}
 
 	private void CONST_TRUE(StackFrame frame) throws Throwable {
 		int index = frame.decode2();
-		if (DEBUG_MODE) {
-			System.out.println("(CONST_TRUE) -> slot[" + index + ']');
-		}
 		set(frame, index, Boolean.TRUE);
 		dispatchNext(CONST_TRUE_MH, frame);
 	}
 
 	private void CONST_FALSE(StackFrame frame) throws Throwable {
 		int index = frame.decode2();
-		if (DEBUG_MODE) {
-			System.out.println("(CONST_FALSE) -> slot[" + index + ']');
-		}
 		set(frame, index, Boolean.FALSE);
 		dispatchNext(CONST_FALSE_MH, frame);
 	}
 
-//	private void LOAD_FUNCTION(StackFrame frame) throws Throwable {
-//		int index = frame.decode2();
-//		stack[target] = stack[from];
-//		dispatchNext(MOV_MH, frame);
-//		throw new IllegalStateException("NYI");
-//	}
+	private void LOAD_FUNC(StackFrame frame) throws Throwable {
+		int poolIndex = frame.decode2();
+		int register = frame.decode2();
+		Object constant = frame.constants[poolIndex];
+		LuaFunction function;
+		if (constant instanceof LuaChunk) {
+			Name[] names = ((LuaChunk) constant).upvalues;
+			Slot[] values = new Slot[names.length];
+			for (int i = 0, l = names.length; i < l; i++) {
+				Name name = names[i];
+				// Minus one, because when the semantic analysis runs, it expects it to be
+				// in one more stack frame, but we're not in one yet.
+				int level = name.level - 1;
+				int index = name.index;
+
+				// @TODO Jezza - 28 Feb 2018: Level check (> 0) and assert.
+
+				Iterator<StackFrame> it = frames.iterator();
+				StackFrame current = it.next();
+				while (level-- > 0) {
+					if (!it.hasNext()) {
+						throw new IllegalStateException("Illegal upvalue: " + name);
+					}
+					current = it.next();
+				}
+
+				values[i] = raw(current, index);
+			}
+			function = new LuaFunction(constant, globals, values);
+		} else {
+			function = new LuaFunction(constant, globals, new Slot[0]);
+		}
+		set(frame, register, function);
+		dispatchNext(CONST_MH, frame);
+	}
+
+	private static final class LuaFunction {
+		final Object function;
+
+		Table<Object, Object> environment;
+		Slot[] values;
+
+		public LuaFunction(Object function, Table<Object, Object> environment, Slot[] values) {
+			this.function = function;
+			this.environment = environment;
+			this.values = values;
+		}
+
+		@Override
+		public String toString() {
+//			, environment={}
+			return Strings.format("LuaFunction{function={}, values={}}",
+					function,
+//					environment,
+					Arrays.toString(values));
+		}
+	}
 
 	private void GET_GLOBAL(StackFrame frame) throws Throwable {
 		int keySlot = frame.decode2();
@@ -236,7 +284,7 @@ public final class Interpreter {
 			System.out.println("(GET_GLOBAL) -> globals[" + key + "] = " + value);
 		}
 		set(frame, resultSlot, value);
-		dispatchNext(GETGLOBAL_MH, frame);
+		dispatchNext(GET_GLOBAL_MH, frame);
 	}
 
 	private void SET_GLOBAL(StackFrame frame) throws Throwable {
@@ -248,7 +296,7 @@ public final class Interpreter {
 			System.out.println("(SET_GLOBAL) -> globals[" + key + "] = " + value);
 		}
 		globals.set(key, value);
-		dispatchNext(SETGLOBAL_MH, frame);
+		dispatchNext(SET_GLOBAL_MH, frame);
 	}
 
 	private void ADD(StackFrame frame) throws Throwable {
@@ -298,7 +346,43 @@ public final class Interpreter {
 			System.out.println("MOVE " + from + " -> " + to);
 		}
 		move(frame, from, to);
-		dispatchNext(MOV_MH, frame);
+		dispatchNext(MOVE_MH, frame);
+	}
+
+	private void GET_UPVAL(StackFrame frame) throws Throwable {
+		int index = frame.decode2();
+		int register = frame.decode2();
+
+		// @CLEANUP Jezza - 28 Feb 2018: Kind of a magic number, but the stack is bounded by the frame.base, and we know the funciton is just one level below that.
+		// We just simply grab that to access the stuffs.
+		Object object = get(frame, -1);
+
+		if (DEBUG_MODE) {
+			System.out.println("GET_UPVAL u[" + index + "] -> " + register + " :: " + object);
+		}
+
+		LuaFunction function = (LuaFunction) object;
+
+		set(frame, register, function.values[index].value);
+		dispatchNext(GET_UPVAL_MH, frame);
+	}
+
+	private void SET_UPVAL(StackFrame frame) throws Throwable {
+		int register = frame.decode2();
+		int index = frame.decode2();
+
+		// @CLEANUP Jezza - 28 Feb 2018: Kind of a magic number, but the stack is bounded by the frame.base, and we know the funciton is just one level below that.
+		// We just simply grab that to access the stuffs.
+		Object object = get(frame, -1);
+		
+		if (DEBUG_MODE) {
+			System.out.println("SET_UPVAL u[" + index + "] -> " + register + " :: " + object);
+		}
+
+		LuaFunction function = (LuaFunction) object;
+
+		function.values[index].value = get(frame, register);
+		dispatchNext(SET_UPVAL_MH, frame);
 	}
 
 	private void CALL(StackFrame frame) throws Throwable {
@@ -309,13 +393,25 @@ public final class Interpreter {
 		// Expected result count
 		int expected = frame.decode2();
 
-		Object o = get(frame, base);
+		Object target = get(frame, base);
 		if (DEBUG_MODE) {
-			System.out.println("CALL s[" + base + "] = " + o + '(' + params + ')');
+			System.out.println("CALL s[" + base + "] = " + target + '(' + params + ')');
 		}
+
+		Object o;
+		if (target instanceof LuaFunction) {
+			o = ((LuaFunction) target).function;
+		} else if (target instanceof Callback) {
+			o = target;
+		} else {
+			// @TODO Jezza - 28 Feb 2018: Would be pretty cool if we could give user code a chance to completely take over the stack.
+			o = target;
+		}
+
 		if (o instanceof Callback) {
 			frame.origin = base;
 			StackFrame newFrame = newFrame();
+//			newFrame.func = base;
 			newFrame.max = params;
 			newFrame.base = frame.base + frame.max;
 			copy(frame.base + base + 1, newFrame.base, params);
@@ -338,6 +434,7 @@ public final class Interpreter {
 			frame.origin = base;
 			StackFrame newFrame = newFrame();
 			populateFrame(newFrame, chunk);
+//			newFrame.func = base;
 			newFrame.expected = expected;
 			newFrame.base = frame.base + frame.max;
 //			stackCheck(newFrame.base + newFrame.max);
@@ -550,9 +647,8 @@ public final class Interpreter {
 	}
 
 	public static final class StackFrame {
-		//	private int func;
 		private int base;
-//		private int top;
+//		private int func;
 
 		private int max;
 
@@ -593,12 +689,13 @@ public final class Interpreter {
 	public static final class LuaChunk {
 		public final String name;
 
-		public int params;
 		public int maxStackSize;
 
 		public byte[] code;
 		public Object[] constants;
 //		LuaChunk[] chunks;
+
+		public Name[] upvalues;
 
 		public LuaChunk(String name) {
 			this.name = name;

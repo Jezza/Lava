@@ -3,6 +3,7 @@ package me.jezza.lava.lang;
 import static me.jezza.lava.lang.ParseTree.Name.FLAG_GLOBAL;
 import static me.jezza.lava.lang.ParseTree.Name.FLAG_LOCAL;
 import static me.jezza.lava.lang.ParseTree.Name.FLAG_UNCHECKED;
+import static me.jezza.lava.lang.ParseTree.Name.FLAG_UPVAL;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -103,9 +104,10 @@ public final class SemanticAnalysis extends AbstractScanner<Block, Object> {
 			if (name.is(FLAG_GLOBAL)) {
 				return -1;
 			}
-//			name.set(FLAG_UPVAL);
-//			return index;
-			throw new IllegalStateException("upval not yet implemented");
+			name.unset(FLAG_LOCAL);
+			name.set(FLAG_UPVAL);
+			name.level++;
+			return index;
 		}
 		name.set(FLAG_GLOBAL);
 		return -1;

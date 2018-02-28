@@ -119,7 +119,7 @@ public final class OpCode {
 	public static final byte CONST_FALSE = 3;
 
 	/**
-	 * <b>LOAD_FUNCTION: (1)</b>
+	 * <b>LOAD_FUNC: (1)</b>
 	 * <p>
 	 * <b>Other Bytes:</b>
 	 * <ol>
@@ -135,16 +135,18 @@ public final class OpCode {
 	 *     This function also prepares the function's upvalues.<br>
 	 * </blockquote>
 	 */
-	public static final byte LOAD_FUNCTION = 4;
+	@Implemented
+	public static final byte LOAD_FUNC = 4;
 
 	@Implemented
 	public static final byte MOVE = 5;
-//	@Implemented
 	public static final byte POP = 6;
 	public static final byte DUP = 7;
 
-
+	@Implemented
 	public static final byte GET_UPVAL = 8;
+
+	@Implemented
 	public static final byte SET_UPVAL = 9;
 
 	public static final byte NEW_TABLE = 10;
