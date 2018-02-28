@@ -259,7 +259,6 @@ public final class LavaEmitter implements Visitor<Scope, Object> {
 		for (int i = 0, l = value.names.size(); i < l; i++) {
 			scope.allocate();
 		}
-		
 		for (Statement statement : value.statements) {
 			statement.visit(this, scope);
 		}

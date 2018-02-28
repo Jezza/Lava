@@ -146,7 +146,7 @@ public abstract class ParseTree {
 
 		public List<Statement> statements;
 
-		public List<String> names;
+		public List<Name> names;
 
 		public int parameterCount;
 

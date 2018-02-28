@@ -78,11 +78,10 @@ public final class SemanticAnalysis extends AbstractScanner<Block, Object> {
 			value.unset(FLAG_UNCHECKED);
 			value.index = find(value, userObject);
 		} else if (value.is(FLAG_LOCAL)) {
-			List<String> names = userObject.names;
-			int index = names.indexOf(value.value);
+			int index = indexOf(value, userObject);
 			if (index == -1) {
-				index = names.size();
-				names.add(value.value);
+				index = userObject.names.size();
+				userObject.names.add(value);
 			}
 			value.index = index;
 		} else {
@@ -93,9 +92,8 @@ public final class SemanticAnalysis extends AbstractScanner<Block, Object> {
 		return null;
 	}
 	
-	
 	private int find(Name name, Block block) {
-		int index = block.names.indexOf(name.value);
+		int index = indexOf(name, block);
 		if (index >= 0) {
 			name.set(FLAG_LOCAL);
 			return index;
@@ -110,6 +108,17 @@ public final class SemanticAnalysis extends AbstractScanner<Block, Object> {
 			throw new IllegalStateException("upval not yet implemented");
 		}
 		name.set(FLAG_GLOBAL);
+		return -1;
+	}
+	
+	private int indexOf(Name name, Block block) {
+		List<Name> names = block.names;
+		for (int i = 0, size = names.size(); i < size; i++) {
+			Name other = names.get(i);
+			if (other.value.equals(name.value)) {
+				return i;
+			}
+		}
 		return -1;
 	}
 

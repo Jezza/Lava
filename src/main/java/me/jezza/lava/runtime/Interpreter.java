@@ -9,22 +9,21 @@ import java.lang.invoke.MutableCallSite;
 import java.lang.reflect.Field;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Deque;
+import java.util.Iterator;
 import java.util.List;
 import java.util.stream.LongStream;
 import java.util.stream.LongStream.Builder;
 
-import me.jezza.lava.lang.util.ByteCodeWriter;
-import me.jezza.lava.lang.util.ConstantPool;
 import me.jezza.lava.runtime.OpCode.Implemented;
+import me.jezza.lava.runtime.Registers.Slot;
 
 /**
  * @author Jezza
  */
 @SuppressWarnings("Duplicates")
 public final class Interpreter {
-	private static final boolean DEBUG_MODE = false;
+	private static final boolean DEBUG_MODE = true;
 	private static final Object NIL = "NIL";
 
 	static class CS extends MutableCallSite {
@@ -105,20 +104,30 @@ public final class Interpreter {
 	}
 
 	void move(StackFrame frame, int from, int to) {
+		if (DEBUG_MODE) {
+			System.out.println("MOVE [" + from + "] -> [" + to + "]");
+		}
 		registers.move(frame.base + from, frame.base + to);
 	}
 
 	void set(StackFrame frame, int index, Object object) {
+		if (DEBUG_MODE) {
+			System.out.println("SET s[" + index + "] = " + object);
+		}
 		registers.set(frame.base + index, object);
 	}
 
 	Object get(StackFrame frame, int index) {
-		return registers.get(frame.base + index).value;
+		Slot slot = registers.get(frame.base + index);
+		if (DEBUG_MODE) {
+			System.out.println("GET s[" + index + "] = " + slot);
+		}
+		return slot.value;
 	}
 
 	void copy(int source, int dest, int length) {
 		if (DEBUG_MODE) {
-			System.out.println("COPY (" + source + ") -> (" + dest + "; " + length + ")");
+			System.out.println("COPY " + source + " -> " + dest + " (" + length + ')');
 		}
 		registers.copy(source, dest, length);
 	}
@@ -133,22 +142,24 @@ public final class Interpreter {
 		return frame;
 	}
 
-	StackFrame framePop(int position) {
+	StackFrame framePop(int expected, int results, int position) {
 		StackFrame lastFrame = frames.pop();
 		StackFrame frame = currentFrame();
-		int results = lastFrame.results;
-		if (results > 0) {
-//			stackCheck(frame.base + frame.origin + frame.results);
-			copy(lastFrame.base + position, frame.base + frame.origin, results);
-//			do {
-//				move(frame, lastFrame.top - results, frame.top++);
-//			} while (--results > 0);
+		// If no results are expected, just toss the frame.
+		if (expected == 0) {
+			return lastFrame;
 		}
-//		// Null out elements that no longer have an associated frame.
-//		registers.clear(lastFrame.base, lastFrame.max);
-//		for (int i = frame.top; i < lastFrame.top; i++) {
-//			stack[i] = NIL;
-//		}
+		int destination = frame.base + frame.origin;
+
+		copy(lastFrame.base + position, destination, Math.min(expected, results));
+
+		if (expected > results) {
+			registers.clear(destination + results, destination + expected);
+		}
+
+		// @TODO Jezza - 28 Feb 2018: Clear out old frames without wiping on registers now being used by this frame.
+		// Null out elements that no longer have an associated frame.
+//		registers.clear(lastFrame.base, lastFrame.base + lastFrame.max);
 		return lastFrame;
 	}
 
@@ -176,7 +187,7 @@ public final class Interpreter {
 		int register = frame.decode2();
 		Object constant = frame.constants[poolIndex];
 		if (DEBUG_MODE) {
-			System.out.println("(CONST) k[" + poolIndex + "]=("+ constant + ") -> slot[" + register + ']');
+			System.out.println("(CONST) k[" + poolIndex + "]=(" + constant + ") -> slot[" + register + ']');
 		}
 		set(frame, register, constant);
 		dispatchNext(CONST_MH, frame);
@@ -295,25 +306,30 @@ public final class Interpreter {
 		int base = frame.decode2();
 		// How many parameters there are.
 		int params = frame.decode2();
-		// How many returned results are handled.
-		int results = frame.decode2();
+		// Expected result count
+		int expected = frame.decode2();
 
 		Object o = get(frame, base);
 		if (DEBUG_MODE) {
-			System.out.println("CALL " + o + '(' + params + ')');
+			System.out.println("CALL s[" + base + "] = " + o + '(' + params + ')');
 		}
 		if (o instanceof Callback) {
-//			StackFrame newFrame = newFrame();
-//			newFrame.top = frame.top;
-//			frame.top -= params;
-//			newFrame.base = frame.top;
-//			newFrame.results = ((Callback) o).call(this, newFrame);
-//
-//			DEBUG(null);
-//			// @TODO Jezza - 29 May 2017: Support frame reordering
-//			framePop();
-//			DEBUG(null);
-			throw new IllegalStateException("java callback");
+			frame.origin = base;
+			StackFrame newFrame = newFrame();
+			newFrame.max = params;
+			newFrame.base = frame.base + frame.max;
+			copy(frame.base + base + 1, newFrame.base, params);
+
+			RegisterList list = new RegisterList(registers, newFrame.base, newFrame.base + newFrame.max);
+
+			RegisterList resultRegisters = ((Callback) o).call(this, list, newFrame);
+			if (DEBUG_MODE) {
+				System.out.println("NATIVE RETURN (" + resultRegisters.size() + ") : " + resultRegisters);
+			}
+			int results = resultRegisters.size();
+
+			// @TODO Jezza - 29 May 2017: Support frame reordering
+			framePop(expected, results, resultRegisters.from - newFrame.base);
 		} else if (o instanceof LuaChunk) {
 			LuaChunk chunk = (LuaChunk) o;
 //			if (params > expected) {
@@ -322,12 +338,12 @@ public final class Interpreter {
 			frame.origin = base;
 			StackFrame newFrame = newFrame();
 			populateFrame(newFrame, chunk);
-			newFrame.results = results;
+			newFrame.expected = expected;
 			newFrame.base = frame.base + frame.max;
 //			stackCheck(newFrame.base + newFrame.max);
 //			Arrays.fill(stack, newFrame.base, newFrame.base + newFrame.max, NIL);
 			copy(frame.base + base + 1, newFrame.base, params);
-			
+
 //			if (params < expected) {
 //				stackBuff(newFrame, expected);
 //			}
@@ -353,12 +369,13 @@ public final class Interpreter {
 		// @MAYBE Jezza - 27 Feb 2018: Should we unroll the last frame?
 		if (frames.size() > 1) {
 			// @MAYBE Jezza - 20 Jan 2018: Is it acceptable to ignore any arguments given by the bytecode?
-			frame.results = frame.decode1();
+			int results = frame.decode1();
 			int position = frame.decode1();
+			int expected = frame.expected;
 			if (DEBUG_MODE) {
-				System.out.println("RETURN " + frame.results);
+				System.out.println("RETURN " + results + " -> s[" + position + ']');
 			}
-			framePop(position);
+			framePop(expected, results, position);
 		} else {
 			status = 1;
 		}
@@ -404,11 +421,6 @@ public final class Interpreter {
 		return b.append(']').toString();
 	}
 
-//	private void DUP(StackFrame frame) throws Throwable {
-//		stackPush(frame, stack[frame.top - 1]);
-//		dispatchNext(DUP_MH, frame);
-//	}
-
 //	private void IFNZ(StackFrame frame) throws Throwable {
 //		int target = frame.decode4();
 //		int value = (int) stackPop(frame);
@@ -420,19 +432,19 @@ public final class Interpreter {
 		while (status == 0) {
 			dispatchNext(EXECUTE_MH, currentFrame());
 		}
-		System.out.println(globals);
+		if (DEBUG_MODE) {
+			System.out.println(globals);
+		}
 	}
 
-//	private static int print(Interpreter interpreter, StackFrame frame) {
-//		int parameters = frame.top - frame.base;
-//		for (int i = 0; i < parameters; i++)
-//			System.out.println(interpreter.stackPop(frame));
-//		interpreter.stackPush(frame, "First");
-//		interpreter.stackPush(frame, "Second");
-//		interpreter.stackPush(frame, "Third");
-//		return 3;
-//	}
-//
+	private static RegisterList print(Interpreter interpreter, RegisterList registers, StackFrame frame) {
+		for (Object value : registers) {
+			System.out.println(value);
+		}
+		return RegisterList.EMPTY;
+	}
+
+	//
 //	private static int nativeAdd(Interpreter interpreter, StackFrame frame) {
 //		int parameters = frame.top - frame.base;
 //		if (parameters != 2)
@@ -443,26 +455,38 @@ public final class Interpreter {
 //		return 1;
 //	}
 //
-//	private static int toLower(Interpreter interpreter, StackFrame frame) {
-//		int parameters = frame.top - frame.base;
-//		if (parameters != 1)
-//			throw new IllegalStateException("Requires 1 argument.");
-//		String o = (String) interpreter.stackPop(frame);
-//		interpreter.stackPush(frame, o.toLowerCase());
-//		return 1;
-//	}
-//
-//	private static int toUpper(Interpreter interpreter, StackFrame frame) {
-//		int parameters = frame.top - frame.base;
-//		if (parameters != 1)
-//			throw new IllegalStateException("Requires 1 argument.");
-//		String o = (String) interpreter.stackPop(frame);
-//		interpreter.stackPush(frame, o.toUpperCase());
-//		return 1;
-//	}
+	private static RegisterList toLower(Interpreter interpreter, RegisterList registers, StackFrame frame) {
+		int parameters = registers.size();
+		if (parameters != 1) {
+			throw new IllegalStateException("Requires 1 argument (" + parameters + ").");
+		}
+		String value = registers.getString(0);
+		String lowerCase = value.toLowerCase();
+		registers.set(0, lowerCase);
+		return registers.subList(0, 1);
+	}
 
-	private static int test(Interpreter interpreter, StackFrame frame) {
-		return 0;
+	private static RegisterList toUpper(Interpreter interpreter, RegisterList registers, StackFrame frame) {
+		int parameters = registers.size();
+		if (parameters != 1) {
+			throw new IllegalStateException("Requires 1 argument.");
+		}
+		String value = registers.getString(0);
+		String upperCase = value.toUpperCase();
+		registers.set(0, upperCase);
+		return registers.subList(0, 1);
+	}
+
+	private static RegisterList flood(Interpreter interpreter, RegisterList registers, StackFrame frame) {
+		if (registers.size() != 1) {
+			throw new IllegalStateException("Requires 1 argument.");
+		}
+		int value = registers.getInt(0);
+		registers.clear();
+		for (int i = 0; i < value; i++) {
+			registers.set(i, i);
+		}
+		return registers.subList(0, value);
 	}
 
 //	private static void prep(Interpreter interpreter) {
@@ -495,104 +519,12 @@ public final class Interpreter {
 	private static void test(StackFrame frame) throws Throwable {
 		Interpreter interpreter = new Interpreter(frame);
 //		prep(interpreter);
+		interpreter.globals.set("print", (Callback) Interpreter::print);
+		interpreter.globals.set("lower", (Callback) Interpreter::toLower);
+		interpreter.globals.set("flood", (Callback) Interpreter::flood);
 		interpreter.execute();
 //		Object o = interpreter.stackPop(interpreter.currentFrame());
 //		System.out.println(o);
-	}
-
-	private static LuaChunk forLoop() {
-		ConstantPool pool = new ConstantPool();
-		ByteCodeWriter w = new ByteCodeWriter();
-		w.write2(OpCode.CONST, pool.add(10));
-		w.write1(OpCode.GOTO);
-		int jump = w.mark();
-		w.write4(-1);
-		int mark = w.mark();
-		w.write2(OpCode.CONST, pool.add(-1));
-		w.write1(OpCode.ADD);
-		int returnJump = w.mark();
-		w.patch4(jump, returnJump);
-		w.write1(OpCode.DUP);
-		w.write4(OpCode.IFNZ, mark);
-		w.write1(OpCode.RETURN);
-
-		LuaChunk chunk = new LuaChunk("forLoopChunk");
-		chunk.code = w.code();
-		chunk.constants = pool.build();
-		return chunk;
-	}
-
-	private static LuaChunk returnChunk(int count) {
-		ConstantPool pool = new ConstantPool();
-		ByteCodeWriter w = new ByteCodeWriter();
-
-		for (int i = 0; i < count; i++)
-			w.write2(OpCode.CONST, pool.add(i));
-		w.write1(OpCode.RETURN);
-
-		LuaChunk chunk = new LuaChunk("returnChunk");
-		chunk.code = w.code();
-		chunk.constants = pool.build();
-		return chunk;
-	}
-
-	private static LuaChunk acceptChunk(int count) {
-		ConstantPool pool = new ConstantPool();
-		ByteCodeWriter w = new ByteCodeWriter();
-
-//		w.write1(Ops.DEBUG);
-		for (int i = 0; i < count; i++)
-//			w.write1(Ops.PRINT);
-			w.write1(OpCode.POP);
-//		w.write1(Ops.DEBUG);
-		w.write1(OpCode.RETURN);
-
-		LuaChunk chunk = new LuaChunk("acceptChunk");
-		chunk.code = w.code();
-		chunk.constants = pool.build();
-		return chunk;
-	}
-
-	public static void main0(String[] args) throws Throwable {
-//		File root = new File("C:\\Users\\Jezza\\Desktop\\JavaProjects\\Lava\\src\\main\\resources");
-//		LuaChunk chunk = Language.parse(root, "main.lang");
-
-		ConstantPool pool = new ConstantPool();
-//
-		ByteCodeWriter w = new ByteCodeWriter(0);
-		w.write2(OpCode.CONST, pool.add(1));
-		w.write2(OpCode.CONST, pool.add("test"));
-		w.write1(OpCode.GET_GLOBAL);
-		w.write2(OpCode.CALL, 1, 1);
-//		w.write1(OpCode.CONST1, pool.add(25));
-//		w.write1(OpCode.CONST1, pool.add(25));
-//		w.write1(OpCode.CONST1, pool.add(25));
-//		w.write1(OpCode.DEBUG);
-//		w.write2(OpCode.MOV, 0, 3);
-//		w.write1(OpCode.CONST1, pool.add(1));
-//		w.write1(OpCode.CONST1, pool.add("test2"));
-//		w.write1(OpCode.GETGLOBAL);
-//		w.write2(OpCode.CALL, 2, 0);
-//		w.write1(OpCode.DEBUG);
-//		w.write1(OpCode.CONST1, pool.add("first"));
-//		w.write1(OpCode.CONST1, pool.add("second"));
-//		w.write1(OpCode.CONST1, pool.add("third"));
-//		w.write1(OpCode.CONST1, pool.add(acceptChunk(4)));
-//		w.write1(OpCode.DEBUG);
-//		w.write2(OpCode.CALL, 3, 0);
-//		w.write1(OpCode.DEBUG);
-		w.write1(OpCode.RETURN);
-
-		// E  /  R
-		// 0  /  1
-		// 1  /  0
-
-		StackFrame frame = new StackFrame();
-		frame.code = w.code();
-		frame.constants = pool.build();
-		System.out.println(Arrays.toString(frame.code));
-
-		testFrame(frame, 1);
 	}
 
 	public static void testChunk(LuaChunk chunk, int count) throws Throwable {
@@ -624,7 +556,7 @@ public final class Interpreter {
 
 		private int max;
 
-		private int results;
+		private int expected;
 		private int origin;
 
 //		private int tailcalls;
@@ -655,7 +587,7 @@ public final class Interpreter {
 	}
 
 	interface Callback {
-		int call(Interpreter interpreter, StackFrame frame);
+		RegisterList call(Interpreter interpreter, RegisterList registers, StackFrame frame);
 	}
 
 	public static final class LuaChunk {
@@ -675,6 +607,108 @@ public final class Interpreter {
 		@Override
 		public String toString() {
 			return "LuaChunk{source=\"" + name + "\"}";
+		}
+	}
+
+	public static final class RegisterList implements Iterable<Object> {
+		public static final RegisterList EMPTY = new RegisterList(null, 0, 0);
+
+		private final Registers registers;
+		private final int from;
+		private final int to;
+
+		RegisterList(Registers registers, int from, int to) {
+			this.registers = registers;
+			this.from = from;
+			this.to = to;
+		}
+
+		public int size() {
+			return to - from;
+		}
+
+		public void set(int index, Object value) {
+			registers.set(from + index, value);
+		}
+
+		public RegisterList subList(int from, int to) {
+			// @TODO Jezza - 28 Feb 2018: Range check, make sure that they're returning an allowed subset of the current range.
+			return new RegisterList(registers, this.from + from, this.from + to);
+		}
+
+		public Object get(int index) {
+			if (registers == null) {
+				throw new IndexOutOfBoundsException();
+			}
+			// @TODO Jezza - 28 Feb 2018: Bounds check, etc
+			return registers.get(from + index).value;
+		}
+
+		public String getString(int index) {
+			// @TODO Jezza - 28 Feb 2018: Lua String conversion?
+			return (String) get(index);
+		}
+
+		public String optString(int index, String defaultValue) {
+			// @TODO Jezza - 28 Feb 2018: Lua String conversion?
+			Object value = get(index);
+			if (value == null || !(value instanceof String)) {
+				return defaultValue;
+			}
+			return (String) value;
+		}
+
+		public int getInt(int index) {
+			// @TODO Jezza - 28 Feb 2018: Lua String conversion?
+			return (int) get(index);
+		}
+
+		public int optInt(int index, int defaultValue) {
+			// @TODO Jezza - 28 Feb 2018: Lua String conversion?
+			Object value = get(index);
+			if (value == null || !(value instanceof Integer)) {
+				return defaultValue;
+			}
+			return (Integer) value;
+		}
+
+		public void clear() {
+			registers.clear(from, to);
+		}
+
+		public void clear(int from, int to) {
+			registers.clear(this.from + from, this.from + to);
+		}
+
+		@Override
+		public Iterator<Object> iterator() {
+			return new AbstractIterator<>() {
+				int index = 0;
+
+				@Override
+				protected Object computeNext() {
+					if (index + from == to) {
+						return endOfData();
+					}
+					return get(index++);
+				}
+			};
+		}
+
+		@Override
+		public String toString() {
+			StringBuilder builder = new StringBuilder();
+			builder.append("[");
+			Iterator<Object> it = iterator();
+			if (it.hasNext()) {
+				builder.append(it.next());
+				while (it.hasNext()) {
+					builder.append(", ");
+					builder.append(it.next());
+				}
+			}
+			builder.append("]");
+			return builder.toString();
 		}
 	}
 }

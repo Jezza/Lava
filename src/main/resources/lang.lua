@@ -22,18 +22,15 @@
 -- b, a = a, b
 -- local test, asdsd = "asdasddsasd", "asasdasd"
 
+local a = "a";
 
-local function value()
-	return "first", "second";
+local function change(parameter)
+	a = parameter
 end
 
-local function value0()
-	t = "asd"
-	return "first";
-end
+change("b");
 
-a = value()
-
+print(a);
 
 -- table = "table"
 

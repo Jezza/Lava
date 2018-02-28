@@ -51,11 +51,14 @@ final class Registers {
 	void copy(int source, int dest, int length) {
 		check(source + length);
 		check(dest + length);
-		System.arraycopy(registers, source, registers, dest, length);
+		Slot[] registers = this.registers;
+		for (int i = 0; i < length; i++) {
+			registers[dest + i].value = registers[source + i].value;
+		}
 	}
 	
-	void clear(int start, int length) {
-		for (int i = start; i < length; i++) {
+	void clear(int start, int to) {
+		for (int i = start; i < to; i++) {
 			registers[i] = new Slot(emptyValue);
 		}
 	}
