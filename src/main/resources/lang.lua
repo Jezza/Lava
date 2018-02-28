@@ -22,11 +22,18 @@
 -- b, a = a, b
 -- local test, asdsd = "asdasddsasd", "asasdasd"
 
+
 local function value()
-	return 5 * 23;
+	return "first", "second";
 end
 
-local a = 1 + value();
+local function value0()
+	t = "asd"
+	return "first";
+end
+
+a = value()
+
 
 -- table = "table"
 

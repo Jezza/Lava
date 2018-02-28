@@ -215,7 +215,6 @@ public final class LavaParser extends AbstractParser {
 	private Goto gotoStatement() throws IOException {
 		consume(Tokens.GOTO);
 		String name = name();
-		while (match(';'));
 		return new Goto(name);
 	}
 
@@ -229,7 +228,7 @@ public final class LavaParser extends AbstractParser {
 			case Tokens.IN:
 				return forList(name);
 			default:
-				throw new IllegalStateException("Illegal token @ " + current());
+				throw new IllegalStateException("Unexpected token: " + current());
 		}
 	}
 

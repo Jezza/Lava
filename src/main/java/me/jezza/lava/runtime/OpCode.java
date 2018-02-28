@@ -96,7 +96,7 @@ public final class OpCode {
 	 *     Load true onto the stack<br>
 	 * </blockquote>
 	 */
-//	@Implemented
+	@Implemented
 	public static final byte CONST_TRUE = 2;
 
 	/**
@@ -115,7 +115,7 @@ public final class OpCode {
 	 *     Load false onto the stack<br>
 	 * </blockquote>
 	 */
-//	@Implemented
+	@Implemented
 	public static final byte CONST_FALSE = 3;
 
 	/**
@@ -155,24 +155,26 @@ public final class OpCode {
 	// TODO: 30/05/2017 Might be able to merge SET_LIST with NEW_TABLE
 	public static final byte SET_LIST = 13;
 
-	/**
-	 * <b>LOAD_FUNCTION: (1)</b>
-	 * <p>
-	 * <b>Other Bytes:</b>
-	 * <ol>
-	 *     <li>N/A</li>
-	 * </ol>
-	 * <b>Stack:</b>
-	 * <blockquote>
-	 *     [name] -> [value]
-	 * </blockquote>
-	 * <b>Description:</b>
-	 * <blockquote>
-	 *     Loads a global onto the stack identified by the current value on top of the stack<br>
-	 * </blockquote>
-	 */
-//	@Implemented
+//	/**
+//	 * <b>LOAD_FUNCTION: (1)</b>
+//	 * <p>
+//	 * <b>Other Bytes:</b>
+//	 * <ol>
+//	 *     <li>N/A</li>
+//	 * </ol>
+//	 * <b>Stack:</b>
+//	 * <blockquote>
+//	 *     [name] -> [value]
+//	 * </blockquote>
+//	 * <b>Description:</b>
+//	 * <blockquote>
+//	 *     Loads a global onto the stack identified by the current value on top of the stack<br>
+//	 * </blockquote>
+//	 */
+	@Implemented
 	public static final byte GET_GLOBAL = 14;
+
+	@Implemented
 	public static final byte SET_GLOBAL = 15;
 
 

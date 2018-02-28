@@ -301,9 +301,9 @@ public final class LavaEmitter implements Visitor<Scope, Object> {
 		} else {
 			// @TODO Jezza - 09 Feb 2018: Assignment flattening
 			// @TODO Jezza - 09 Feb 2018: Conflict resolution
-			if (value.lhs.size() != value.rhs.size()) {
-				throw new IllegalStateException("assert");
-			}
+//			if (value.lhs.size() != value.rhs.size()) {
+//				throw new IllegalStateException("assert");
+//			}
 			value.rhs.visit(this, scope);
 			List<Expression> lhs = value.lhs.list;
 			for (int i = lhs.size() - 1; i >= 0; i--) {
@@ -537,18 +537,37 @@ public final class LavaEmitter implements Visitor<Scope, Object> {
 		if (local && assign) {
 			int register = scope.pop();
 			scope.w.write2(OpCode.MOVE, register, value.index);
-			return null;
 		} else if (local) {
 			int register = scope.allocate();
 			scope.w.write2(OpCode.MOVE, value.index, register);
-			return null;
 		} else if (assign) {
 			if (value.index == -1) {
-				throw new IllegalStateException("set_global not yet supported");
+				{
+					int constant = scope.pool.add(value.value);
+					int register = scope.allocate();
+					scope.w.write2(OpCode.CONST, constant, register);
+				}
+				int constant = scope.pop();
+				int register = scope.pop();
+				scope.w.write2(OpCode.SET_GLOBAL, constant, register);
+			} else {
+				throw new IllegalStateException("set_upvalue not yet supported");
 			}
-			throw new IllegalStateException("upvalue assign not yet supported");
+		} else {
+			if (value.index == -1) {
+				{
+					int constant = scope.pool.add(value.value);
+					int register = scope.allocate();
+					scope.w.write2(OpCode.CONST, constant, register);
+				}
+				int constant = scope.pop();
+				int register = scope.allocate();
+				scope.w.write2(OpCode.GET_GLOBAL, constant, register);
+			} else {
+				throw new IllegalStateException("get_upvalue not yet supported");
+			}
 		}
-		throw new IllegalStateException("get_global not yet supported");
+		return null;
 	}
 
 	@Override

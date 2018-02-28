@@ -27,26 +27,6 @@ public final class Interpreter {
 	private static final boolean DEBUG_MODE = false;
 	private static final Object NIL = "NIL";
 
-//	enum Ops {
-//		CONST1,
-//		CONST2,
-//		LOADF,
-//
-//		GETGLOBAL,
-//		ADD,
-//		POP,
-//		DUP,
-//		PUSH,
-//
-//		// stop instructions
-//		CALL,
-//		PRINT,
-//		DEBUG,
-//		GOTO,
-//		IFNZ,
-//		RET
-//	}
-
 	static class CS extends MutableCallSite {
 		CS() {
 			super(methodType(void.class, Interpreter.class, StackFrame.class, byte.class));
@@ -109,63 +89,34 @@ public final class Interpreter {
 
 	private static final MethodHandle EXECUTE_MH = dispatcher();
 
-	private static final int FRAME_GROWTH_RATE = 8;
-
 	int status;
 
 	Registers registers;
+	Deque<StackFrame> frames;
 
-	Deque<StackFrame> frames0;
-
-//	Map<Object, Object> globals;
+	Table<Object, Object> globals;
 
 	public Interpreter(StackFrame initialFrame) {
 		status = 0;
 		registers = new Registers(initialFrame.max, NIL);
-		frames0 = new ArrayDeque<>();
-		frames0.push(initialFrame);
-//		globals = new HashMap<>();
+		frames = new ArrayDeque<>();
+		frames.push(initialFrame);
+		globals = new Table<>();
 	}
 
-//	void stackPush(StackFrame frame, Object o) {
-//		stackCheck(frame.top + 1);
-//		stack[frame.top++] = o != null ? o : NIL;
-//	}
-
-//	void stackBuff(StackFrame frame, int count) {
-//		stackCheck(frame.top + count);
-//		Object[] stack = this.stack;
-//		while (--count >= 0)
-//			stack[frame.top++] = NIL;
-//	}
-
-//	void stackShrink(StackFrame frame, int count) {
-//		Object[] stack = this.stack;
-//		while (--count >= 0)
-//			stack[frame.top--] = NIL;
-//	}
-
-//	Object stackPop(StackFrame frame) {
-//		if (frame.base >= frame.top)
-//			throw new IllegalStateException("No such element");
-//		Object result = stack[--frame.top];
-//		stack[frame.top] = NIL;
-//		return result;
-//	}
-
-	void regMove(StackFrame frame, int from, int to) {
+	void move(StackFrame frame, int from, int to) {
 		registers.move(frame.base + from, frame.base + to);
 	}
 
-	void regSet(StackFrame frame, int index, Object object) {
+	void set(StackFrame frame, int index, Object object) {
 		registers.set(frame.base + index, object);
 	}
 
-	Object regGet(StackFrame frame, int index) {
+	Object get(StackFrame frame, int index) {
 		return registers.get(frame.base + index).value;
 	}
 
-	void regCopy(int source, int dest, int length) {
+	void copy(int source, int dest, int length) {
 		if (DEBUG_MODE) {
 			System.out.println("COPY (" + source + ") -> (" + dest + "; " + length + ")");
 		}
@@ -173,27 +124,28 @@ public final class Interpreter {
 	}
 
 	private StackFrame currentFrame() {
-		return frames0.peek();
+		return frames.peek();
 	}
 
 	StackFrame newFrame() {
 		StackFrame frame = new StackFrame();
-		frames0.push(frame);
+		frames.push(frame);
 		return frame;
 	}
 
 	StackFrame framePop(int position) {
-		StackFrame lastFrame = frames0.pop();
+		StackFrame lastFrame = frames.pop();
 		StackFrame frame = currentFrame();
 		int results = lastFrame.results;
 		if (results > 0) {
 //			stackCheck(frame.base + frame.origin + frame.results);
-			regCopy(lastFrame.base + position, frame.base + frame.origin, results);
+			copy(lastFrame.base + position, frame.base + frame.origin, results);
 //			do {
-//				regMove(frame, lastFrame.top - results, frame.top++);
+//				move(frame, lastFrame.top - results, frame.top++);
 //			} while (--results > 0);
 		}
 //		// Null out elements that no longer have an associated frame.
+//		registers.clear(lastFrame.base, lastFrame.max);
 //		for (int i = frame.top; i < lastFrame.top; i++) {
 //			stack[i] = NIL;
 //		}
@@ -212,6 +164,7 @@ public final class Interpreter {
 	private static final MethodHandle CONST_TRUE_MH = dispatcher();
 	private static final MethodHandle CONST_FALSE_MH = dispatcher();
 	private static final MethodHandle GETGLOBAL_MH = dispatcher();
+	private static final MethodHandle SETGLOBAL_MH = dispatcher();
 	private static final MethodHandle ADD_MH = dispatcher();
 	private static final MethodHandle MUL_MH = dispatcher();
 	private static final MethodHandle POP_MH = dispatcher();
@@ -220,12 +173,12 @@ public final class Interpreter {
 
 	private void CONST(StackFrame frame) throws Throwable {
 		int poolIndex = frame.decode2();
-		int stackIndex = frame.decode2();
+		int register = frame.decode2();
 		Object constant = frame.constants[poolIndex];
 		if (DEBUG_MODE) {
-			System.out.println("(CONST) k[" + poolIndex + "]=("+ constant + ") -> slot[" + stackIndex + ']');
+			System.out.println("(CONST) k[" + poolIndex + "]=("+ constant + ") -> slot[" + register + ']');
 		}
-		regSet(frame, stackIndex, constant);
+		set(frame, register, constant);
 		dispatchNext(CONST_MH, frame);
 	}
 
@@ -234,41 +187,66 @@ public final class Interpreter {
 		if (DEBUG_MODE) {
 			System.out.println("(NIL) -> slot[" + index + ']');
 		}
-		regSet(frame, index, NIL);
+		set(frame, index, NIL);
 		dispatchNext(CONST_NIL_MH, frame);
 	}
 
-//	private void CONST_TRUE(StackFrame frame) throws Throwable {
-//		stackPush(frame, Boolean.TRUE);
-//		dispatchNext(CONST_TRUE_MH, frame);
-//	}
+	private void CONST_TRUE(StackFrame frame) throws Throwable {
+		int index = frame.decode2();
+		if (DEBUG_MODE) {
+			System.out.println("(CONST_TRUE) -> slot[" + index + ']');
+		}
+		set(frame, index, Boolean.TRUE);
+		dispatchNext(CONST_TRUE_MH, frame);
+	}
 
-//	private void CONST_FALSE(StackFrame frame) throws Throwable {
-//		stackPush(frame, Boolean.FALSE);
-//		dispatchNext(CONST_FALSE_MH, frame);
-//	}
+	private void CONST_FALSE(StackFrame frame) throws Throwable {
+		int index = frame.decode2();
+		if (DEBUG_MODE) {
+			System.out.println("(CONST_FALSE) -> slot[" + index + ']');
+		}
+		set(frame, index, Boolean.FALSE);
+		dispatchNext(CONST_FALSE_MH, frame);
+	}
 
-	private void LOAD_FUNCTION(StackFrame frame) throws Throwable {
+//	private void LOAD_FUNCTION(StackFrame frame) throws Throwable {
 //		int index = frame.decode2();
 //		stack[target] = stack[from];
 //		dispatchNext(MOV_MH, frame);
-		throw new IllegalStateException("NYI");
+//		throw new IllegalStateException("NYI");
+//	}
+
+	private void GET_GLOBAL(StackFrame frame) throws Throwable {
+		int keySlot = frame.decode2();
+		int resultSlot = frame.decode2();
+		Object key = get(frame, keySlot);
+		Object value = globals.get(key);
+		if (DEBUG_MODE) {
+			System.out.println("(GET_GLOBAL) -> globals[" + key + "] = " + value);
+		}
+		set(frame, resultSlot, value);
+		dispatchNext(GETGLOBAL_MH, frame);
 	}
 
-//	private void GET_GLOBAL(StackFrame frame) throws Throwable {
-//		Object key = stackPop(frame);
-//		Object value = globals.get(key);
-//		stackPush(frame, value);
-//		dispatchNext(GETGLOBAL_MH, frame);
-//	}
+	private void SET_GLOBAL(StackFrame frame) throws Throwable {
+		int keySlot = frame.decode2();
+		int valueSlot = frame.decode2();
+		Object key = get(frame, keySlot);
+		Object value = get(frame, valueSlot);
+		if (DEBUG_MODE) {
+			System.out.println("(SET_GLOBAL) -> globals[" + key + "] = " + value);
+		}
+		globals.set(key, value);
+		dispatchNext(SETGLOBAL_MH, frame);
+	}
 
 	private void ADD(StackFrame frame) throws Throwable {
 		int target = frame.decode2();
 		int leftSlot = frame.decode2();
 		int rightSlot = frame.decode2();
 
-		Object leftObj = regGet(frame, leftSlot);
-		Object rightObj = regGet(frame, rightSlot);
+		Object leftObj = get(frame, leftSlot);
+		Object rightObj = get(frame, rightSlot);
 
 		if (DEBUG_MODE) {
 			System.out.println("ADD (s[" + leftSlot + "] = " + leftObj + ") + (s[" + rightSlot + "] = " + rightObj + ')');
@@ -277,7 +255,7 @@ public final class Interpreter {
 		int left = (int) leftObj;
 		int right = (int) rightObj;
 
-		regSet(frame, target, left + right);
+		set(frame, target, left + right);
 
 		dispatchNext(ADD_MH, frame);
 	}
@@ -287,8 +265,8 @@ public final class Interpreter {
 		int leftSlot = frame.decode2();
 		int rightSlot = frame.decode2();
 
-		Object leftObj = regGet(frame, leftSlot);
-		Object rightObj = regGet(frame, rightSlot);
+		Object leftObj = get(frame, leftSlot);
+		Object rightObj = get(frame, rightSlot);
 
 		if (DEBUG_MODE) {
 			System.out.println("MUL (s[" + leftSlot + "] = " + leftObj + ") * (s[" + rightSlot + "] = " + rightObj + ')');
@@ -297,18 +275,10 @@ public final class Interpreter {
 		int left = (int) leftObj;
 		int right = (int) rightObj;
 
-		regSet(frame, target, left * right);
+		set(frame, target, left * right);
 
 		dispatchNext(MUL_MH, frame);
 	}
-
-//	private void POP(StackFrame frame) throws Throwable {
-//		if (DEBUG_MODE) {
-//			System.out.println("(POP)");
-//		}
-//		stackPop(frame);
-//		dispatchNext(POP_MH, frame);
-//	}
 
 	private void MOVE(StackFrame frame) throws Throwable {
 		int from = frame.decode2();
@@ -316,7 +286,7 @@ public final class Interpreter {
 		if (DEBUG_MODE) {
 			System.out.println("MOVE " + from + " -> " + to);
 		}
-		regMove(frame, from, to);
+		move(frame, from, to);
 		dispatchNext(MOV_MH, frame);
 	}
 
@@ -328,7 +298,7 @@ public final class Interpreter {
 		// How many returned results are handled.
 		int results = frame.decode2();
 
-		Object o = regGet(frame, base);
+		Object o = get(frame, base);
 		if (DEBUG_MODE) {
 			System.out.println("CALL " + o + '(' + params + ')');
 		}
@@ -356,7 +326,7 @@ public final class Interpreter {
 			newFrame.base = frame.base + frame.max;
 //			stackCheck(newFrame.base + newFrame.max);
 //			Arrays.fill(stack, newFrame.base, newFrame.base + newFrame.max, NIL);
-			regCopy(frame.base + base + 1, newFrame.base, params);
+			copy(frame.base + base + 1, newFrame.base, params);
 			
 //			if (params < expected) {
 //				stackBuff(newFrame, expected);
@@ -364,7 +334,7 @@ public final class Interpreter {
 //			frame.top -= Math.min(params, expected);
 //			newFrame.base = frame.top;
 		} else {
-			throw new IllegalStateException("Expected call object on stack, but got: " + o);
+			throw new IllegalStateException("Expected call object, but got: " + o);
 		}
 	}
 
@@ -381,7 +351,7 @@ public final class Interpreter {
 
 	private void RETURN(StackFrame frame) throws Throwable {
 		// @MAYBE Jezza - 27 Feb 2018: Should we unroll the last frame?
-		if (frames0.size() > 1) {
+		if (frames.size() > 1) {
 			// @MAYBE Jezza - 20 Jan 2018: Is it acceptable to ignore any arguments given by the bytecode?
 			frame.results = frame.decode1();
 			int position = frame.decode1();
@@ -450,6 +420,7 @@ public final class Interpreter {
 		while (status == 0) {
 			dispatchNext(EXECUTE_MH, currentFrame());
 		}
+		System.out.println(globals);
 	}
 
 //	private static int print(Interpreter interpreter, StackFrame frame) {
