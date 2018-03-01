@@ -29,20 +29,20 @@
 -- 
 -- test();
 
---local x = 5;
---local call = function()
---	local y = 0;
---	return function()
---		y = y + 1
---		return x + y;
---	end
---end
---
---local adder = call();
---
---print(adder());
---print(adder());
---print(adder());
+local x = 5;
+local call = function()
+	local y = 0;
+	return function()
+		y = y + 1
+		return x + y;
+	end
+end
+
+local adder = call();
+
+print(adder());
+print(adder());
+print(adder());
 
 --local x = 5;
 --local call_0;

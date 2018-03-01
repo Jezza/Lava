@@ -56,11 +56,9 @@ public final class LavaEmitter implements Visitor<Scope, Object> {
 		final ByteCodeWriter w;
 		final ConstantPool<Object> pool;
 		final List<Name> upvalues;
-//		final AllocationList allocator;
 
-//		int top;
-//		int max;
-//		ExpDesc active;
+		private int index;
+		private int max;
 
 		Scope(String name) {
 			this(name, null);
@@ -86,7 +84,7 @@ public final class LavaEmitter implements Visitor<Scope, Object> {
 				w.write2(OpCode.RETURN, 0);
 			}
 			chunk.code = w.code();
-			chunk.maxStackSize = max + 1;
+			chunk.maxStackSize = max;
 			chunk.upvalues = upvalues.toArray(new Name[0]);
 			return chunk;
 		}
@@ -103,39 +101,35 @@ public final class LavaEmitter implements Visitor<Scope, Object> {
 			return value;
 		}
 		
-		private int[] indices = new int[2048];
-		private int index = -1;
-		private int max;
-		
-		// @TODO Jezza - 19 Feb 2018: 
-		private boolean[] registers = new boolean[2048];
+		public int mark() {
+			return index;
+		}
 
 		public int allocate() {
-			if (index == -1) {
-				index = 0;
+			if (index == max) {
+				max = index + 1;
 			}
-			for (int i = 0, l = registers.length; i < l; i++) {
-				if (!registers[i]) {
-					registers[i] = true;
-					indices[index] = i;
-					if (index > max) {
-						max = index;
-					}
-					index++;
-					return i;
-				}
+			return index++;
+		}
+
+		public int allocate(int count) {
+			int in = index;
+			index += count;
+			if (index > max) {
+				max = index;
 			}
-			throw new IllegalStateException("Allocation full");
+			return in;
 		}
 		
 		public int pop() {
-			this.index--;
-			int index = indices[this.index];
-			indices[this.index] = 0;
-			registers[index] = false;
+			return --index;
+		}
+
+		public int pop(int count) {
+			index -= count;
 			return index;
 		}
-		
+
 //		public void allocate(Address desc) {
 //		}
 
@@ -274,9 +268,7 @@ public final class LavaEmitter implements Visitor<Scope, Object> {
 
 	@Override
 	public Object visitBlock(Block value, Scope scope) {
-		for (Name name : value.names) {
-			scope.allocate();
-		}
+		scope.allocate(value.names.size());
 		for (Statement statement : value.statements) {
 			statement.visit(this, scope);
 		}
@@ -291,8 +283,7 @@ public final class LavaEmitter implements Visitor<Scope, Object> {
 
 	@Override
 	public Object visitFunctionCall(FunctionCall value, Scope scope) {
-		int base = scope.allocate();
-		scope.pop();
+		int base = scope.mark();
 		// Load function
 		value.target.visit(this, scope);
 		// Load args
@@ -302,12 +293,8 @@ public final class LavaEmitter implements Visitor<Scope, Object> {
 			args.get(i).visit(this, scope);
 		}
 		scope.w.write2(OpCode.CALL, base, count, value.expectedResults);
-		for (int i = 0; i < count + 1; i++) {
-			scope.pop();
-		}
-		for (int i = 0; i < value.expectedResults; i++) {
-			scope.allocate();
-		}
+		scope.pop(count + 1);
+		scope.allocate(value.expectedResults);
 		return null;
 	}
 
@@ -318,38 +305,11 @@ public final class LavaEmitter implements Visitor<Scope, Object> {
 		} else {
 			// @TODO Jezza - 09 Feb 2018: Assignment flattening
 			// @TODO Jezza - 09 Feb 2018: Conflict resolution
-//			if (value.lhs.size() != value.rhs.size()) {
-//				throw new IllegalStateException("assert");
-//			}
 			value.rhs.visit(this, scope);
 			List<Expression> lhs = value.lhs.list;
 			for (int i = lhs.size() - 1; i >= 0; i--) {
 				lhs.get(i).visit(this, scope);
 			}
-
-//			List<Expression> rhs = value.rhs.list;
-//			List<Expression> lhs = value.lhs.list;
-//
-//			int leftSize = lhs.size();
-//			int rightSize = rhs.size();
-//			int min = Math.min(leftSize, rightSize);
-//			int i = 0;
-//			for (; i < min; i++) {
-//				rhs.get(i).visit(this, scope);
-//				lhs.get(i).visit(this, scope);
-//			}
-//			if (leftSize < rightSize) {
-//				throw new IllegalStateException("NYI (assignment buffering)");
-//				for (; i < rightSize; i++) {
-//					rhs.get(i).visit(this, scope);
-//					stackPop(scope);
-//				}
-//			} else if (leftSize > rightSize) {
-//				throw new IllegalStateException("Parser should have already handled this.");
-//				for (; i < leftSize; i++) {
-//					stackNil(scope);
-//				}
-//			}
 		}
 		return null;
 	}
@@ -372,7 +332,7 @@ public final class LavaEmitter implements Visitor<Scope, Object> {
 
 		LuaChunk chunk = local.build();
 //		chunk.params = value.parameters.size();
-		int index  = scope.pool.add(chunk);
+		int index = scope.pool.add(chunk);
 		int register = scope.allocate();
 		scope.w.write2(OpCode.LOAD_FUNC, index, register);
 		return null;
@@ -399,9 +359,8 @@ public final class LavaEmitter implements Visitor<Scope, Object> {
 		value.body.visit(this, local);
 
 		LuaChunk chunk = local.build();
-		int index  = scope.pool.add(chunk);
-		int register = scope.allocate();
-		scope.pop();
+		int index = scope.pool.add(chunk);
+		int register = scope.mark();
 		// @CLEANUP Jezza - 28 Feb 2018: Not the best solution...
 		scope.w.write2(OpCode.CONST, index, register);
 		scope.w.write2(OpCode.CALL, register, 0, 0);
@@ -432,8 +391,7 @@ public final class LavaEmitter implements Visitor<Scope, Object> {
 	public Object visitReturnStatement(ReturnStatement value, Scope scope) {
 		ExpressionList expressions = value.expressions;
 		if (expressions.size() != 0) {
-			int position = scope.allocate();
-			scope.pop();
+			int position = scope.mark();
 			expressions.visit(this, scope);
 			scope.w.write1(OpCode.RETURN, expressions.size(), position);
 		} else {
@@ -505,7 +463,7 @@ public final class LavaEmitter implements Visitor<Scope, Object> {
 				throw new IllegalStateException("Unsupported: " + code);
 		}
 	}
-	
+
 	private void loadConstant(Object value, Scope scope) {
 		int constant = scope.pool.add(value);
 		int register = scope.allocate();
@@ -551,7 +509,7 @@ public final class LavaEmitter implements Visitor<Scope, Object> {
 		}
 		return null;
 	}
-	
+
 	private void assignName(Name value, Scope scope) {
 		if (value.is(FLAG_LOCAL)) {
 			int register = scope.pop();

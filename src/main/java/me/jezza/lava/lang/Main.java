@@ -36,7 +36,7 @@ public final class Main {
 
 		LuaChunk chunk = nom(new File(ROOT, "lang.lua"));
 		Interpreter.testChunk(chunk, 1);
-//		Interpreter.testChunk(chunk, 2);
+//		Interpreter.testChunk(chunk, 5);
 //		Interpreter.testChunk(chunk, 1_000_000);
 	}
 
