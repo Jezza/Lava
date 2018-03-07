@@ -287,25 +287,31 @@ public final class LavaParser extends AbstractParser {
 	public TableConstructor tableConstructor() throws IOException {
 		consume('{');
 		List<TableField> fields = new ArrayList<>();
+		int index = 1;
 		do {
 			if (is('}')) {
 				break;
 			}
-			fields.add(tableField());
+			TableField field = tableField(index);
+			if (field.key == null) {
+				field.key = new Literal(Literal.INTEGER, index++);
+			}
+			fields.add(field);
 		} while (match(',') || match(';'));
 		consume('}');
 		return new TableConstructor(fields);
 	}
 
-	public TableField tableField() throws IOException {
+	private TableField tableField(int index) throws IOException {
+		Expression key;
+		Expression value;
 		Token current = current();
 		if (current.type == '[') {
 			consume();
-			Expression key = expression();
+			key = expression();
 			consume(']');
 			consume('=');
-			Expression value = expression();
-			return new TableField(key, value);
+			value = expression();
 		} else if (current.type == Tokens.NAMESPACE) {
 			// @CLEANUP Jezza - 20 Jan 2018: Ok, so this is a lovely little hack.
 			// Because we don't treat = as a binary operator, eg, not an expression,
@@ -318,12 +324,17 @@ public final class LavaParser extends AbstractParser {
 				if (!(expression instanceof Name)) {
 					throw new IllegalStateException("Assertion invalid.");
 				}
-				Expression value = expression();
-				return new TableField(expression, value);
+				key = new Literal(Literal.STRING, ((Name) expression).value);
+				value = expression();
+			} else {
+				key = null;
+				value = expression;
 			}
-			return new TableField(null, expression);
+		} else {
+			key = null;
+			value = expression();
 		}
-		return new TableField(null, expression());
+		return new TableField(key, value);
 	}
 
 	public ExpressionList expressionList() throws IOException {

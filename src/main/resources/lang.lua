@@ -29,20 +29,28 @@
 -- 
 -- test();
 
-local x = 5;
-local call = function()
-	local y = 0;
-	return function()
-		y = y + 1
-		return x + y;
-	end
-end
+--local x = 5;
+--local call = function()
+--	local y = 0;
+--	return function()
+--		y = y + 1
+--		return x + y;
+--	end
+--end
+--
+--local adder = call();
+--
+--print(adder());
+--print(adder());
+--print(adder());
 
-local adder = call();
+local tab = {"from tab!", asd = "Hlo", "asdds"}
 
-print(adder());
-print(adder());
-print(adder());
+local b = "b"
+local t = {"a", [1] = b}
+print(t)
+
+-- { [1] = a,[2] = c,[3] = b,["name"] = b,["asd"] = a,} 
 
 --local x = 5;
 --local call_0;

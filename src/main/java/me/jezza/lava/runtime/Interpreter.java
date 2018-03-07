@@ -24,7 +24,6 @@ import me.jezza.lava.runtime.Registers.Slot;
 /**
  * @author Jezza
  */
-@SuppressWarnings("Duplicates")
 public final class Interpreter {
 	private static final boolean DEBUG_MODE = true;
 	private static final Object NIL = "NIL";
@@ -185,6 +184,9 @@ public final class Interpreter {
 	private static final MethodHandle LOAD_FUNC_MH = dispatcher();
 	private static final MethodHandle GET_GLOBAL_MH = dispatcher();
 	private static final MethodHandle SET_GLOBAL_MH = dispatcher();
+	private static final MethodHandle NEW_TABLE_MH = dispatcher();
+	private static final MethodHandle SET_TABLE_MH = dispatcher();
+	private static final MethodHandle GET_TABLE_MH = dispatcher();
 	private static final MethodHandle ADD_MH = dispatcher();
 	private static final MethodHandle MUL_MH = dispatcher();
 	private static final MethodHandle MOVE_MH = dispatcher();
@@ -250,7 +252,7 @@ public final class Interpreter {
 			function = new LuaFunction(constant, globals, new Slot[0]);
 		}
 		set(frame, register, function);
-		dispatchNext(CONST_MH, frame);
+		dispatchNext(LOAD_FUNC_MH, frame);
 	}
 
 	private static final class LuaFunction {
@@ -279,7 +281,7 @@ public final class Interpreter {
 		int keySlot = frame.decode2();
 		int resultSlot = frame.decode2();
 		Object key = get(frame, keySlot);
-		Object value = globals.get(key);
+		Object value = globals.get(key, NIL);
 		if (DEBUG_MODE) {
 			System.out.println("(GET_GLOBAL) -> globals[" + key + "] = " + value);
 		}
@@ -297,6 +299,51 @@ public final class Interpreter {
 		}
 		globals.set(key, value);
 		dispatchNext(SET_GLOBAL_MH, frame);
+	}
+	
+	private void NEW_TABLE(StackFrame frame) throws Throwable {
+		int register = frame.decode2();
+		if (DEBUG_MODE) {
+			System.out.println("(NEW_TABLE) -> r[" + register + "] = {}");
+		}
+		set(frame, register, new Table<>());
+		dispatchNext(NEW_TABLE_MH, frame);
+	}
+
+	private void GET_TABLE(StackFrame frame) throws Throwable {
+		int register = frame.decode2();
+		int tableSlot = frame.decode2();
+		int keySlot = frame.decode2();
+		Object table = get(frame, tableSlot);
+		Object key = get(frame, keySlot);
+		if (DEBUG_MODE) {
+			System.out.println("(GET_TABLE) -> r[" + tableSlot + "] = " + table + " -> r[" + keySlot + "] = " + key);
+		}
+		if (!(table instanceof Table)) {
+			throw new IllegalStateException("NYI");
+		}
+		Table<Object, Object> target = (Table<Object, Object>) table;
+		Object value = target.get(key, NIL);
+		set(frame, register, value);
+		dispatchNext(GET_TABLE_MH, frame);
+	}
+
+	private void SET_TABLE(StackFrame frame) throws Throwable {
+		int tableSlot = frame.decode2();
+		int keySlot = frame.decode2();
+		int valueSlot = frame.decode2();
+		Object table = get(frame, tableSlot);
+		Object key = get(frame, keySlot);
+		Object value = get(frame, valueSlot);
+		if (DEBUG_MODE) {
+			System.out.println("(SET_TABLE) -> r[" + tableSlot + "] = " + table + " -> r[" + keySlot + "] = " + key + " -> r[" + valueSlot + "] = " + value);
+		}
+		if (!(table instanceof Table)) {
+			throw new IllegalStateException("NYI");
+		}
+		Table<Object, Object> target = (Table<Object, Object>) table;
+		target.set(key, value);
+		dispatchNext(SET_TABLE_MH, frame);
 	}
 
 	private void ADD(StackFrame frame) throws Throwable {

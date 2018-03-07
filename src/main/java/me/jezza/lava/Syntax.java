@@ -933,6 +933,13 @@ final class Syntax {
 		fs.freereg = reg;  /* free registers */
 	}
 
+	private void listfield(ConsControl cc) throws IOException {
+		expr(cc.v);
+		yChecklimit(cc.na, Lua.MAXARG_Bx, "items in a constructor");
+		cc.na++;
+		cc.tostore++;
+	}
+
 	private void lastlistfield(ConsControl cc) {
 		if (cc.tostore == 0)
 			return;
@@ -1858,13 +1865,6 @@ final class Syntax {
 		lookahead = llex();
 		lookaheadR = semR;
 		lookaheadS = semS;
-	}
-
-	private void listfield(ConsControl cc) throws IOException {
-		expr(cc.v);
-		yChecklimit(cc.na, Lua.MAXARG_Bx, "items in a constructor");
-		cc.na++;
-		cc.tostore++;
 	}
 
 	private int indexupvalue(FuncState funcstate, String name, Expdesc v) {

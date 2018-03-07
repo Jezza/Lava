@@ -140,47 +140,46 @@ public final class OpCode {
 
 	@Implemented
 	public static final byte MOVE = 5;
-	public static final byte POP = 6;
-	public static final byte DUP = 7;
 
 	@Implemented
-	public static final byte GET_UPVAL = 8;
+	public static final byte GET_UPVAL = 6;
 
 	@Implemented
-	public static final byte SET_UPVAL = 9;
-
-	public static final byte NEW_TABLE = 10;
-	public static final byte GET_TABLE = 11;
-//	@Implemented
-	public static final byte SET_TABLE = 12;
-
-	// TODO: 30/05/2017 Might be able to merge SET_LIST with NEW_TABLE
-	public static final byte SET_LIST = 13;
-
-//	/**
-//	 * <b>LOAD_FUNCTION: (1)</b>
-//	 * <p>
-//	 * <b>Other Bytes:</b>
-//	 * <ol>
-//	 *     <li>N/A</li>
-//	 * </ol>
-//	 * <b>Stack:</b>
-//	 * <blockquote>
-//	 *     [name] -> [value]
-//	 * </blockquote>
-//	 * <b>Description:</b>
-//	 * <blockquote>
-//	 *     Loads a global onto the stack identified by the current value on top of the stack<br>
-//	 * </blockquote>
-//	 */
-	@Implemented
-	public static final byte GET_GLOBAL = 14;
+	public static final byte SET_UPVAL = 7;
 
 	@Implemented
-	public static final byte SET_GLOBAL = 15;
+	public static final byte NEW_TABLE = 8;
+
+	@Implemented
+	public static final byte GET_TABLE = 9;
+
+	@Implemented
+	public static final byte SET_TABLE = 10;
+
+	/**
+	 * <b>GET_GLOBAL: (1)</b>
+	 * <p>
+	 * <b>Other Bytes:</b>
+	 * <ol>
+	 *     <li>N/A</li>
+	 * </ol>
+	 * <b>Stack:</b>
+	 * <blockquote>
+	 *     [name] -> [value]
+	 * </blockquote>
+	 * <b>Description:</b>
+	 * <blockquote>
+	 *     Loads a global onto the stack identified by the current value on top of the stack<br>
+	 * </blockquote>
+	 */
+	@Implemented
+	public static final byte GET_GLOBAL = 11;
+
+	@Implemented
+	public static final byte SET_GLOBAL = 12;
 
 
-	public static final byte SELF = 16;
+	public static final byte SELF = 13;
 
 	/**
 	 * <b>ADD: (0)</b>
@@ -199,18 +198,18 @@ public final class OpCode {
 	 * </blockquote>
 	 */
 	@Implemented
-	public static final byte ADD = 17;
-	public static final byte SUB = 18;
+	public static final byte ADD = 14;
+	public static final byte SUB = 15;
 	@Implemented
-	public static final byte MUL = 19;
-	public static final byte DIV = 20;
-	public static final byte MOD = 21;
-	public static final byte POW = 22;
-	public static final byte NEG = 23;
-	public static final byte NOT = 24;
+	public static final byte MUL = 16;
+	public static final byte DIV = 17;
+	public static final byte MOD = 18;
+	public static final byte POW = 19;
+	public static final byte NEG = 20;
+	public static final byte NOT = 21;
 
-	public static final byte LEN = 25;
-	public static final byte CONCAT = 26;
+	public static final byte LEN = 22;
+	public static final byte CONCAT = 23;
 
 	// Control flow ops don't have dispatchers.
 
@@ -235,28 +234,28 @@ public final class OpCode {
 	 * </blockquote>
 	 */
 	@Implemented
-	public static final byte CALL = 27;
-	public static final byte GOTO = 28;
-	public static final byte IFZ = 29;
-	public static final byte IFNZ = 30;
+	public static final byte CALL = 24;
+	public static final byte GOTO = 25;
+	public static final byte IFZ = 26;
+	public static final byte IFNZ = 27;
 	// TODO: 30/05/2017 Think about encoding equal and not equal
-	public static final byte LT = 31;
-	public static final byte LE = 32;
-	public static final byte TEST = 33;
-	public static final byte TEST_SET = 34;
-	public static final byte TAILCALL = 35;
+	public static final byte LT = 28;
+	public static final byte LE = 29;
+	public static final byte TEST = 30;
+	public static final byte TEST_SET = 31;
+	public static final byte TAILCALL = 32;
 
-	public static final byte FOR_PREP = 36;
-	public static final byte FOR_LOOP = 37;
-	public static final byte FOR_LOOP_TABLE = 38;
+	public static final byte FOR_PREP = 33;
+	public static final byte FOR_LOOP = 34;
+	public static final byte FOR_LOOP_TABLE = 35;
 
-	public static final byte CLOSE = 39;
+	public static final byte CLOSE = 36;
+
 	@Implemented
-	public static final byte RETURN = 40;
+	public static final byte RETURN = 37;
 
-	public static final byte PRINT = 41;
 	@Implemented
-	public static final byte DEBUG = 42;
+	public static final byte DEBUG = 38;
 
 	public static void main(String[] args) {
 		// Used when we move around values.

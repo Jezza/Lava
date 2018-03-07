@@ -426,10 +426,13 @@ public final class LavaEmitter implements Visitor<Scope, Object> {
 			if (value.op != BinaryOp.OP_INDEXED) {
 				throw new IllegalStateException("Illegal binary assignment op: " + value.op);
 			}
-//			value.right.visit(this, scope);
-//			value.left.visit(this, scope);
-//			scope.w.write1(OpCode.SET_TABLE);
-			throw new IllegalStateException("NYI (set_table)");
+			value.left.visit(this, scope);
+			value.right.visit(this, scope);
+			int key = scope.pop();
+			int table = scope.pop();
+			int register = scope.pop();
+			
+			scope.w.write2(OpCode.SET_TABLE, table, key, register);
 		} else {
 			value.left.visit(this, scope);
 			value.right.visit(this, scope);
@@ -437,9 +440,9 @@ public final class LavaEmitter implements Visitor<Scope, Object> {
 			int right = scope.pop();
 			int left = scope.pop();
 			int result = scope.allocate();
-//
-//			// @TODO Jezza - 11 Feb 2018: Constant folding..
-//			// Should I do that here or in the parser?
+
+			// @TODO Jezza - 11 Feb 2018: Constant folding..
+			// Should I do that here or in the parser?
 
 			int op = binaryOpCode(value.op);
 			scope.w.write2(op, result, left, right);
@@ -458,7 +461,7 @@ public final class LavaEmitter implements Visitor<Scope, Object> {
 			case BinaryOp.OP_DIV:
 				return OpCode.DIV;
 			case BinaryOp.OP_INDEXED:
-				return OpCode.DIV;
+				return OpCode.GET_TABLE;
 			default:
 				throw new IllegalStateException("Unsupported: " + code);
 		}
@@ -553,11 +556,23 @@ public final class LavaEmitter implements Visitor<Scope, Object> {
 
 	@Override
 	public Object visitTableConstructor(TableConstructor value, Scope scope) {
-		throw new IllegalStateException("NYI");
+		int register = scope.allocate();
+		scope.w.write2(OpCode.NEW_TABLE, register);
+		for (TableField field : value.fields) {
+			field.visit(this, scope);
+		}
+		return null;
 	}
 
 	@Override
 	public Object visitTableField(TableField value, Scope scope) {
-		throw new IllegalStateException("NYI");
+		value.key.visit(this, scope);
+		value.value.visit(this, scope);
+		int val = scope.pop();
+		int key = scope.pop();
+		// We don't want to pop the value, because there might be more fields.
+		int table = scope.mark() - 1;
+		scope.w.write2(OpCode.SET_TABLE, table, key, val);
+		return null;
 	}
 }

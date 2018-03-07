@@ -36,6 +36,13 @@ public final class Table<K, V> {
 				? fallback.get(key)
 				: value;
 	}
+
+	public V get(K key, V defaultValue) {
+		V v = get(key);
+		return v != null
+				? v
+				: defaultValue;
+	}
 	
 	public V set(K key, V value) {
 		return map.put(key, value);
