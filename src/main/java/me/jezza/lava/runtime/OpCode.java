@@ -235,9 +235,14 @@ public final class OpCode {
 	 */
 	@Implemented
 	public static final byte CALL = 24;
+	@Implemented
 	public static final byte GOTO = 25;
-	public static final byte IFZ = 26;
-	public static final byte IFNZ = 27;
+	// @CLEANUP Jezza - 09 Mar 2018: if false and if true could be collapsed into one...
+	@Implemented
+	public static final byte IF_FALSE = 26;
+	// @CLEANUP Jezza - 09 Mar 2018: if false and if true could be collapsed into one...
+	@Implemented
+	public static final byte IF_TRUE = 27;
 	// TODO: 30/05/2017 Think about encoding equal and not equal
 	public static final byte LT = 28;
 	public static final byte LE = 29;

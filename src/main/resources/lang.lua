@@ -44,19 +44,15 @@
 --print(adder());
 --print(adder());
 
-local y = 1
+local y = 0
 
-do
-	local y = y + 1;
-	print(y)
-	function test()
-		local y = y + 1;
-		print(y);
-	end
-	test();
-	print(y);
+if y == 0 then
+	print("0")
+elseif y == 1 then
+	print("1")
+else
+	print("Neither")
 end
-print(y)
 
 -- local tab = {"from tab!", asd = "Hlo", "asdds"}
 

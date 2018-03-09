@@ -109,6 +109,12 @@ public final class ByteCodeWriter {
 	public int mark() {
 		return index;
 	}
+	
+	public int mark2() {
+		int index = mark();
+		write2(Integer.MAX_VALUE);
+		return index;
+	}
 
 	public void patch1(int index, int code) {
 		int old = this.index;
@@ -128,6 +134,27 @@ public final class ByteCodeWriter {
 		int old = this.index;
 		this.index = index;
 		write4(code);
+		this.index = old;
+	}
+
+	public void backPatch1(int index) {
+		int old = this.index;
+		this.index = index;
+		write1(old);
+		this.index = old;
+	}
+
+	public void backPatch2(int index) {
+		int old = this.index;
+		this.index = index;
+		write2(old);
+		this.index = old;
+	}
+
+	public void backPatch4(int index) {
+		int old = this.index;
+		this.index = index;
+		write4(old);
 		this.index = old;
 	}
 

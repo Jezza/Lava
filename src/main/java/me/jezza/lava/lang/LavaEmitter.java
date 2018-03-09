@@ -50,16 +50,16 @@ public final class LavaEmitter implements Visitor<Context, Object> {
 		return context.build();
 	}
 
-	static final class Scope {
-		Scope previous;
-		//		int breaklist;      /* list of jumps out of this loop */
-		//		int nactvar;        /* # active locals outside the breakable structure */
-		//		boolean isbreakable;/* true if `block' is a loop */
-
-		private Scope(Scope previous) {
-			this.previous = previous;
-		}
-	}
+//	static final class Scope {
+//		Scope previous;
+//		//		int breaklist;      /* list of jumps out of this loop */
+//		//		int nactvar;        /* # active locals outside the breakable structure */
+//		//		boolean isbreakable;/* true if `block' is a loop */
+//
+//		private Scope(Scope previous) {
+//			this.previous = previous;
+//		}
+//	}
 
 	static final class Context {
 		final String name;
@@ -68,7 +68,7 @@ public final class LavaEmitter implements Visitor<Context, Object> {
 		final ConstantPool<Object> pool;
 		final List<Name> upvalues;
 
-		Scope active;
+//		Scope active;
 
 		private int index;
 		private int max;
@@ -82,7 +82,7 @@ public final class LavaEmitter implements Visitor<Context, Object> {
 			this.previous = previous;
 			w = new ByteCodeWriter();
 			pool = new ConstantPool<>();
-			active = new Scope(null);
+//			active = new Scope(null);
 			upvalues = new ArrayList<>();
 		}
 
@@ -90,18 +90,18 @@ public final class LavaEmitter implements Visitor<Context, Object> {
 			return new Context(name, this);
 		}
 
-		Scope newScope() {
-			return active = new Scope(active);
-		}
-
-		Scope closeScope() {
-			Scope last = this.active;
-			active = last.previous;
-			return last;
-		}
+//		Scope newScope() {
+//			return active = new Scope(active);
+//		}
+//
+//		Scope closeScope() {
+//			Scope last = this.active;
+//			active = last.previous;
+//			return last;
+//		}
 
 		LuaChunk build() {
-			closeScope();
+//			closeScope();
 			LuaChunk chunk = new LuaChunk(name);
 			chunk.constants = pool.build();
 			if (w.mark() == 0 || w.get(w.mark() - 1) != OpCode.RETURN) {
@@ -153,142 +153,7 @@ public final class LavaEmitter implements Visitor<Context, Object> {
 			index -= count;
 			return index;
 		}
-
-//		public void allocate(Address desc) {
-//		}
-
-//		ExpDesc find(Object value) {
-//			int poolIndex = locals.indexOf(value);
-//			if (poolIndex >= 0) {
-//				return new ExpDesc(ExpDesc.LOCAL, poolIndex);
-//			}
-//			if (previous != null) {
-//				ExpDesc desc = previous.find(value);
-//				if (desc.type == ExpDesc.GLOBAL) {
-//					return desc;
-//				}
-//				} else if (op.type == ExpOp.LOCAL) {
-//					op.type = ExpOp.UPVAL;
-//				throw new IllegalStateException("NYI (UPVAL)");
-//			}
-//			poolIndex = pool.add(value);
-//			return new ExpDesc(ExpDesc.GLOBAL, poolIndex);
-//		}
-
-//		int registerLocal(String name) {
-//			return locals.register(name);
-//		}
 	}
-
-//	static final class Address {
-//		static final int VOID = 0;
-//		static final int CONSTANT = 1;
-//
-//		static final int CONSTANT_NIL = 2;
-//		static final int CONSTANT_TRUE = 3;
-//		static final int CONSTANT_FALSE = 4;
-//		static final int CONSTANT_INTEGER = 5;
-//		static final int CONSTANT_DOUBLE = 6;
-//
-//		static final int LOCAL = 6;
-//		static final int UPVAL = 7;
-//		static final int GLOBAL = 8;
-//
-//		static final int BINARY = 9;
-//		static final int RELOCATABLE0 = 10;
-//		static final int CALL = 10;
-//
-//		int type;
-//		int target;
-//
-//		int left;
-//		int right;
-//
-//		Object payload;
-//
-//		ExpDesc() {
-//			this(VOID);
-//		}
-//
-//		ExpDesc(int type) {
-//			this.type = type;
-//		}
-//
-//		ExpDesc(int type, int target) {
-//			this.type = type;
-//			this.target = target;
-//		}
-//
-//		ExpDesc(int type, Object payload) {
-//			this.type = type;
-//			this.payload = payload;
-//		}
-//
-//		int emit(Scope scope) {
-//			int index = scope.locals.allocate();
-//			emit(scope, index);
-//			return index;
-//		}
-//
-//		int emitThenFree(Scope scope) {
-//			int index = scope.locals.allocate();
-//			emit(scope, index);
-//			scope.locals.free(index);
-//			return index;
-//		}
-//		
-//		void emit(Scope scope, int target) {
-//			if (target > max) {
-//				max = target;
-//			}
-//			switch (type) {
-//				case CONSTANT_INTEGER:
-//				case CONSTANT_DOUBLE:
-//				case CONSTANT: {
-//					this.target = scope.pool.add(payload);
-//					scope.w.write2(OpCode.CONST, this.target, target);
-//					break;
-//				}
-//				case ExpDesc.CONSTANT_NIL: {
-//					scope.w.write2(OpCode.CONST_NIL, target);
-//					break;
-//				}
-//				case ExpDesc.CONSTANT_TRUE: {
-//					scope.w.write2(OpCode.CONST_TRUE, target);
-//					break;
-//				}
-//				case ExpDesc.CONSTANT_FALSE: {
-//					scope.w.write2(OpCode.CONST_FALSE, target);
-//					break;
-//				}
-//				case ExpDesc.CALL: {
-//					int base = this.target;
-//					int paramCount = left;
-//					int expected = right;
-//					scope.w.write2(OpCode.CALL, base, paramCount, expected);
-//					if (--right > 0) {
-//						return;
-//					}
-//					break;
-//				}
-//				case ExpDesc.BINARY: {
-//					int op = this.target;
-//					int leftSlot = left;
-//					int rightSlot = right;
-//					scope.w.write2(op, leftSlot, rightSlot, target);
-//					break;
-//				}
-//				case ExpDesc.VOID:
-//					break;
-//				default:
-//					throw new IllegalStateException("Unsupported ExpOp type: " + type);
-//			}
-//			type = ExpDesc.VOID;
-//			this.target = -1;
-//			payload = null;
-//			scope.active = null;
-//		}
-//	}
 
 	@Override
 	public Object visitBlock(Block value, Context context) {
@@ -373,9 +238,9 @@ public final class LavaEmitter implements Visitor<Context, Object> {
 
 	@Override
 	public Object visitDoBlock(DoBlock value, Context context) {
-		context.newScope();
+//		context.newScope();
 		value.body.visit(this, context);
-		context.closeScope();
+//		context.closeScope();
 		return null;
 	}
 
@@ -386,15 +251,17 @@ public final class LavaEmitter implements Visitor<Context, Object> {
 
 	@Override
 	public Object visitIfBlock(IfBlock value, Context context) {
-//		Scope scope = context.newScope();
-//		child.allocate(context.max);
-//		value.condition.visit(this, child);
-//		int register = child.pop();
-//		value.thenPart.visit(this, child);
-//		context.w.write1(OpCode.KILL);
-//		context.closeScope();
-//		return null;
-		throw new IllegalStateException("NYI");
+		value.condition.visit(this, context);
+		int register = context.pop();
+		context.w.write2(OpCode.IF_FALSE, register);
+		int elseJump = context.w.mark2();
+		value.thenPart.visit(this, context);
+		context.w.write1(OpCode.GOTO);
+		int thenEnd = context.w.mark2();
+		context.w.backPatch2(elseJump);
+		value.elsePart.visit(this, context);
+		context.w.backPatch2(thenEnd);
+		return null;
 	}
 
 	@Override

@@ -530,16 +530,27 @@ public final class Interpreter {
 		}
 	}
 
-//	private void SET_TABLE(StackFrame frame) throws Throwable {
-//		Object table = stackPop(frame);
-//		Object key = stackPop(frame);
-//		Object value = stackPop(frame);
-//
-//		System.out.println("Table: " + table);
-//		System.out.println("Key: " + key);
-//		System.out.println("Value: " + value);
-//		throw new IllegalStateException("Not Yet Implemented!");
-//	}
+	private void IF_FALSE(StackFrame frame) throws Throwable {
+		int register = frame.decode2();
+		int target = frame.decode2();
+
+		Object o = get(frame, register);
+		// @TODO Jezza - 09 Mar 2018: Eval truth stuffs
+		if (o == Boolean.FALSE || o == NIL) {
+			frame.pc = target;
+		}
+	}
+
+	private void IF_TRUE(StackFrame frame) throws Throwable {
+		int register = frame.decode2();
+		int target = frame.decode2();
+
+		Object o = get(frame, register);
+		// @TODO Jezza - 09 Mar 2018: Eval truth stuffs
+		if (o != Boolean.FALSE && o != NIL) {
+			frame.pc = target;
+		}
+	}
 
 	private void RETURN(StackFrame frame) throws Throwable {
 		// @MAYBE Jezza - 27 Feb 2018: Should we unroll the last frame?
@@ -558,7 +569,7 @@ public final class Interpreter {
 	}
 
 	private void GOTO(StackFrame frame) throws Throwable {
-		frame.pc = frame.decode4();
+		frame.pc = frame.decode2();
 	}
 
 	private void DEBUG(StackFrame f) throws Throwable {
@@ -596,13 +607,6 @@ public final class Interpreter {
 		}
 		return b.append(']').toString();
 	}
-
-//	private void IFNZ(StackFrame frame) throws Throwable {
-//		int target = frame.decode4();
-//		int value = (int) stackPop(frame);
-//		if (value != 0)
-//			frame.pc = target;
-//	}
 
 	public void execute() throws Throwable {
 		while (status == 0) {
