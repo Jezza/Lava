@@ -8,7 +8,7 @@ import static me.jezza.lava.lang.ParseTree.Name.FLAG_UPVAL;
 import java.util.ArrayList;
 import java.util.List;
 
-import me.jezza.lava.lang.LavaEmitter.Scope;
+import me.jezza.lava.lang.LavaEmitter.Context;
 import me.jezza.lava.lang.ParseTree.Assignment;
 import me.jezza.lava.lang.ParseTree.BinaryOp;
 import me.jezza.lava.lang.ParseTree.Block;
@@ -41,43 +41,67 @@ import me.jezza.lava.runtime.OpCode;
 /**
  * @author Jezza
  */
-public final class LavaEmitter implements Visitor<Scope, Object> {
+public final class LavaEmitter implements Visitor<Context, Object> {
 
 	public static LuaChunk emit(String name, Block block) {
 		LavaEmitter emitter = new LavaEmitter();
-		Scope scope = new Scope(name);
-		block.visit(emitter, scope);
-		return scope.build();
+		Context context = new Context(name);
+		block.visit(emitter, context);
+		return context.build();
 	}
 
 	static final class Scope {
+		Scope previous;
+		//		int breaklist;      /* list of jumps out of this loop */
+		//		int nactvar;        /* # active locals outside the breakable structure */
+		//		boolean isbreakable;/* true if `block' is a loop */
+
+		private Scope(Scope previous) {
+			this.previous = previous;
+		}
+	}
+
+	static final class Context {
 		final String name;
-		final Scope previous;
+		final Context previous;
 		final ByteCodeWriter w;
 		final ConstantPool<Object> pool;
 		final List<Name> upvalues;
 
+		Scope active;
+
 		private int index;
 		private int max;
 
-		Scope(String name) {
+		Context(String name) {
 			this(name, null);
 		}
 
-		private Scope(String name, Scope previous) {
+		private Context(String name, Context previous) {
 			this.name = name;
 			this.previous = previous;
 			w = new ByteCodeWriter();
 			pool = new ConstantPool<>();
+			active = new Scope(null);
 			upvalues = new ArrayList<>();
-//			allocator = new AllocationList();
 		}
 
-		Scope newScope(String name) {
-			return new Scope(name, this);
+		Context newContext(String name) {
+			return new Context(name, this);
+		}
+
+		Scope newScope() {
+			return active = new Scope(active);
+		}
+
+		Scope closeScope() {
+			Scope last = this.active;
+			active = last.previous;
+			return last;
 		}
 
 		LuaChunk build() {
+			closeScope();
 			LuaChunk chunk = new LuaChunk(name);
 			chunk.constants = pool.build();
 			if (w.mark() == 0 || w.get(w.mark() - 1) != OpCode.RETURN) {
@@ -100,7 +124,7 @@ public final class LavaEmitter implements Visitor<Scope, Object> {
 			upvalues.add(name);
 			return value;
 		}
-		
+
 		public int mark() {
 			return index;
 		}
@@ -120,7 +144,7 @@ public final class LavaEmitter implements Visitor<Scope, Object> {
 			}
 			return in;
 		}
-		
+
 		public int pop() {
 			return --index;
 		}
@@ -156,7 +180,7 @@ public final class LavaEmitter implements Visitor<Scope, Object> {
 //		}
 	}
 
-	static final class Address {
+//	static final class Address {
 //		static final int VOID = 0;
 //		static final int CONSTANT = 1;
 //
@@ -214,9 +238,9 @@ public final class LavaEmitter implements Visitor<Scope, Object> {
 //		}
 //		
 //		void emit(Scope scope, int target) {
-////			if (target > max) {
-////				max = target;
-////			}
+//			if (target > max) {
+//				max = target;
+//			}
 //			switch (type) {
 //				case CONSTANT_INTEGER:
 //				case CONSTANT_DOUBLE:
@@ -264,146 +288,142 @@ public final class LavaEmitter implements Visitor<Scope, Object> {
 //			payload = null;
 //			scope.active = null;
 //		}
-	}
+//	}
 
 	@Override
-	public Object visitBlock(Block value, Scope scope) {
-		scope.allocate(value.names.size());
+	public Object visitBlock(Block value, Context context) {
+		context.allocate(value.names.size());
 		for (Statement statement : value.statements) {
-			statement.visit(this, scope);
+			statement.visit(this, context);
 		}
 		return null;
 	}
 
-//	class Block:
-//		int breaklist;      /* list of jumps out of this loop */
-//		int nactvar;        /* # active locals outside the breakable structure */
-//		boolean upval;      /* true if some variable in the block is an upvalue */
-//		boolean isbreakable;/* true if `block' is a loop */
-
 	@Override
-	public Object visitFunctionCall(FunctionCall value, Scope scope) {
-		int base = scope.mark();
+	public Object visitFunctionCall(FunctionCall value, Context context) {
+		int base = context.mark();
 		// Load function
-		value.target.visit(this, scope);
+		value.target.visit(this, context);
 		// Load args
 		List<Expression> args = value.args.list;
 		int count = args.size();
 		for (int i = 0; i < count; i++) {
-			args.get(i).visit(this, scope);
+			args.get(i).visit(this, context);
 		}
-		scope.w.write2(OpCode.CALL, base, count, value.expectedResults);
-		scope.pop(count + 1);
-		scope.allocate(value.expectedResults);
+		context.w.write2(OpCode.CALL, base, count, value.expectedResults);
+		context.pop(count + 1);
+		context.allocate(value.expectedResults);
 		return null;
 	}
 
 	@Override
-	public Object visitAssignment(Assignment value, Scope scope) {
+	public Object visitAssignment(Assignment value, Context context) {
 		if (value.lhs == null) {
-			value.rhs.visit(this, scope);
+			value.rhs.visit(this, context);
 		} else {
 			// @TODO Jezza - 09 Feb 2018: Assignment flattening
 			// @TODO Jezza - 09 Feb 2018: Conflict resolution
-			value.rhs.visit(this, scope);
+			value.rhs.visit(this, context);
 			List<Expression> lhs = value.lhs.list;
 			for (int i = lhs.size() - 1; i >= 0; i--) {
-				lhs.get(i).visit(this, scope);
+				lhs.get(i).visit(this, context);
 			}
 		}
 		return null;
 	}
 
 	@Override
-	public Object visitExpressionList(ExpressionList value, Scope scope) {
+	public Object visitExpressionList(ExpressionList value, Context context) {
 		for (Expression expression : value.list) {
-			expression.visit(this, scope);
+			expression.visit(this, context);
 		}
 		return null;
 	}
 
 	@Override
-	public Object visitFunctionBody(FunctionBody value, Scope scope) {
+	public Object visitFunctionBody(FunctionBody value, Context context) {
 		if (value.varargs) {
 			throw new IllegalStateException("NYI");
 		}
-		Scope local = scope.newScope(scope.name + ":function");
+		Context local = context.newContext(context.name + ":function");
 		value.body.visit(this, local);
 
 		LuaChunk chunk = local.build();
 //		chunk.params = value.parameters.size();
-		int index = scope.pool.add(chunk);
-		int register = scope.allocate();
-		scope.w.write2(OpCode.LOAD_FUNC, index, register);
+		int index = context.pool.add(chunk);
+		int register = context.allocate();
+		context.w.write2(OpCode.LOAD_FUNC, index, register);
 		return null;
 	}
 
 	@Override
-	public Object visitLabel(Label value, Scope scope) {
+	public Object visitLabel(Label value, Context context) {
 		throw new IllegalStateException("NYI");
 	}
 
 	@Override
-	public Object visitGoto(Goto value, Scope scope) {
+	public Object visitGoto(Goto value, Context context) {
 		throw new IllegalStateException("NYI");
 	}
 
 	@Override
-	public Object visitBreak(Break value, Scope scope) {
+	public Object visitBreak(Break value, Context context) {
 		throw new IllegalStateException("NYI");
 	}
 
 	@Override
-	public Object visitDoBlock(DoBlock value, Scope scope) {
-		Scope local = scope.newScope(scope.name + ":do_end");
-		value.body.visit(this, local);
-
-		LuaChunk chunk = local.build();
-		int index = scope.pool.add(chunk);
-		int register = scope.mark();
-		// @CLEANUP Jezza - 28 Feb 2018: Not the best solution...
-		scope.w.write2(OpCode.CONST, index, register);
-		scope.w.write2(OpCode.CALL, register, 0, 0);
+	public Object visitDoBlock(DoBlock value, Context context) {
+		context.newScope();
+		value.body.visit(this, context);
+		context.closeScope();
 		return null;
 	}
 
 	@Override
-	public Object visitRepeatBlock(RepeatBlock value, Scope scope) {
+	public Object visitRepeatBlock(RepeatBlock value, Context context) {
 		throw new IllegalStateException("NYI");
 	}
 
 	@Override
-	public Object visitIfBlock(IfBlock value, Scope scope) {
+	public Object visitIfBlock(IfBlock value, Context context) {
+//		Scope scope = context.newScope();
+//		child.allocate(context.max);
+//		value.condition.visit(this, child);
+//		int register = child.pop();
+//		value.thenPart.visit(this, child);
+//		context.w.write1(OpCode.KILL);
+//		context.closeScope();
+//		return null;
 		throw new IllegalStateException("NYI");
 	}
 
 	@Override
-	public Object visitForLoop(ForLoop value, Scope scope) {
+	public Object visitForLoop(ForLoop value, Context context) {
 		throw new IllegalStateException("NYI");
 	}
 
 	@Override
-	public Object visitForList(ForList value, Scope scope) {
+	public Object visitForList(ForList value, Context context) {
 		throw new IllegalStateException("NYI");
 	}
 
 	@Override
-	public Object visitReturnStatement(ReturnStatement value, Scope scope) {
+	public Object visitReturnStatement(ReturnStatement value, Context context) {
 		ExpressionList expressions = value.expressions;
 		if (expressions.size() != 0) {
-			int position = scope.mark();
-			expressions.visit(this, scope);
-			scope.w.write1(OpCode.RETURN, expressions.size(), position);
+			int position = context.mark();
+			expressions.visit(this, context);
+			context.w.write1(OpCode.RETURN, expressions.size(), position);
 		} else {
-			scope.w.write1(OpCode.RETURN, 0, 0);
+			context.w.write1(OpCode.RETURN, 0, 0);
 		}
 		return null;
 	}
 
 	@Override
-	public Object visitUnaryOp(UnaryOp value, Scope scope) {
-		value.arg.visit(this, scope);
-		scope.w.write1(unaryOpCode(value.op));
+	public Object visitUnaryOp(UnaryOp value, Context context) {
+		value.arg.visit(this, context);
+		context.w.write1(unaryOpCode(value.op));
 		return null;
 	}
 
@@ -421,37 +441,39 @@ public final class LavaEmitter implements Visitor<Scope, Object> {
 	}
 
 	@Override
-	public Object visitBinaryOp(BinaryOp value, Scope scope) {
+	public Object visitBinaryOp(BinaryOp value, Context context) {
 		if (value.is(FLAG_ASSIGNMENT)) {
 			if (value.op != BinaryOp.OP_INDEXED) {
 				throw new IllegalStateException("Illegal binary assignment op: " + value.op);
 			}
-			value.left.visit(this, scope);
-			value.right.visit(this, scope);
-			int key = scope.pop();
-			int table = scope.pop();
-			int register = scope.pop();
-			
-			scope.w.write2(OpCode.SET_TABLE, table, key, register);
-		} else {
-			value.left.visit(this, scope);
-			value.right.visit(this, scope);
+			value.left.visit(this, context);
+			value.right.visit(this, context);
+			int key = context.pop();
+			int table = context.pop();
+			int register = context.pop();
 
-			int right = scope.pop();
-			int left = scope.pop();
-			int result = scope.allocate();
+			context.w.write2(OpCode.SET_TABLE, table, key, register);
+		} else {
+			value.left.visit(this, context);
+			value.right.visit(this, context);
+
+			int right = context.pop();
+			int left = context.pop();
+			int result = context.allocate();
 
 			// @TODO Jezza - 11 Feb 2018: Constant folding..
 			// Should I do that here or in the parser?
 
 			int op = binaryOpCode(value.op);
-			scope.w.write2(op, result, left, right);
+			context.w.write2(op, result, left, right);
 		}
 		return null;
 	}
 
 	private static int binaryOpCode(int code) {
 		switch (code) {
+			case BinaryOp.OP_EQ:
+				return OpCode.EQ;
 			case BinaryOp.OP_ADD:
 				return OpCode.ADD;
 			case BinaryOp.OP_SUB:
@@ -467,34 +489,34 @@ public final class LavaEmitter implements Visitor<Scope, Object> {
 		}
 	}
 
-	private void loadConstant(Object value, Scope scope) {
-		int constant = scope.pool.add(value);
-		int register = scope.allocate();
-		scope.w.write2(OpCode.CONST, constant, register);
+	private void loadConstant(Object value, Context context) {
+		int constant = context.pool.add(value);
+		int register = context.allocate();
+		context.w.write2(OpCode.CONST, constant, register);
 	}
 
 	@Override
-	public Object visitLiteral(Literal value, Scope scope) {
+	public Object visitLiteral(Literal value, Context context) {
 		switch (value.type) {
 			case Literal.STRING:
 			case Literal.DOUBLE:
 			case Literal.INTEGER: {
-				loadConstant(value.value, scope);
+				loadConstant(value.value, context);
 				break;
 			}
 			case Literal.FALSE: {
-				int register = scope.allocate();
-				scope.w.write2(OpCode.CONST_FALSE, register);
+				int register = context.allocate();
+				context.w.write2(OpCode.CONST_FALSE, register);
 				break;
 			}
 			case Literal.TRUE: {
-				int register = scope.allocate();
-				scope.w.write2(OpCode.CONST_TRUE, register);
+				int register = context.allocate();
+				context.w.write2(OpCode.CONST_TRUE, register);
 				break;
 			}
 			case Literal.NIL: {
-				int register = scope.allocate();
-				scope.w.write2(OpCode.CONST_NIL, register);
+				int register = context.allocate();
+				context.w.write2(OpCode.CONST_NIL, register);
 				break;
 			}
 			default:
@@ -504,75 +526,75 @@ public final class LavaEmitter implements Visitor<Scope, Object> {
 	}
 
 	@Override
-	public Object visitName(Name value, Scope scope) {
+	public Object visitName(Name value, Context context) {
 		if (value.is(FLAG_ASSIGNMENT)) {
-			assignName(value, scope);
+			assignName(value, context);
 		} else {
-			loadName(value, scope);
+			loadName(value, context);
 		}
 		return null;
 	}
 
-	private void assignName(Name value, Scope scope) {
+	private void assignName(Name value, Context context) {
 		if (value.is(FLAG_LOCAL)) {
-			int register = scope.pop();
-			scope.w.write2(OpCode.MOVE, register, value.index);
+			int register = context.pop();
+			context.w.write2(OpCode.MOVE, register, value.index);
 		} else if (value.is(FLAG_GLOBAL)) {
-			loadConstant(value.value, scope);
-			int constant = scope.pop();
-			int register = scope.pop();
-			scope.w.write2(OpCode.SET_GLOBAL, constant, register);
+			loadConstant(value.value, context);
+			int constant = context.pop();
+			int register = context.pop();
+			context.w.write2(OpCode.SET_GLOBAL, constant, register);
 		} else if (value.is(FLAG_UPVAL)) {
-			int register = scope.pop();
-			int index = scope.upvalue(value);
-			scope.w.write2(OpCode.SET_UPVAL, register, index);
+			int register = context.pop();
+			int index = context.upvalue(value);
+			context.w.write2(OpCode.SET_UPVAL, register, index);
 		} else {
 			throw new IllegalStateException("Invalid name state: " + value);
 		}
 	}
 
-	private void loadName(Name value, Scope scope) {
+	private void loadName(Name value, Context context) {
 		if (value.is(FLAG_LOCAL)) {
-			int register = scope.allocate();
-			scope.w.write2(OpCode.MOVE, value.index, register);
+			int register = context.allocate();
+			context.w.write2(OpCode.MOVE, value.index, register);
 		} else if (value.is(FLAG_GLOBAL)) {
-			loadConstant(value.value, scope);
-			int constant = scope.pop();
-			int register = scope.allocate();
-			scope.w.write2(OpCode.GET_GLOBAL, constant, register);
+			loadConstant(value.value, context);
+			int constant = context.pop();
+			int register = context.allocate();
+			context.w.write2(OpCode.GET_GLOBAL, constant, register);
 		} else if (value.is(FLAG_UPVAL)) {
-			int index = scope.upvalue(value);
-			int register = scope.allocate();
-			scope.w.write2(OpCode.GET_UPVAL, index, register);
+			int index = context.upvalue(value);
+			int register = context.allocate();
+			context.w.write2(OpCode.GET_UPVAL, index, register);
 		} else {
 			throw new IllegalStateException("Invalid name state: " + value);
 		}
 	}
 
 	@Override
-	public Object visitVarargs(Varargs value, Scope scope) {
+	public Object visitVarargs(Varargs value, Context context) {
 		throw new IllegalStateException("NYI");
 	}
 
 	@Override
-	public Object visitTableConstructor(TableConstructor value, Scope scope) {
-		int register = scope.allocate();
-		scope.w.write2(OpCode.NEW_TABLE, register);
+	public Object visitTableConstructor(TableConstructor value, Context context) {
+		int register = context.allocate();
+		context.w.write2(OpCode.NEW_TABLE, register);
 		for (TableField field : value.fields) {
-			field.visit(this, scope);
+			field.visit(this, context);
 		}
 		return null;
 	}
 
 	@Override
-	public Object visitTableField(TableField value, Scope scope) {
-		value.key.visit(this, scope);
-		value.value.visit(this, scope);
-		int val = scope.pop();
-		int key = scope.pop();
+	public Object visitTableField(TableField value, Context context) {
+		value.key.visit(this, context);
+		value.value.visit(this, context);
+		int val = context.pop();
+		int key = context.pop();
 		// We don't want to pop the value, because there might be more fields.
-		int table = scope.mark() - 1;
-		scope.w.write2(OpCode.SET_TABLE, table, key, val);
+		int table = context.mark() - 1;
+		context.w.write2(OpCode.SET_TABLE, table, key, val);
 		return null;
 	}
 }

@@ -179,7 +179,10 @@ public final class ASTPrinter implements EVisitor {
 
 	@Override
 	public Void visitDoBlock(DoBlock value, Void userObject) {
-		text.append("do");
+		indent();
+		text.append("do\n");
+		value.body.visit(this, userObject);
+		text.append("end");
 		return null;
 	}
 

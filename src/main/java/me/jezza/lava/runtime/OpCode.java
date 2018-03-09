@@ -257,6 +257,12 @@ public final class OpCode {
 	@Implemented
 	public static final byte DEBUG = 38;
 
+	@Implemented
+	public static final byte EQ = 39;
+
+	@Implemented
+	public static final byte KILL = 40;
+
 	public static void main(String[] args) {
 		// Used when we move around values.
 		StringBuilder b = new StringBuilder();

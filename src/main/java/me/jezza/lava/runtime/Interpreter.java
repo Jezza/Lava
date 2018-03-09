@@ -13,6 +13,7 @@ import java.util.Arrays;
 import java.util.Deque;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.LongStream;
 import java.util.stream.LongStream.Builder;
 
@@ -126,6 +127,15 @@ public final class Interpreter {
 		}
 		return slot;
 	}
+	
+	Object getFunc(StackFrame frame) {
+		int index = frame.func;
+		Slot slot = registers.get(frame.func);
+		if (DEBUG_MODE) {
+			System.out.println("GET sR[" + index + "] = " + slot);
+		}
+		return slot.value;
+	}
 
 	Object get(StackFrame frame, int index) {
 		return raw(frame, index).value;
@@ -187,6 +197,7 @@ public final class Interpreter {
 	private static final MethodHandle NEW_TABLE_MH = dispatcher();
 	private static final MethodHandle SET_TABLE_MH = dispatcher();
 	private static final MethodHandle GET_TABLE_MH = dispatcher();
+	private static final MethodHandle EQ_MH = dispatcher();
 	private static final MethodHandle ADD_MH = dispatcher();
 	private static final MethodHandle MUL_MH = dispatcher();
 	private static final MethodHandle MOVE_MH = dispatcher();
@@ -223,6 +234,9 @@ public final class Interpreter {
 		int poolIndex = frame.decode2();
 		int register = frame.decode2();
 		Object constant = frame.constants[poolIndex];
+		if (DEBUG_MODE) {
+			System.out.println("LOAD_FUNC " + constant);
+		}
 		LuaFunction function;
 		if (constant instanceof LuaChunk) {
 			Name[] names = ((LuaChunk) constant).upvalues;
@@ -346,6 +360,28 @@ public final class Interpreter {
 		dispatchNext(SET_TABLE_MH, frame);
 	}
 
+	private void KILL(StackFrame frame) throws Throwable {
+		DEBUG(frame);
+		throw new IllegalStateException();
+	}
+
+	private void EQ(StackFrame frame) throws Throwable {
+		int target = frame.decode2();
+		int leftSlot = frame.decode2();
+		int rightSlot = frame.decode2();
+
+		Object leftObj = get(frame, leftSlot);
+		Object rightObj = get(frame, rightSlot);
+
+		if (DEBUG_MODE) {
+			System.out.println("EQ (s[" + leftSlot + "] = " + leftObj + ") + (s[" + rightSlot + "] = " + rightObj + ')');
+		}
+
+		set(frame, target, Objects.equals(leftObj, rightObj));
+
+		dispatchNext(EQ_MH, frame);
+	}
+
 	private void ADD(StackFrame frame) throws Throwable {
 		int target = frame.decode2();
 		int leftSlot = frame.decode2();
@@ -400,9 +436,7 @@ public final class Interpreter {
 		int index = frame.decode2();
 		int register = frame.decode2();
 
-		// @CLEANUP Jezza - 28 Feb 2018: Kind of a magic number, but the stack is bounded by the frame.base, and we know the funciton is just one level below that.
-		// We just simply grab that to access the stuffs.
-		Object object = get(frame, -1);
+		Object object = getFunc(frame);
 
 		if (DEBUG_MODE) {
 			System.out.println("GET_UPVAL u[" + index + "] -> " + register + " :: " + object);
@@ -418,9 +452,7 @@ public final class Interpreter {
 		int register = frame.decode2();
 		int index = frame.decode2();
 
-		// @CLEANUP Jezza - 28 Feb 2018: Kind of a magic number, but the stack is bounded by the frame.base, and we know the funciton is just one level below that.
-		// We just simply grab that to access the stuffs.
-		Object object = get(frame, -1);
+		Object object = getFunc(frame);
 		
 		if (DEBUG_MODE) {
 			System.out.println("SET_UPVAL u[" + index + "] -> " + register + " :: " + object);
@@ -458,7 +490,7 @@ public final class Interpreter {
 		if (o instanceof Callback) {
 			frame.origin = base;
 			StackFrame newFrame = newFrame();
-//			newFrame.func = base;
+			newFrame.func = base;
 			newFrame.max = params;
 			newFrame.base = frame.base + frame.max;
 			copy(frame.base + base + 1, newFrame.base, params);
@@ -481,7 +513,7 @@ public final class Interpreter {
 			frame.origin = base;
 			StackFrame newFrame = newFrame();
 			populateFrame(newFrame, chunk);
-//			newFrame.func = base;
+			newFrame.func = base;
 			newFrame.expected = expected;
 			newFrame.base = frame.base + frame.max;
 //			stackCheck(newFrame.base + newFrame.max);
@@ -583,7 +615,7 @@ public final class Interpreter {
 
 	private static RegisterList print(Interpreter interpreter, RegisterList registers, StackFrame frame) {
 		for (Object value : registers) {
-			System.out.println(value);
+			System.err.println(value);
 		}
 		return RegisterList.EMPTY;
 	}
@@ -695,7 +727,7 @@ public final class Interpreter {
 
 	public static final class StackFrame {
 		private int base;
-//		private int func;
+		private int func;
 
 		private int max;
 

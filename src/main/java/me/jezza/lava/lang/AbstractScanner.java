@@ -115,11 +115,11 @@ public class AbstractScanner<P, R> implements Visitor<P, R> {
 
 	@Override
 	public R visitAssignment(Assignment value, P userObject) {
-		if (value.lhs == null) {
-			return scan(value.rhs, userObject);
+		R returnValue = scan(value.rhs, userObject);
+		if (value.lhs != null) {
+			return scanThenReduce(value.lhs, userObject, returnValue);
 		}
-		R returnValue = scan(value.lhs, userObject);
-		return scanThenReduce(value.rhs, userObject, returnValue);
+		return returnValue;
 	}
 
 	@Override

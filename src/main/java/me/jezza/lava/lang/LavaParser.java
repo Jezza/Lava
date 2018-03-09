@@ -1,5 +1,6 @@
 package me.jezza.lava.lang;
 
+import static me.jezza.lava.lang.ParseTree.Block.FLAG_NEW_CONTEXT;
 import static me.jezza.lava.lang.ParseTree.FLAG_ASSIGNMENT;
 import static me.jezza.lava.lang.ParseTree.Name.FLAG_LOCAL;
 import static me.jezza.lava.lang.ParseTree.Name.FLAG_UNCHECKED;
@@ -153,7 +154,7 @@ public final class LavaParser extends AbstractParser {
 		if (self) {
 			left = new BinaryOp(BinaryOp.OP_INDEXED, left, new Literal(Literal.STRING, name()));
 		}
-		left.set(FLAG_ASSIGNMENT);
+		left.set(FLAG_ASSIGNMENT, true);
 		FunctionBody functionBody = functionBody();
 		if (self) {
 			functionBody.parameters.add(0, new Name("self", FLAG_LOCAL));
@@ -176,6 +177,7 @@ public final class LavaParser extends AbstractParser {
 			consume(')');
 		}
 		Block body = block();
+		body.set(FLAG_NEW_CONTEXT, true);
 		body.parameterCount = parameters.size();
 		consume(Tokens.END);
 		return new FunctionBody(parameters, varargs, body);
@@ -590,7 +592,7 @@ public final class LavaParser extends AbstractParser {
 			((FunctionCall) primary).expectedResults = 0;
 			return new Assignment(null, primary);
 		}
-		primary.set(FLAG_ASSIGNMENT);
+		primary.set(FLAG_ASSIGNMENT, true);
 		ExpressionList lhs;
 		if (match(',')) {
 			List<Expression> expressions = new ArrayList<>();
@@ -600,7 +602,7 @@ public final class LavaParser extends AbstractParser {
 				if (expression instanceof FunctionCall) {
 					throw new IllegalStateException("Syntax error (Function call not allowed on left-hand side of assign): " + expression);
 				}
-				expression.set(FLAG_ASSIGNMENT);
+				expression.set(FLAG_ASSIGNMENT, true);
 				expressions.add(expression);
 			} while (match(','));
 			lhs = new ExpressionList(expressions);

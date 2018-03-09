@@ -36,13 +36,10 @@ public final class Main {
 		Lua L = new Lua();
 		BaseLib.open(L);
 
-		L.doString("local a = {\"Test\"}\n" +
-				"\n" +
-				"local b = 0\n" +
-				"\n" +
-				"a[b], b = \"Hello\", \"World\"\n" +
-				"\n" +
-				"print(a, \":::\", b);\n");
+		L.doString("do\n" +
+				"  local y = 10;\n" +
+				"end\n" +
+				"print(y)\n");
 	}
 
 	public static void main0(String[] args) throws Exception {

@@ -1,5 +1,6 @@
 package me.jezza.lava.lang;
 
+import static me.jezza.lava.lang.ParseTree.Block.FLAG_NEW_CONTEXT;
 import static me.jezza.lava.lang.ParseTree.Name.FLAG_GLOBAL;
 import static me.jezza.lava.lang.ParseTree.Name.FLAG_LOCAL;
 import static me.jezza.lava.lang.ParseTree.Name.FLAG_UNCHECKED;
@@ -27,12 +28,24 @@ public final class SemanticAnalysis extends AbstractScanner<Block, Object> {
 	}
 
 	private void prepBlock(Block block, Block parent) {
+		block.names = new ArrayList<>();
 		if (block != parent) {
 			block.name = parent.name + "->" + "---";
 			block.parent = parent;
+			if (!block.is(FLAG_NEW_CONTEXT)) {
+				block.offset = parent.names.size() + parent.offset;
+			}
 		}
-		block.names = new ArrayList<>();
 	}
+	
+//	private int calculateOffset(Block start) {
+//		int count = 0;
+//		while (!start.is(FLAG_NEW_CONTEXT)) {
+//			count += start.names.size();
+//			start = start.parent;
+//		}
+//		return count;
+//	}
 
 	@Override
 	public Object visitBlock(Block value, Block userObject) {
@@ -76,12 +89,12 @@ public final class SemanticAnalysis extends AbstractScanner<Block, Object> {
 	@Override
 	public Object visitName(Name value, Block userObject) {
 		if (value.is(FLAG_UNCHECKED)) {
-			value.unset(FLAG_UNCHECKED);
+			value.set(FLAG_UNCHECKED, false);
 			value.index = find(value, userObject);
 		} else if (value.is(FLAG_LOCAL)) {
 			int index = indexOf(value, userObject);
 			if (index == -1) {
-				index = userObject.names.size();
+				index = userObject.offset + userObject.names.size();
 				userObject.names.add(value);
 			}
 			value.index = index;
@@ -96,7 +109,7 @@ public final class SemanticAnalysis extends AbstractScanner<Block, Object> {
 	private int find(Name name, Block block) {
 		int index = indexOf(name, block);
 		if (index >= 0) {
-			name.set(FLAG_LOCAL);
+			name.set(FLAG_LOCAL, true);
 			return index;
 		}
 		if (block.parent != null) {
@@ -104,12 +117,14 @@ public final class SemanticAnalysis extends AbstractScanner<Block, Object> {
 			if (name.is(FLAG_GLOBAL)) {
 				return -1;
 			}
-			name.unset(FLAG_LOCAL);
-			name.set(FLAG_UPVAL);
-			name.level++;
+			if (block.is(FLAG_NEW_CONTEXT)) {
+				name.set(FLAG_LOCAL, false);
+				name.set(FLAG_UPVAL, true);
+				name.level++;
+			}
 			return index;
 		}
-		name.set(FLAG_GLOBAL);
+		name.set(FLAG_GLOBAL, true);
 		return -1;
 	}
 	
@@ -118,7 +133,7 @@ public final class SemanticAnalysis extends AbstractScanner<Block, Object> {
 		for (int i = 0, size = names.size(); i < size; i++) {
 			Name other = names.get(i);
 			if (other.value.equals(name.value)) {
-				return i;
+				return block.offset + i;
 			}
 		}
 		return -1;

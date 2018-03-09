@@ -50,13 +50,12 @@ public abstract class ParseTree {
 		return (this.flags & flags) == flags;
 	}
 
-	public final ParseTree set(int flags) {
-		this.flags |= flags;
-		return this;
-	}
-	
-	public final ParseTree unset(int flags) {
-		this.flags &= ~flags;
+	public final ParseTree set(int flags, boolean value) {
+		if (value) {
+			this.flags |= flags;
+		} else {
+			this.flags &= ~flags;
+		}
 		return this;
 	}
 
@@ -139,6 +138,8 @@ public abstract class ParseTree {
 	}
 
 	public static class Block extends Statement {
+		public static final int FLAG_NEW_CONTEXT = 0x2;
+
 		public static final int VARARGS = -1;
 		
 		public String name;
@@ -147,6 +148,7 @@ public abstract class ParseTree {
 		public List<Statement> statements;
 
 		public List<Name> names;
+		public int offset;
 
 		public int parameterCount;
 
@@ -492,7 +494,7 @@ public abstract class ParseTree {
 			super(TYPE_NAME);
 			this.value = value;
 			if (flags != 0) {
-				set(flags);
+				set(flags, true);
 			}
 			index = -1;
 		}

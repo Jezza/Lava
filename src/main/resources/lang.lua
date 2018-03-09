@@ -44,11 +44,25 @@
 --print(adder());
 --print(adder());
 
-local tab = {"from tab!", asd = "Hlo", "asdds"}
+local y = 1
 
-local b = "b"
-local t = {"a", [1] = b}
-print(t)
+do
+	local y = y + 1;
+	print(y)
+	function test()
+		local y = y + 1;
+		print(y);
+	end
+	test();
+	print(y);
+end
+print(y)
+
+-- local tab = {"from tab!", asd = "Hlo", "asdds"}
+
+-- local b = "b"
+-- local t = {"a", [1] = b}
+-- print(t)
 
 -- { [1] = a,[2] = c,[3] = b,["name"] = b,["asd"] = a,} 
 
