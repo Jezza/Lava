@@ -1,6 +1,7 @@
 package me.jezza.lava.lang;
 
 import static me.jezza.lava.lang.ParseTree.Block.FLAG_NEW_CONTEXT;
+import static me.jezza.lava.lang.ParseTree.Name.FLAG_CHECKED;
 import static me.jezza.lava.lang.ParseTree.Name.FLAG_GLOBAL;
 import static me.jezza.lava.lang.ParseTree.Name.FLAG_LOCAL;
 import static me.jezza.lava.lang.ParseTree.Name.FLAG_UNCHECKED;
@@ -88,6 +89,9 @@ public final class SemanticAnalysis extends AbstractScanner<Block, Object> {
 
 	@Override
 	public Object visitName(Name value, Block userObject) {
+		if (value.is(FLAG_CHECKED)) {
+			return null;
+		}
 		if (value.is(FLAG_UNCHECKED)) {
 			value.set(FLAG_UNCHECKED, false);
 			value.index = find(value, userObject);
@@ -103,6 +107,7 @@ public final class SemanticAnalysis extends AbstractScanner<Block, Object> {
 			// This shouldn't happen...
 			throw new IllegalStateException("Possible assertion fail: " + value);
 		}
+		value.set(FLAG_CHECKED, true);
 		return null;
 	}
 	

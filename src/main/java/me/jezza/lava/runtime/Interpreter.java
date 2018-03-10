@@ -198,8 +198,10 @@ public final class Interpreter {
 	private static final MethodHandle SET_TABLE_MH = dispatcher();
 	private static final MethodHandle GET_TABLE_MH = dispatcher();
 	private static final MethodHandle EQ_MH = dispatcher();
+	private static final MethodHandle LT_MH = dispatcher();
 	private static final MethodHandle ADD_MH = dispatcher();
 	private static final MethodHandle MUL_MH = dispatcher();
+	private static final MethodHandle NOT_MH = dispatcher();
 	private static final MethodHandle MOVE_MH = dispatcher();
 	private static final MethodHandle GET_UPVAL_MH = dispatcher();
 	private static final MethodHandle SET_UPVAL_MH = dispatcher();
@@ -382,6 +384,26 @@ public final class Interpreter {
 		dispatchNext(EQ_MH, frame);
 	}
 
+	private void LT(StackFrame frame) throws Throwable {
+		int target = frame.decode2();
+		int leftSlot = frame.decode2();
+		int rightSlot = frame.decode2();
+
+		Object leftObj = get(frame, leftSlot);
+		Object rightObj = get(frame, rightSlot);
+
+		if (DEBUG_MODE) {
+			System.out.println("LT (s[" + leftSlot + "] = " + leftObj + ") < (s[" + rightSlot + "] = " + rightObj + ')');
+		}
+
+		int left = (int) leftObj;
+		int right = (int) rightObj;
+
+		set(frame, target, left < right);
+
+		dispatchNext(LT_MH, frame);
+	}
+
 	private void ADD(StackFrame frame) throws Throwable {
 		int target = frame.decode2();
 		int leftSlot = frame.decode2();
@@ -420,6 +442,25 @@ public final class Interpreter {
 		set(frame, target, left * right);
 
 		dispatchNext(MUL_MH, frame);
+	}
+
+	private void NOT(StackFrame frame) throws Throwable {
+		int value = frame.decode2();
+		int register = frame.decode2();
+
+		Object valueObj = get(frame, value);
+		
+		if (DEBUG_MODE) {
+			System.out.println("NOT (s[" + value + "] = " + valueObj + ") -> " + register + ')');
+		}
+		
+		// @TODO Jezza - 10 Mar 2018: Stuffs
+		if (!(valueObj instanceof Boolean)) {
+			throw new IllegalStateException("Boolean stuffs.");
+		}
+		Boolean negated = (Boolean) valueObj ? Boolean.FALSE : Boolean.TRUE;
+		set(frame, register, negated);
+		dispatchNext(NOT_MH, frame);
 	}
 
 	private void MOVE(StackFrame frame) throws Throwable {

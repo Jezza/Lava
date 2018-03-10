@@ -238,15 +238,18 @@ public final class LavaEmitter implements Visitor<Context, Object> {
 
 	@Override
 	public Object visitDoBlock(DoBlock value, Context context) {
-//		context.newScope();
 		value.body.visit(this, context);
-//		context.closeScope();
 		return null;
 	}
 
 	@Override
 	public Object visitRepeatBlock(RepeatBlock value, Context context) {
-		throw new IllegalStateException("NYI");
+		int start = context.w.mark();
+		value.body.visit(this, context);
+		value.condition.visit(this, context);
+		int register = context.pop();
+		context.w.write2(OpCode.IF_FALSE, register, start);
+		return null;
 	}
 
 	@Override
@@ -257,10 +260,12 @@ public final class LavaEmitter implements Visitor<Context, Object> {
 		int elseJump = context.w.mark2();
 		value.thenPart.visit(this, context);
 		context.w.write1(OpCode.GOTO);
-		int thenEnd = context.w.mark2();
+		int thenJump = context.w.mark2();
 		context.w.backPatch2(elseJump);
-		value.elsePart.visit(this, context);
-		context.w.backPatch2(thenEnd);
+		if (value.elsePart != null) {
+			value.elsePart.visit(this, context);
+		}
+		context.w.backPatch2(thenJump);
 		return null;
 	}
 
@@ -290,7 +295,9 @@ public final class LavaEmitter implements Visitor<Context, Object> {
 	@Override
 	public Object visitUnaryOp(UnaryOp value, Context context) {
 		value.arg.visit(this, context);
-		context.w.write1(unaryOpCode(value.op));
+		int result = context.pop();
+		int register = context.allocate();
+		context.w.write2(unaryOpCode(value.op), result, register);
 		return null;
 	}
 
@@ -349,6 +356,8 @@ public final class LavaEmitter implements Visitor<Context, Object> {
 				return OpCode.MUL;
 			case BinaryOp.OP_DIV:
 				return OpCode.DIV;
+			case BinaryOp.OP_LT:
+				return OpCode.LT;
 			case BinaryOp.OP_INDEXED:
 				return OpCode.GET_TABLE;
 			default:

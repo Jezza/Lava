@@ -81,8 +81,8 @@ public class AbstractScanner<P, R> implements Visitor<P, R> {
 
 	@Override
 	public R visitRepeatBlock(RepeatBlock value, P userObject) {
-		R returnValue = scan(value.condition, userObject);
-		return scanThenReduce(value.body, userObject, returnValue);
+		R returnValue = scan(value.body, userObject);
+		return scanThenReduce(value.condition, userObject, returnValue);
 	}
 
 	@Override

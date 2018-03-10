@@ -481,6 +481,7 @@ public abstract class ParseTree {
 		public static final int FLAG_UPVAL = 0x4;
 		public static final int FLAG_GLOBAL = 0x8;
 		public static final int FLAG_UNCHECKED = 0x10;
+		public static final int FLAG_CHECKED = 0x20;
 
 		public String value;
 		public int index;

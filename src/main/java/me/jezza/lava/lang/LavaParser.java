@@ -68,15 +68,6 @@ public final class LavaParser extends AbstractParser {
 		return new Block("root", statements);
 	}
 
-	public Label label() throws IOException {
-		consume(':');
-		consume(':');
-		String name = name();
-		consume(':');
-		consume(':');
-		return new Label(name);
-	}
-
 	public Statement statement() throws IOException {
 		switch (current().type) {
 			case Tokens.DO:
@@ -120,7 +111,9 @@ public final class LavaParser extends AbstractParser {
 	public Statement local() throws IOException {
 		consume(Tokens.LOCAL);
 		if (match(Tokens.FUNCTION)) {
-			Name name = new Name(name(), FLAG_LOCAL | FLAG_ASSIGNMENT);
+			String functionName = name();
+			Name name = new Name(functionName, FLAG_LOCAL | FLAG_ASSIGNMENT);
+//			Assignment declaration = new Assignment(name, null);
 			FunctionBody functionBody = functionBody();
 			return new Assignment(name, functionBody);
 		}
@@ -208,8 +201,8 @@ public final class LavaParser extends AbstractParser {
 		consume(Tokens.DO);
 		Block body = block();
 		consume(Tokens.END);
-		// Lowering: While (cond) (body) -> If (cond) Repeat (body) Until (cond)
-		RepeatBlock repeatBlock = new RepeatBlock(body, condition);
+		// Lowering: While (cond) (body) -> If (cond) Repeat (body) Until (not(cond))
+		RepeatBlock repeatBlock = new RepeatBlock(body, new UnaryOp(UnaryOp.OP_NOT, condition));
 		Block loop = new Block("while_body", repeatBlock);
 		return new IfBlock(condition, loop, null);
 	}
@@ -218,6 +211,15 @@ public final class LavaParser extends AbstractParser {
 		consume(Tokens.GOTO);
 		String name = name();
 		return new Goto(name);
+	}
+
+	public Label label() throws IOException {
+		consume(':');
+		consume(':');
+		String name = name();
+		consume(':');
+		consume(':');
+		return new Label(name);
 	}
 
 	private Statement forLoop() throws IOException {
@@ -294,7 +296,7 @@ public final class LavaParser extends AbstractParser {
 			if (is('}')) {
 				break;
 			}
-			TableField field = tableField(index);
+			TableField field = tableField();
 			if (field.key == null) {
 				field.key = new Literal(Literal.INTEGER, index++);
 			}
@@ -304,7 +306,7 @@ public final class LavaParser extends AbstractParser {
 		return new TableConstructor(fields);
 	}
 
-	private TableField tableField(int index) throws IOException {
+	private TableField tableField() throws IOException {
 		Expression key;
 		Expression value;
 		Token current = current();

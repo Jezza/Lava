@@ -206,6 +206,7 @@ public final class OpCode {
 	public static final byte MOD = 18;
 	public static final byte POW = 19;
 	public static final byte NEG = 20;
+	@Implemented
 	public static final byte NOT = 21;
 
 	public static final byte LEN = 22;
@@ -244,6 +245,7 @@ public final class OpCode {
 	@Implemented
 	public static final byte IF_TRUE = 27;
 	// TODO: 30/05/2017 Think about encoding equal and not equal
+	@Implemented
 	public static final byte LT = 28;
 	public static final byte LE = 29;
 	public static final byte TEST = 30;

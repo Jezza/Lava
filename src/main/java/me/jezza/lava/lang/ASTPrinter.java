@@ -188,7 +188,11 @@ public final class ASTPrinter implements EVisitor {
 
 	@Override
 	public Void visitRepeatBlock(RepeatBlock value, Void userObject) {
-		text.append("repeat");
+		text.append("repeat\n");
+		value.body.visit(this, userObject);
+		text.append("until (");
+		value.condition.visit(this, userObject);
+		text.append(")");
 		return null;
 	}
 
@@ -234,7 +238,16 @@ public final class ASTPrinter implements EVisitor {
 
 	@Override
 	public Void visitUnaryOp(UnaryOp value, Void userObject) {
-		text.append("unary");
+		switch (value.op) {
+			case UnaryOp.OP_NOT:
+				text.append("not");
+				break;
+			default:
+				throw new IllegalStateException("Unsupported op: " + value.op);
+		}
+		text.append('(');
+		value.arg.visit(this);
+		text.append(')');
 		return null;
 	}
 
@@ -341,13 +354,13 @@ public final class ASTPrinter implements EVisitor {
 		boolean local = value.is(FLAG_LOCAL);
 		boolean assign = value.is(FLAG_ASSIGNMENT);
 		if (local && assign) {
-			text.append("local(set(").append(value.value).append("))");
+			text.append("local(set(").append(value).append("))");
 		} else if (local) {
-			text.append("local(").append(value.value).append(')');
+			text.append("local(").append(value).append(')');
 		} else if (assign) {
-			text.append("set(").append(value.value).append(')');
+			text.append("set(").append(value).append(')');
 		} else {
-			text.append(value.value);
+			text.append(value);
 		}
 		return null;
 	}

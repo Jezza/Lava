@@ -46,12 +46,9 @@
 
 local y = 0
 
-if y == 0 then
-	print("0")
-elseif y == 1 then
-	print("1")
-else
-	print("Neither")
+while y < 5 do
+	print(y)
+	y = y + 1
 end
 
 -- local tab = {"from tab!", asd = "Hlo", "asdds"}
