@@ -18,35 +18,21 @@ import me.jezza.lava.lang.ParseTree.Name;
  * @author Jezza
  */
 public final class SemanticAnalysis extends AbstractScanner<Block, Object> {
-//	static final class Context {
-//		List<String> names;
-//	}
 
-	@Override
-	public Object scan(ParseTree node, Block userObject) {
-//		node.block = userObject;
-		return super.scan(node, userObject);
+	public static void run(FunctionBody node) {
+		SemanticAnalysis phase = new SemanticAnalysis();
+		phase.scan(node.body, node.body);
 	}
 
 	private void prepBlock(Block block, Block parent) {
 		block.names = new ArrayList<>();
 		if (block != parent) {
-			block.name = parent.name + "->" + "---";
 			block.parent = parent;
 			if (!block.is(FLAG_NEW_CONTEXT)) {
 				block.offset = parent.names.size() + parent.offset;
 			}
 		}
 	}
-	
-//	private int calculateOffset(Block start) {
-//		int count = 0;
-//		while (!start.is(FLAG_NEW_CONTEXT)) {
-//			count += start.names.size();
-//			start = start.parent;
-//		}
-//		return count;
-//	}
 
 	@Override
 	public Object visitBlock(Block value, Block userObject) {
@@ -61,6 +47,28 @@ public final class SemanticAnalysis extends AbstractScanner<Block, Object> {
 		scan(value.parameters, block);
 		return super.visitBlock(block, block);
 	}
+
+//	@Override
+//	public Object visitFunctionCall(FunctionCall value, Block userObject) {
+//		Object returnValue = scan(value.target, userObject);
+//
+//		Iterator<Expression> it = value.args.list.iterator();
+//		while (it.hasNext()) {
+//			Expression argument = it.next();
+//			boolean last = !it.hasNext();
+//			if (argument instanceof FunctionCall) {
+//				((FunctionCall) argument).expectedResults = last
+//						? 1 // FunctionCall.VARARGS
+//						: 1;
+//			} else if (argument instanceof Varargs) {
+//				((Varargs) argument).expectedResults = last
+//						? 1 // -1
+//						: 1;
+//			}
+//			returnValue = scanThenReduce(argument, userObject, returnValue);
+//		}
+//		return returnValue;
+//	}
 
 //	@Override
 //	public Object visitAssignment(Assignment value, Block userObject) {
@@ -89,6 +97,7 @@ public final class SemanticAnalysis extends AbstractScanner<Block, Object> {
 
 	@Override
 	public Object visitName(Name value, Block userObject) {
+		// This is only used because we don't have proper AST copying. (take a look at the while loop)
 		if (value.is(FLAG_CHECKED)) {
 			return null;
 		}
@@ -110,7 +119,7 @@ public final class SemanticAnalysis extends AbstractScanner<Block, Object> {
 		value.set(FLAG_CHECKED, true);
 		return null;
 	}
-	
+
 	private int find(Name name, Block block) {
 		int index = indexOf(name, block);
 		if (index >= 0) {
@@ -132,7 +141,7 @@ public final class SemanticAnalysis extends AbstractScanner<Block, Object> {
 		name.set(FLAG_GLOBAL, true);
 		return -1;
 	}
-	
+
 	private int indexOf(Name name, Block block) {
 		List<Name> names = block.names;
 		for (int i = 0, size = names.size(); i < size; i++) {
@@ -142,10 +151,5 @@ public final class SemanticAnalysis extends AbstractScanner<Block, Object> {
 			}
 		}
 		return -1;
-	}
-
-	public static void run(Block block) {
-		SemanticAnalysis phase = new SemanticAnalysis();
-		phase.scan(block, block);
 	}
 }

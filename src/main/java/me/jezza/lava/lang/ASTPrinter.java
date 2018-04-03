@@ -122,7 +122,9 @@ public final class ASTPrinter implements EVisitor {
 		if (value.name != null) {
 			text.append(':').append(value.name);
 		}
-		text.append('(');
+		text.append('<');
+		text.append(value.expectedResults);
+		text.append(">(");
 		value.args.visit(this);
 		text.append(')');
 		return null;
@@ -142,22 +144,11 @@ public final class ASTPrinter implements EVisitor {
 			text.append(value.parameters.isEmpty() ? "..." : ", ...");
 		}
 		text.append(')');
-		text.append(" ");
+		text.append(" \n");
 		value.body.visit(this);
+		text.append("end");
 		return null;
 	}
-
-//	@Override
-//	public Void visitParameterList(ParameterList value, Void userObject) {
-//		join(value.nameList.iterator(), ", ");
-//		if (value.varargs) {
-//			if (!value.nameList.isEmpty()) {
-//				text.append(", ");
-//			}
-//			text.append("...");
-//		}
-//		return null;
-//	}
 
 	@Override
 	public Void visitLabel(Label value, Void userObject) {
@@ -167,7 +158,7 @@ public final class ASTPrinter implements EVisitor {
 
 	@Override
 	public Void visitGoto(Goto value, Void userObject) {
-		text.append("goto ").append(value.label);
+		text.append("goto ").append(value.label).append(';');
 		return null;
 	}
 
@@ -192,7 +183,7 @@ public final class ASTPrinter implements EVisitor {
 		value.body.visit(this, userObject);
 		text.append("until (");
 		value.condition.visit(this, userObject);
-		text.append(")");
+		text.append(')');
 		return null;
 	}
 
@@ -217,13 +208,13 @@ public final class ASTPrinter implements EVisitor {
 
 	@Override
 	public Void visitForLoop(ForLoop value, Void userObject) {
-		text.append("for");
+		text.append("[[FOR]]");
 		return null;
 	}
 
 	@Override
 	public Void visitForList(ForList value, Void userObject) {
-		text.append("for list");
+		text.append("[[FOR LIST]]");
 		return null;
 	}
 
@@ -367,7 +358,7 @@ public final class ASTPrinter implements EVisitor {
 
 	@Override
 	public Void visitVarargs(Varargs value, Void userObject) {
-		text.append("varargs");
+		text.append('<').append(value.expectedResults).append('>').append("...");
 		return null;
 	}
 
@@ -383,9 +374,9 @@ public final class ASTPrinter implements EVisitor {
 		return null;
 	}
 
-	public static String print(Block block) {
+	public static String print(ParseTree node) {
 		ASTPrinter printer = new ASTPrinter(4);
-		block.visit(printer);
+		node.visit(printer);
 		return printer.text.toString();
 	}
 }

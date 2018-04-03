@@ -39,7 +39,7 @@ public abstract class ParseTree {
 
 	private final int type;
 	private int flags;
-	
+
 //	public Block block;
 
 	ParseTree(int type) {
@@ -140,9 +140,6 @@ public abstract class ParseTree {
 	public static class Block extends Statement {
 		public static final int FLAG_NEW_CONTEXT = 0x2;
 
-		public static final int VARARGS = -1;
-		
-		public String name;
 		public Block parent;
 
 		public List<Statement> statements;
@@ -150,16 +147,13 @@ public abstract class ParseTree {
 		public List<Name> names;
 		public int offset;
 
-		public int parameterCount;
-
-		public Block(String name, Statement statement) {
-			this(name, new ArrayList<>(1));
+		public Block(Statement statement) {
+			this(new ArrayList<>(1));
 			statements.add(statement);
 		}
 
-		public Block(String name, List<Statement> statements) {
+		public Block(List<Statement> statements) {
 			super(TYPE_BLOCK);
-			this.name = name;
 			this.statements = statements;
 		}
 
@@ -309,6 +303,13 @@ public abstract class ParseTree {
 			this.body = body;
 		}
 
+//		public int parameterCount() {
+//			 @CLEANUP Jezza - 10 Mar 2018: Eh, don't like functionality stuff here...
+//			return varargs
+//					? parameters.size() - 1
+//					: parameters.size();
+//		}
+
 		@Override
 		public String toString() {
 			return Strings.format("FunctionBody{parameters={}, varargs={}, body={}}",
@@ -405,6 +406,8 @@ public abstract class ParseTree {
 	}
 
 	public static final class FunctionCall extends Expression {
+		public static final int UNBOUNDED = -1;
+
 		public Expression target;
 		public String name;
 		public ExpressionList args;
@@ -416,16 +419,18 @@ public abstract class ParseTree {
 			this.target = target;
 			this.name = name;
 			this.args = args;
-			expectedResults = 1;
+			expectedResults = UNBOUNDED;
 		}
 
 		@Override
 		public String toString() {
-			return Strings.format("FunctionCall{target={}, name=\"{}\", args={}}",
+			return Strings.format("FunctionCall{target={}, name=\"{}\", args={}, expectedResults={}}",
 					target,
 					name,
-					args);
+					args,
+					expectedResults);
 		}
+
 	}
 
 	public static final class TableConstructor extends Expression {
@@ -475,7 +480,7 @@ public abstract class ParseTree {
 					expressions);
 		}
 	}
-	
+
 	public static final class Name extends Expression {
 		public static final int FLAG_LOCAL = 0x2;
 		public static final int FLAG_UPVAL = 0x4;
@@ -516,6 +521,8 @@ public abstract class ParseTree {
 		public static final int TRUE = 4;
 		public static final int FALSE = 5;
 		public static final int NIL = 6;
+
+		public static final Literal NIL_LITERAL = new Literal(NIL, null);
 
 		public int type;
 		public Object value;
@@ -576,8 +583,13 @@ public abstract class ParseTree {
 	}
 
 	public static final class Varargs extends Expression {
+		public static final int UNBOUNDED = -1;
+
+		public int expectedResults;
+
 		public Varargs() {
 			super(TYPE_VARARGS);
+			expectedResults = UNBOUNDED;
 		}
 	}
 }

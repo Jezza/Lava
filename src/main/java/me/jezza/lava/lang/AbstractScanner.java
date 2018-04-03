@@ -36,7 +36,7 @@ public class AbstractScanner<P, R> implements Visitor<P, R> {
 				: null;
 	}
 
-	private R scanThenReduce(ParseTree node, P userObject, R value) {
+	public R scanThenReduce(ParseTree node, P userObject, R value) {
 		return reduce(scan(node, userObject), value, userObject);
 	}
 
@@ -56,7 +56,7 @@ public class AbstractScanner<P, R> implements Visitor<P, R> {
 		return value;
 	}
 
-	private R scanThenReduce(Iterable<? extends ParseTree> nodes, P userObject, R value) {
+	public R scanThenReduce(Iterable<? extends ParseTree> nodes, P userObject, R value) {
 		return reduce(scan(nodes, userObject), value, userObject);
 	}
 

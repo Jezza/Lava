@@ -1,34 +1,20 @@
--- a = {}
--- a.b = ""
--- a.b.c = {}
--- a.b.c["d"] = {}
---
--- a.c.b = ""
--- // set_table (a.c) b ""
---
--- c = a.c.b
--- // get (a.c.b)
---
-
--- local a0,b0,c0,d0;
-
 -- local function test()
 -- end
-
+--
 -- a, c = test()
-
+--
 -- local a = "a";
 -- local b = "b";
 -- b, a = a, b
 -- local test, asdsd = "asdasddsasd", "asasdasd"
-
+--
 -- local a = "a";
 -- local function test()
 -- 	print(a);
 -- end
 -- 
 -- test();
-
+--
 --local x = 5;
 --local call = function()
 --	local y = 0;
@@ -43,19 +29,39 @@
 --print(adder());
 --print(adder());
 --print(adder());
-
-local y = 0
-
-while y < 5 do
-	print(y)
-	y = y + 1
-end
-
--- local tab = {"from tab!", asd = "Hlo", "asdds"}
-
--- local b = "b"
--- local t = {"a", [1] = b}
--- print(t)
+--
+--local function f(a, b, c)
+--	local d = "";
+--	print(a, b, c)
+--end
+--local function g(a, b, ...)
+--	print(a, b, "::", ...)
+--end
+--local function r()
+--	return 1,2,3
+--end
+--
+--g("a", r())
+--
+--local function a()
+--	local function b()
+--		return function()
+--			return 3
+--		end
+--	end
+--	
+--	local f = b()
+--	return 1 + f()
+--end
+--
+--print(a())
+--
+--
+--local tab = {"from tab!", asd = "Hlo", "asdds"}
+--
+--local b = "b"
+--local t = {"a", [1] = b}
+--print(t)
 
 -- { [1] = a,[2] = c,[3] = b,["name"] = b,["asd"] = a,} 
 
@@ -77,34 +83,10 @@ end
 --	end
 --end
 --
+--print(call_1());
 --print(call_0());
 --print(call_1());
-
--- local function change(parameter)
--- 	local function change()
--- 		a = parameter
--- 	end
--- 	change()
--- end
--- 
--- change("b");
--- 
--- print(a);
-
--- table = "table"
-
--- local first = "a", "b", test()
-
-
--- local a = 0;
-
--- a = 0;
-
--- a = c + 2
-
--- function test(a, b, c, d)
--- end
-
+--print(call_0());
 
 -- table.key = "value"
 

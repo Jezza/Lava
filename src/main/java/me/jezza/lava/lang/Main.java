@@ -6,7 +6,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import me.jezza.lava.lang.ParseTree.Block;
+import me.jezza.lava.lang.ParseTree.FunctionBody;
 import me.jezza.lava.lang.interfaces.Lexer;
 import me.jezza.lava.runtime.Interpreter;
 import me.jezza.lava.runtime.Interpreter.LuaChunk;
@@ -73,7 +73,7 @@ public final class Main {
 		LavaParser parser = new LavaParser(lexer);
 
 		long start = System.nanoTime();
-		Block block = parser.chunk();
+		FunctionBody block = parser.chunk();
 		long end = System.nanoTime();
 		long parserTime = end - start;
 		System.out.println("AST: " + parserTime);
@@ -107,7 +107,7 @@ public final class Main {
 		long start = System.nanoTime();
 		Lexer lexer = new LavaLexer(data);
 		LavaParser parser = new LavaParser(lexer);
-		Block chunk = parser.chunk();
+		FunctionBody chunk = parser.chunk();
 		String text = ASTPrinter.print(chunk);
 		long end = System.nanoTime();
 		System.out.println(text);

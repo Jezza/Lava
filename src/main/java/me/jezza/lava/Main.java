@@ -36,10 +36,17 @@ public final class Main {
 		Lua L = new Lua();
 		BaseLib.open(L);
 
-		L.doString("do\n" +
-				"  local y = 10;\n" +
+		L.doString("local function f(a, b, c)\n" +
+				"\tprint(a, b, c)\n" +
 				"end\n" +
-				"print(y)\n");
+				"local function g(a, b, ...)\n" +
+				"\tprint(a, b, \"::\", ...)\n" +
+				"end\n" +
+				"local function r()\n" +
+				"\treturn 1,2,3\n" +
+				"end\n" +
+				"\n" +
+				"f(\"a\", r())");
 	}
 
 	public static void main0(String[] args) throws Exception {

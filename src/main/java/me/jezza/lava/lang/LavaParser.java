@@ -44,52 +44,71 @@ public final class LavaParser extends AbstractParser {
 		super(lexer);
 	}
 
-	public Block chunk() throws IOException {
-		Block block = block();
-		block.parameterCount = Block.VARARGS;
-		if (!match(Tokens.EOS))
+	public FunctionBody chunk() throws IOException {
+		Block body = block();
+		if (!match(Tokens.EOS)) {
 			System.out.println("File should have ended: " + current());
-		return block;
+		}
+		List<Statement> statements = body.statements;
+		Statement statement = statements.get(statements.size() - 1);
+		if (!(statement instanceof ReturnStatement)) {
+			statements.add(new ReturnStatement(new ExpressionList(new ArrayList<>())));
+		}
+		return new FunctionBody(new ArrayList<>(), true, body);
 	}
 
 	public Block block() throws IOException {
 		List<Statement> statements = new ArrayList<>();
-		Statement statement;
 		while (!blockFollowing(current().type)) {
-			statement = statement();
-			if (statement == null) {
-				continue;
-			}
-			statements.add(statement);
-			if (statement instanceof Break || statement instanceof ReturnStatement) {
+			if (statement(statements)) {
 				break;
 			}
 		}
-		return new Block("root", statements);
+		return new Block(statements);
 	}
 
-	public Statement statement() throws IOException {
+	private static boolean blockFollowing(int type) {
+		return type == Tokens.ELSE
+				|| type == Tokens.ELSEIF
+				|| type == Tokens.END
+				|| type == Tokens.EOS
+				|| type == Tokens.UNTIL;
+	}
+
+	public boolean statement(List<Statement> statements) throws IOException {
+		Statement statement;
 		switch (current().type) {
 			case Tokens.DO:
-				return doBlock();
+				statement = doBlock();
+				break;
 			case Tokens.LOCAL:
-				return local();
+				local(statements);
+				return false;
 			case Tokens.FUNCTION:
-				return functionStatement();
+				statement = functionStatement();
+				break;
 			case Tokens.GOTO:
-				return gotoStatement();
+				statement = gotoStatement();
+				break;
 			case Tokens.REPEAT:
-				return repeatBlock();
+				statement = repeatBlock();
+				break;
 			case Tokens.IF:
-				return ifBlock();
+				statement = ifBlock();
+				break;
 			case Tokens.WHILE:
-				return whileLoop();
+				statement = whileLoop();
+				break;
 			case Tokens.FOR:
-				return forLoop();
+				statement = forLoop();
+				break;
 			case Tokens.BREAK:
 				consume();
-				while (match(';'));
-				return new Break();
+				while (match(';')) {
+					;
+				}
+				statements.add(new Break());
+				return true;
 			case Tokens.RETURN:
 				consume();
 				// @CLEANUP Jezza - 20 Jan 2018: This is a bit messy...
@@ -97,25 +116,34 @@ public final class LavaParser extends AbstractParser {
 						? new ExpressionList(new ArrayList<>())
 						: expressionList();
 				match(';');
-				return new ReturnStatement(expressions);
+				statements.add(new ReturnStatement(expressions));
+				return true;
 			case ':':
-				return label();
+				statement = label();
+				break;
 			case ';':
 				consume();
-				return null;
+				return false;
 			default:
-				return expressionStatement();
+				statement = expressionStatement();
+				break;
 		}
+		statements.add(statement);
+		return false;
 	}
 
-	public Statement local() throws IOException {
+	public void local(List<Statement> statements) throws IOException {
 		consume(Tokens.LOCAL);
 		if (match(Tokens.FUNCTION)) {
 			String functionName = name();
+			// local function f() ... end -> local f; f = function() ... end
 			Name name = new Name(functionName, FLAG_LOCAL | FLAG_ASSIGNMENT);
-//			Assignment declaration = new Assignment(name, null);
+			Assignment declaration = new Assignment(name, Literal.NIL_LITERAL);
 			FunctionBody functionBody = functionBody();
-			return new Assignment(name, functionBody);
+			Assignment assignment = new Assignment(name, functionBody);
+			statements.add(declaration);
+			statements.add(assignment);
+			return;
 		}
 		List<Expression> names = new ArrayList<>();
 		do {
@@ -130,11 +158,11 @@ public final class LavaParser extends AbstractParser {
 			assert size > 0;
 			List<Expression> values = new ArrayList<>(size);
 			do {
-				values.add(new Literal(Literal.NIL, null));
-			} while(--size > 0);
+				values.add(Literal.NIL_LITERAL);
+			} while (--size > 0);
 			rhs = new ExpressionList(values);
 		}
-		return new Assignment(lhs, rhs);
+		statements.add(new Assignment(lhs, rhs));
 	}
 
 	public Statement functionStatement() throws IOException {
@@ -171,9 +199,17 @@ public final class LavaParser extends AbstractParser {
 		}
 		Block body = block();
 		body.set(FLAG_NEW_CONTEXT, true);
-		body.parameterCount = parameters.size();
 		consume(Tokens.END);
-		return new FunctionBody(parameters, varargs, body);
+		List<Statement> statements = body.statements;
+		if (statements.isEmpty()
+				|| !(statements.get(statements.size() - 1) instanceof ReturnStatement)) {
+			statements.add(new ReturnStatement(new ExpressionList(new ArrayList<>())));
+		}
+		FunctionBody functionBody = new FunctionBody(parameters, varargs, body);
+//		if (varargs) {
+//			parameters.add(new Name("...", FLAG_LOCAL));
+//		}
+		return functionBody;
 	}
 
 	private String name() throws IOException {
@@ -203,7 +239,7 @@ public final class LavaParser extends AbstractParser {
 		consume(Tokens.END);
 		// Lowering: While (cond) (body) -> If (cond) Repeat (body) Until (not(cond))
 		RepeatBlock repeatBlock = new RepeatBlock(body, new UnaryOp(UnaryOp.OP_NOT, condition));
-		Block loop = new Block("while_body", repeatBlock);
+		Block loop = new Block(repeatBlock);
 		return new IfBlock(condition, loop, null);
 	}
 
@@ -343,8 +379,9 @@ public final class LavaParser extends AbstractParser {
 
 	public ExpressionList expressionList() throws IOException {
 		Expression first = expression();
-		if (!match(','))
+		if (!match(',')) {
 			return new ExpressionList(first);
+		}
 		List<Expression> expressions = new ArrayList<>();
 		expressions.add(first);
 		do {
@@ -354,6 +391,7 @@ public final class LavaParser extends AbstractParser {
 	}
 
 	private ExpressionList expressionList(int expected) throws IOException {
+		// @CLEANUP Jezza - 30 Mar 2018: Combine this call, and the iterator stuff.
 		ExpressionList rhs = expressionList();
 
 		ListIterator<Expression> it = rhs.list.listIterator();
@@ -361,25 +399,31 @@ public final class LavaParser extends AbstractParser {
 			Expression exp = it.next();
 			if (expected == 0) {
 				// remove all of the side-effect free expressions.
-				if (exp instanceof Name || exp instanceof Literal) {
+				if (exp instanceof Name || exp instanceof Literal || exp instanceof Varargs) {
 					it.remove();
 				} else if (exp instanceof FunctionCall) {
 					((FunctionCall) exp).expectedResults = 0;
 				}
-			} else	if (exp instanceof FunctionCall && !it.hasNext()) {
+			} else if (exp instanceof FunctionCall && !it.hasNext()) {
 				((FunctionCall) exp).expectedResults = expected;
+				expected = 0;
+				break;
+			} else if (exp instanceof Varargs && !it.hasNext()) {
+				((Varargs) exp).expectedResults = expected;
 				expected = 0;
 				break;
 			} else {
 				if (exp instanceof FunctionCall) {
 					((FunctionCall) exp).expectedResults = 1;
+				} else if (exp instanceof Varargs) {
+					((Varargs) exp).expectedResults = 1;
 				}
 				expected--;
 			}
 		}
 		while (expected > 0) {
 			expected--;
-			it.add(new Literal(Literal.NIL, null));
+			it.add(Literal.NIL_LITERAL);
 		}
 
 //		} if (expected < 0) {
@@ -499,7 +543,7 @@ public final class LavaParser extends AbstractParser {
 				return new Literal(Literal.STRING, current.text);
 			case Tokens.NIL:
 				consume();
-				return new Literal(Literal.NIL, null);
+				return Literal.NIL_LITERAL;
 			case Tokens.TRUE:
 				consume();
 				return new Literal(Literal.TRUE, Boolean.TRUE);
@@ -571,7 +615,7 @@ public final class LavaParser extends AbstractParser {
 					// chain field
 					break;
 				}
-				case ':':  { // ':' NAME functionArgs
+				case ':': { // ':' NAME functionArgs
 					consume();
 					left = new FunctionCall(left, name(), functionArguments());
 					break;
@@ -614,13 +658,5 @@ public final class LavaParser extends AbstractParser {
 		consume('=');
 		ExpressionList rhs = expressionList(lhs.size());
 		return new Assignment(lhs, rhs);
-	}
-
-	private static boolean blockFollowing(int type) {
-		return type == Tokens.ELSE
-				|| type == Tokens.ELSEIF
-				|| type == Tokens.END
-				|| type == Tokens.EOS
-				|| type == Tokens.UNTIL;
 	}
 }

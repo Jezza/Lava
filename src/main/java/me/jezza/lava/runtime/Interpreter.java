@@ -9,7 +9,7 @@ import java.lang.invoke.MutableCallSite;
 import java.lang.reflect.Field;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.Iterator;
 import java.util.List;
@@ -26,8 +26,12 @@ import me.jezza.lava.runtime.Registers.Slot;
  * @author Jezza
  */
 public final class Interpreter {
-	private static final boolean DEBUG_MODE = true;
+	private static final boolean DEBUG_MODE = false;
 	private static final Object NIL = "NIL";
+
+	private static final int MAX_1 = Byte.toUnsignedInt((byte) -1);
+	private static final int MAX_2 = Short.toUnsignedInt((short) -1);
+	private static final int MAX_4 = -1;
 
 	static class CS extends MutableCallSite {
 		CS() {
@@ -106,13 +110,6 @@ public final class Interpreter {
 		globals = new Table<>();
 	}
 
-	void move(StackFrame frame, int from, int to) {
-		if (DEBUG_MODE) {
-			System.out.println("MOVE [" + from + "] -> [" + to + "]");
-		}
-		registers.move(frame.base + from, frame.base + to);
-	}
-
 	void set(StackFrame frame, int index, Object object) {
 		if (DEBUG_MODE) {
 			System.out.println("SET s[" + index + "] = " + object);
@@ -120,25 +117,37 @@ public final class Interpreter {
 		registers.set(frame.base + index, object);
 	}
 
+	Object get(StackFrame frame, int index) {
+		return raw(frame, index).value;
+	}
+
 	Slot raw(StackFrame frame, int index) {
-		Slot slot = registers.get(frame.base + index);
+		Slot slot = registers.raw(frame.base + index);
 		if (DEBUG_MODE) {
 			System.out.println("GET s[" + index + "] = " + slot);
 		}
 		return slot;
 	}
-	
-	Object getFunc(StackFrame frame) {
+
+	Object function(StackFrame frame) {
 		int index = frame.func;
-		Slot slot = registers.get(frame.func);
+		Slot slot = registers.raw(frame.func);
 		if (DEBUG_MODE) {
 			System.out.println("GET sR[" + index + "] = " + slot);
 		}
 		return slot.value;
 	}
 
-	Object get(StackFrame frame, int index) {
-		return raw(frame, index).value;
+	RegisterView view(StackFrame frame, int from, int to) {
+		Object[] values = registers.getRange(frame.base + from, frame.base + to);
+		return new RegisterView(values);
+	}
+
+	void move(StackFrame frame, int from, int to) {
+		if (DEBUG_MODE) {
+			System.out.println("MOVE [" + from + "] -> [" + to + ']');
+		}
+		registers.move(frame.base + from, frame.base + to);
 	}
 
 	void copy(int source, int dest, int length) {
@@ -167,14 +176,22 @@ public final class Interpreter {
 
 	StackFrame framePop(int expected, int results, int position) {
 		StackFrame lastFrame = frames.pop();
-		StackFrame frame = currentFrame();
 		// If no results are expected, just toss the frame.
 		if (expected == 0) {
 			return lastFrame;
 		}
-		int destination = frame.base + frame.origin;
+		StackFrame current = currentFrame();
 
-		move(lastFrame.base + position, destination, Math.min(expected, results));
+		int destination = current.base + current.origin;
+
+		boolean unbounded = expected == MAX_2;
+		current.returnCount = unbounded
+				? results
+				: -1;
+
+		move(lastFrame.base + position, destination, unbounded
+				? results
+				: Math.min(expected, results));
 
 		registers.clear(destination + results, lastFrame.base + lastFrame.max);
 		return lastFrame;
@@ -205,6 +222,7 @@ public final class Interpreter {
 	private static final MethodHandle MOVE_MH = dispatcher();
 	private static final MethodHandle GET_UPVAL_MH = dispatcher();
 	private static final MethodHandle SET_UPVAL_MH = dispatcher();
+	private static final MethodHandle VARARGS_MH = dispatcher();
 
 	private void CONST(StackFrame frame) throws Throwable {
 		int poolIndex = frame.decode2();
@@ -235,13 +253,13 @@ public final class Interpreter {
 	private void LOAD_FUNC(StackFrame frame) throws Throwable {
 		int poolIndex = frame.decode2();
 		int register = frame.decode2();
-		Object constant = frame.constants[poolIndex];
+		Object value = frame.constants[poolIndex];
 		if (DEBUG_MODE) {
-			System.out.println("LOAD_FUNC " + constant);
+			System.out.println("LOAD_FUNC " + value);
 		}
 		LuaFunction function;
-		if (constant instanceof LuaChunk) {
-			Name[] names = ((LuaChunk) constant).upvalues;
+		if (value instanceof LuaChunk) {
+			Name[] names = ((LuaChunk) value).upvalues;
 			Slot[] values = new Slot[names.length];
 			for (int i = 0, l = names.length; i < l; i++) {
 				Name name = names[i];
@@ -263,34 +281,12 @@ public final class Interpreter {
 
 				values[i] = raw(current, index);
 			}
-			function = new LuaFunction(constant, globals, values);
+			function = new LuaFunction(value, globals, values);
 		} else {
-			function = new LuaFunction(constant, globals, new Slot[0]);
+			function = new LuaFunction(value, globals, new Slot[0]);
 		}
 		set(frame, register, function);
 		dispatchNext(LOAD_FUNC_MH, frame);
-	}
-
-	private static final class LuaFunction {
-		final Object function;
-
-		Table<Object, Object> environment;
-		Slot[] values;
-
-		public LuaFunction(Object function, Table<Object, Object> environment, Slot[] values) {
-			this.function = function;
-			this.environment = environment;
-			this.values = values;
-		}
-
-		@Override
-		public String toString() {
-//			, environment={}
-			return Strings.format("LuaFunction{function={}, values={}}",
-					function,
-//					environment,
-					Arrays.toString(values));
-		}
 	}
 
 	private void GET_GLOBAL(StackFrame frame) throws Throwable {
@@ -316,7 +312,7 @@ public final class Interpreter {
 		globals.set(key, value);
 		dispatchNext(SET_GLOBAL_MH, frame);
 	}
-	
+
 	private void NEW_TABLE(StackFrame frame) throws Throwable {
 		int register = frame.decode2();
 		if (DEBUG_MODE) {
@@ -355,7 +351,7 @@ public final class Interpreter {
 			System.out.println("(SET_TABLE) -> r[" + tableSlot + "] = " + table + " -> r[" + keySlot + "] = " + key + " -> r[" + valueSlot + "] = " + value);
 		}
 		if (!(table instanceof Table)) {
-			throw new IllegalStateException("NYI");
+			throw new IllegalStateException("NYI: " + table + " :: " + table.getClass());
 		}
 		Table<Object, Object> target = (Table<Object, Object>) table;
 		target.set(key, value);
@@ -449,11 +445,11 @@ public final class Interpreter {
 		int register = frame.decode2();
 
 		Object valueObj = get(frame, value);
-		
+
 		if (DEBUG_MODE) {
 			System.out.println("NOT (s[" + value + "] = " + valueObj + ") -> " + register + ')');
 		}
-		
+
 		// @TODO Jezza - 10 Mar 2018: Stuffs
 		if (!(valueObj instanceof Boolean)) {
 			throw new IllegalStateException("Boolean stuffs.");
@@ -477,7 +473,7 @@ public final class Interpreter {
 		int index = frame.decode2();
 		int register = frame.decode2();
 
-		Object object = getFunc(frame);
+		Object object = function(frame);
 
 		if (DEBUG_MODE) {
 			System.out.println("GET_UPVAL u[" + index + "] -> " + register + " :: " + object);
@@ -493,8 +489,8 @@ public final class Interpreter {
 		int register = frame.decode2();
 		int index = frame.decode2();
 
-		Object object = getFunc(frame);
-		
+		Object object = function(frame);
+
 		if (DEBUG_MODE) {
 			System.out.println("SET_UPVAL u[" + index + "] -> " + register + " :: " + object);
 		}
@@ -505,6 +501,33 @@ public final class Interpreter {
 		dispatchNext(SET_UPVAL_MH, frame);
 	}
 
+	private void VARARGS(StackFrame frame) throws Throwable {
+		if (frame.varargs == null) {
+			throw new IllegalStateException("Function has no access to varargs in current scope.");
+		}
+
+		int index = frame.decode2();
+		int register = frame.decode2();
+
+		boolean unpack = index == MAX_2;
+		if (unpack) {
+			RegisterView varargs = frame.varargs;
+			int size = varargs.size();
+			registers.check(frame.base + register + size);
+			for (int i = 0; i < size; i++) {
+				set(frame, register + i, varargs.get(i));
+			}
+			frame.returnCount = size;
+		} else {
+			Object object = frame.varargs.get(index);
+			if (DEBUG_MODE) {
+				System.out.println("VARARGS varargs[" + index + "] = " + object + " -> s[" + register + ']');
+			}
+			set(frame, register, object);
+		}
+		dispatchNext(VARARGS_MH, frame);
+	}
+
 	private void CALL(StackFrame frame) throws Throwable {
 		// Start of all the shit.
 		int base = frame.decode2();
@@ -513,9 +536,14 @@ public final class Interpreter {
 		// Expected result count
 		int expected = frame.decode2();
 
+		boolean expanded = frame.returnCount != -1;
+		if (expanded && frame.returnCount > 0) {
+			params = params + frame.returnCount - 1;
+		}
+
 		Object target = get(frame, base);
 		if (DEBUG_MODE) {
-			System.out.println("CALL s[" + base + "] = " + target + '(' + params + ')');
+			System.out.println("CALL s[" + base + "] = " + target + '(' + params + ") :: " + expanded);
 		}
 
 		Object o;
@@ -523,49 +551,60 @@ public final class Interpreter {
 			o = ((LuaFunction) target).function;
 		} else if (target instanceof Callback) {
 			o = target;
+		} else if (target == NIL) {
+			throw new IllegalStateException("Attempted to call NIL");
 		} else {
 			// @TODO Jezza - 28 Feb 2018: Would be pretty cool if we could give user code a chance to completely take over the stack.
-			o = target;
+//			o = target;
+			throw new IllegalStateException("Target :: " + target);
 		}
+
+		int source = frame.base + base;
 
 		if (o instanceof Callback) {
 			frame.origin = base;
+
 			StackFrame newFrame = newFrame();
-			newFrame.func = base;
-			newFrame.max = params;
-			newFrame.base = frame.base + frame.max;
-			copy(frame.base + base + 1, newFrame.base, params);
+			newFrame.func = source;
+			newFrame.base = source + 1;
+			newFrame.expected = expected;
 
-			RegisterList list = new RegisterList(registers, newFrame.base, newFrame.base + newFrame.max);
+			RegisterView view = view(newFrame, 0, params);
 
-			RegisterList resultRegisters = ((Callback) o).call(this, list, newFrame);
+			RegisterView resultRegisters = ((Callback) o).call(this, view, newFrame);
+			int results = resultRegisters != null
+					? resultRegisters.size()
+					: 0;
+
 			if (DEBUG_MODE) {
-				System.out.println("NATIVE RETURN (" + resultRegisters.size() + ") : " + resultRegisters);
+				System.out.println("NATIVE RETURN (" + results + ") :: " + resultRegisters);
 			}
-			int results = resultRegisters.size();
+
+			// @TODO Jezza - 03 Apr 2018: move values back into registers
+			if (results > 0) {
+				for (int i = 0, l = resultRegisters.size(); i < l; i++) {
+					Object result = resultRegisters.get(i);
+					set(newFrame, i, result);
+				}
+			}
 
 			// @TODO Jezza - 29 May 2017: Support frame reordering
-			framePop(expected, results, resultRegisters.from - newFrame.base);
+			framePop(expected, results, 0);
 		} else if (o instanceof LuaChunk) {
-			LuaChunk chunk = (LuaChunk) o;
-//			if (params > expected) {
-//				stackShrink(frame, params - expected);
-//			}
 			frame.origin = base;
+
+			LuaChunk chunk = (LuaChunk) o;
 			StackFrame newFrame = newFrame();
 			populateFrame(newFrame, chunk);
-			newFrame.func = base;
+			newFrame.func = source;
+			newFrame.base = source + 1;
 			newFrame.expected = expected;
-			newFrame.base = frame.base + frame.max;
-//			stackCheck(newFrame.base + newFrame.max);
-//			Arrays.fill(stack, newFrame.base, newFrame.base + newFrame.max, NIL);
-			copy(frame.base + base + 1, newFrame.base, params);
 
-//			if (params < expected) {
-//				stackBuff(newFrame, expected);
-//			}
-//			frame.top -= Math.min(params, expected);
-//			newFrame.base = frame.top;
+			registers.check(newFrame.base + chunk.maxStackSize);
+
+			if (chunk.varargs && params > chunk.parameterCount) {
+				newFrame.varargs = view(newFrame, chunk.parameterCount, params);
+			}
 		} else {
 			throw new IllegalStateException("Expected call object, but got: " + o);
 		}
@@ -593,13 +632,18 @@ public final class Interpreter {
 		}
 	}
 
+	private void CLOSE_SCOPE(StackFrame frame) throws Throwable {
+		int offset = frame.decode2();
+		registers.clear(frame.base + offset, frame.base + frame.max);
+	}
+
 	private void RETURN(StackFrame frame) throws Throwable {
 		// @MAYBE Jezza - 27 Feb 2018: Should we unroll the last frame?
 		if (frames.size() > 1) {
 			// @MAYBE Jezza - 20 Jan 2018: Is it acceptable to ignore any arguments given by the bytecode?
+			int expected = frame.expected;
 			int results = frame.decode1();
 			int position = frame.decode1();
-			int expected = frame.expected;
 			if (DEBUG_MODE) {
 				System.out.println("RETURN " + results + " -> s[" + position + ']');
 			}
@@ -620,35 +664,6 @@ public final class Interpreter {
 		System.out.println(registers);
 	}
 
-	private static String buildStackView(Object[] stack, StackFrame[] frames) {
-		StringBuilder b = new StringBuilder();
-		b.append("Stack: [");
-		int index = 0;
-		for (int i = 0, l = stack.length; i < l; i++) {
-			if (index >= frames.length) {
-				b.append(stack[i]);
-			} else {
-				StackFrame frame = frames[index];
-				if (frame == null) {
-					b.append(stack[i]);
-				} else if (frame.base == i) {
-					b.append('[');
-					b.append(stack[i]);
-				} else if (frame.base + frame.max - 1 == i) {
-					b.append(stack[i]);
-					b.append(']');
-					index++;
-				} else {
-					b.append(stack[i]);
-				}
-			}
-			if (i + 1 < l) {
-				b.append(", ");
-			}
-		}
-		return b.append(']').toString();
-	}
-
 	public void execute() throws Throwable {
 		while (status == 0) {
 			dispatchNext(EXECUTE_MH, currentFrame());
@@ -658,14 +673,13 @@ public final class Interpreter {
 		}
 	}
 
-	private static RegisterList print(Interpreter interpreter, RegisterList registers, StackFrame frame) {
+	private static RegisterView print(Interpreter interpreter, RegisterView registers, StackFrame frame) {
 		for (Object value : registers) {
 			System.err.println(value);
 		}
-		return RegisterList.EMPTY;
+		return RegisterView.EMPTY;
 	}
 
-	//
 //	private static int nativeAdd(Interpreter interpreter, StackFrame frame) {
 //		int parameters = frame.top - frame.base;
 //		if (parameters != 2)
@@ -675,8 +689,8 @@ public final class Interpreter {
 //		interpreter.stackPush(frame, first + second);
 //		return 1;
 //	}
-//
-	private static RegisterList toLower(Interpreter interpreter, RegisterList registers, StackFrame frame) {
+
+	private static RegisterView toLower(Interpreter interpreter, RegisterView registers, StackFrame frame) {
 		int parameters = registers.size();
 		if (parameters != 1) {
 			throw new IllegalStateException("Requires 1 argument (" + parameters + ").");
@@ -684,10 +698,10 @@ public final class Interpreter {
 		String value = registers.getString(0);
 		String lowerCase = value.toLowerCase();
 		registers.set(0, lowerCase);
-		return registers.subList(0, 1);
+		return registers.of(0, 1);
 	}
 
-	private static RegisterList toUpper(Interpreter interpreter, RegisterList registers, StackFrame frame) {
+	private static RegisterView toUpper(Interpreter interpreter, RegisterView registers, StackFrame frame) {
 		int parameters = registers.size();
 		if (parameters != 1) {
 			throw new IllegalStateException("Requires 1 argument.");
@@ -695,28 +709,19 @@ public final class Interpreter {
 		String value = registers.getString(0);
 		String upperCase = value.toUpperCase();
 		registers.set(0, upperCase);
-		return registers.subList(0, 1);
+		return registers.of(0, 1);
 	}
 
-	private static RegisterList flood(Interpreter interpreter, RegisterList registers, StackFrame frame) {
+	private static RegisterView flood(Interpreter interpreter, RegisterView registers, StackFrame frame) {
 		if (registers.size() != 1) {
 			throw new IllegalStateException("Requires 1 argument.");
 		}
 		int value = registers.getInt(0);
-		registers.clear();
 		for (int i = 0; i < value; i++) {
 			registers.set(i, i);
 		}
-		return registers.subList(0, value);
+		return registers.of(0, value);
 	}
-
-//	private static void prep(Interpreter interpreter) {
-//		interpreter.globals.put("print", (Callback) Interpreter::print);
-//		interpreter.globals.put("native_add", (Callback) Interpreter::nativeAdd);
-//		interpreter.globals.put("upper", (Callback) Interpreter::toUpper);
-//		interpreter.globals.put("lower", (Callback) Interpreter::toLower);
-//		interpreter.globals.put("test", (Callback) Interpreter::test);
-//	}
 
 	public static void test(LuaChunk chunk) throws Throwable {
 		StackFrame frame = buildFrame(chunk);
@@ -735,17 +740,6 @@ public final class Interpreter {
 		frame.code = chunk.code;
 		frame.constants = chunk.constants;
 		frame.max = chunk.maxStackSize;
-	}
-
-	private static void test(StackFrame frame) throws Throwable {
-		Interpreter interpreter = new Interpreter(frame);
-//		prep(interpreter);
-		interpreter.globals.set("print", (Callback) Interpreter::print);
-		interpreter.globals.set("lower", (Callback) Interpreter::toLower);
-		interpreter.globals.set("flood", (Callback) Interpreter::flood);
-		interpreter.execute();
-//		Object o = interpreter.stackPop(interpreter.currentFrame());
-//		System.out.println(o);
 	}
 
 	public static void testChunk(LuaChunk chunk, int count) throws Throwable {
@@ -770,16 +764,28 @@ public final class Interpreter {
 		System.out.println("Done!");
 	}
 
+	private static void test(StackFrame frame) throws Throwable {
+		Interpreter interpreter = new Interpreter(frame);
+		interpreter.globals.set("print", (Callback) Interpreter::print);
+		interpreter.globals.set("lower", (Callback) Interpreter::toLower);
+		interpreter.globals.set("flood", (Callback) Interpreter::flood);
+		interpreter.execute();
+	}
+
 	public static final class StackFrame {
 		private int base;
 		private int func;
+		private int origin;
 
 		private int max;
 
 		private int expected;
-		private int origin;
+
+		private int returnCount;
 
 //		private int tailcalls;
+
+		private RegisterView varargs;
 
 		private int pc;
 		private byte[] code;
@@ -787,6 +793,7 @@ public final class Interpreter {
 		private Object[] constants;
 
 		StackFrame() {
+			returnCount = -1;
 		}
 
 		byte decode1() {
@@ -807,7 +814,7 @@ public final class Interpreter {
 	}
 
 	interface Callback {
-		RegisterList call(Interpreter interpreter, RegisterList registers, StackFrame frame);
+		RegisterView call(Interpreter interpreter, RegisterView registers, StackFrame frame);
 	}
 
 	public static final class LuaChunk {
@@ -815,9 +822,11 @@ public final class Interpreter {
 
 		public int maxStackSize;
 
+		public int parameterCount;
+		public boolean varargs;
+
 		public byte[] code;
 		public Object[] constants;
-//		LuaChunk[] chunks;
 
 		public Name[] upvalues;
 
@@ -831,38 +840,86 @@ public final class Interpreter {
 		}
 	}
 
-	public static final class RegisterList implements Iterable<Object> {
-		public static final RegisterList EMPTY = new RegisterList(null, 0, 0);
+	private static final class LuaFunction {
+		final Object function;
 
-		private final Registers registers;
-		private final int from;
-		private final int to;
+		Table<Object, Object> environment;
+		Slot[] values;
 
-		RegisterList(Registers registers, int from, int to) {
-			this.registers = registers;
-			this.from = from;
-			this.to = to;
+		public LuaFunction(Object function, Table<Object, Object> environment, Slot[] values) {
+			this.function = function;
+			this.environment = environment;
+			this.values = values;
+		}
+
+		@Override
+		public String toString() {
+//			, environment={}
+			StringBuilder b = new StringBuilder();
+			b.append('[');
+			for (int i = 0, l = values.length; i < l; i++) {
+				if (values[i].value == this) {
+					b.append("{{SELF}}");
+				} else {
+					b.append(values[i]);
+				}
+				if (i + 1 != l) {
+					b.append(',');
+				}
+			}
+			b.append(']');
+
+			return Strings.format("LuaFunction{function={}, values={}}",
+					function,
+//					environment,
+					b);
+		}
+	}
+
+//	public static final class RegisterList implements Iterable<Object> {
+//		public static final RegisterList EMPTY = new RegisterList(null, 0, 0);
+//
+//		public RegisterList(Registers registers, int from, int to) {
+//			Slot[] range = registers.range(from, to - from);
+//		}
+//
+//		public RegisterList(Slot[] slots) {
+//			
+//		}
+//
+//		@Override
+//		public Iterator<Object> iterator() {
+//			return null;
+//		}
+//	}
+
+	public static final class RegisterView implements Iterable<Object> {
+		public static final RegisterView EMPTY = null;
+
+		// @TODO Jezza - 03 Apr 2018: 
+		// @CLEANUP Jezza - 03 Apr 2018: 
+		private final List<Object> values;
+
+		RegisterView(Object[] values) {
+			this.values = new ArrayList<>();
+			Collections.addAll(this.values, values);
 		}
 
 		public int size() {
-			return to - from;
-		}
-
-		public void set(int index, Object value) {
-			registers.set(from + index, value);
-		}
-
-		public RegisterList subList(int from, int to) {
-			// @TODO Jezza - 28 Feb 2018: Range check, make sure that they're returning an allowed subset of the current range.
-			return new RegisterList(registers, this.from + from, this.from + to);
+			return values.size();
 		}
 
 		public Object get(int index) {
-			if (registers == null) {
-				throw new IndexOutOfBoundsException();
-			}
-			// @TODO Jezza - 28 Feb 2018: Bounds check, etc
-			return registers.get(from + index).value;
+			return values.get(index);
+		}
+
+		public Object set(int index, Object value) {
+			return values.set(index, value);
+		}
+
+		public RegisterView of(int from, int to) {
+			// @TODO Jezza - 28 Feb 2018: Range check, make sure that they're returning an allowed subset of the current range.
+			return new RegisterView(values.subList(from, to).toArray(new Object[0]));
 		}
 
 		public String getString(int index) {
@@ -880,12 +937,12 @@ public final class Interpreter {
 		}
 
 		public int getInt(int index) {
-			// @TODO Jezza - 28 Feb 2018: Lua String conversion?
+			// @TODO Jezza - 28 Feb 2018: Lua number conversion?
 			return (int) get(index);
 		}
 
 		public int optInt(int index, int defaultValue) {
-			// @TODO Jezza - 28 Feb 2018: Lua String conversion?
+			// @TODO Jezza - 28 Feb 2018: Lua number conversion?
 			Object value = get(index);
 			if (value == null || !(value instanceof Integer)) {
 				return defaultValue;
@@ -893,22 +950,15 @@ public final class Interpreter {
 			return (Integer) value;
 		}
 
-		public void clear() {
-			registers.clear(from, to);
-		}
-
-		public void clear(int from, int to) {
-			registers.clear(this.from + from, this.from + to);
-		}
-
 		@Override
 		public Iterator<Object> iterator() {
+			int size = size();
 			return new AbstractIterator<>() {
 				int index = 0;
 
 				@Override
 				protected Object computeNext() {
-					if (index + from == to) {
+					if (index >= size) {
 						return endOfData();
 					}
 					return get(index++);
@@ -919,7 +969,7 @@ public final class Interpreter {
 		@Override
 		public String toString() {
 			StringBuilder builder = new StringBuilder();
-			builder.append("[");
+			builder.append('[');
 			Iterator<Object> it = iterator();
 			if (it.hasNext()) {
 				builder.append(it.next());
@@ -928,7 +978,7 @@ public final class Interpreter {
 					builder.append(it.next());
 				}
 			}
-			builder.append("]");
+			builder.append(']');
 			return builder.toString();
 		}
 	}

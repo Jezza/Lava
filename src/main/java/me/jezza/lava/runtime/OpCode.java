@@ -249,14 +249,16 @@ public final class OpCode {
 	public static final byte LT = 28;
 	public static final byte LE = 29;
 	public static final byte TEST = 30;
-	public static final byte TEST_SET = 31;
+	@Implemented
+	public static final byte CLOSE_SCOPE = 31;
 	public static final byte TAILCALL = 32;
 
 	public static final byte FOR_PREP = 33;
 	public static final byte FOR_LOOP = 34;
 	public static final byte FOR_LOOP_TABLE = 35;
 
-	public static final byte CLOSE = 36;
+	@Implemented
+	public static final byte VARARGS = 36;
 
 	@Implemented
 	public static final byte RETURN = 37;

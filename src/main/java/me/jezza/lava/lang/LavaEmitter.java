@@ -43,23 +43,15 @@ import me.jezza.lava.runtime.OpCode;
  */
 public final class LavaEmitter implements Visitor<Context, Object> {
 
-	public static LuaChunk emit(String name, Block block) {
+	public static LuaChunk emit(String name, FunctionBody node) {
 		LavaEmitter emitter = new LavaEmitter();
 		Context context = new Context(name);
-		block.visit(emitter, context);
-		return context.build();
+		node.body.visit(emitter, context);
+		LuaChunk build = context.build();
+		build.parameterCount = node.parameters.size();
+		build.varargs = node.varargs;
+		return build;
 	}
-
-//	static final class Scope {
-//		Scope previous;
-//		//		int breaklist;      /* list of jumps out of this loop */
-//		//		int nactvar;        /* # active locals outside the breakable structure */
-//		//		boolean isbreakable;/* true if `block' is a loop */
-//
-//		private Scope(Scope previous) {
-//			this.previous = previous;
-//		}
-//	}
 
 	static final class Context {
 		final String name;
@@ -67,8 +59,6 @@ public final class LavaEmitter implements Visitor<Context, Object> {
 		final ByteCodeWriter w;
 		final ConstantPool<Object> pool;
 		final List<Name> upvalues;
-
-//		Scope active;
 
 		private int index;
 		private int max;
@@ -82,7 +72,6 @@ public final class LavaEmitter implements Visitor<Context, Object> {
 			this.previous = previous;
 			w = new ByteCodeWriter();
 			pool = new ConstantPool<>();
-//			active = new Scope(null);
 			upvalues = new ArrayList<>();
 		}
 
@@ -90,23 +79,9 @@ public final class LavaEmitter implements Visitor<Context, Object> {
 			return new Context(name, this);
 		}
 
-//		Scope newScope() {
-//			return active = new Scope(active);
-//		}
-//
-//		Scope closeScope() {
-//			Scope last = this.active;
-//			active = last.previous;
-//			return last;
-//		}
-
 		LuaChunk build() {
-//			closeScope();
 			LuaChunk chunk = new LuaChunk(name);
 			chunk.constants = pool.build();
-			if (w.mark() == 0 || w.get(w.mark() - 1) != OpCode.RETURN) {
-				w.write2(OpCode.RETURN, 0);
-			}
 			chunk.code = w.code();
 			chunk.maxStackSize = max;
 			chunk.upvalues = upvalues.toArray(new Name[0]);
@@ -161,6 +136,7 @@ public final class LavaEmitter implements Visitor<Context, Object> {
 		for (Statement statement : value.statements) {
 			statement.visit(this, context);
 		}
+		context.w.write2(OpCode.CLOSE_SCOPE, value.offset);
 		return null;
 	}
 
@@ -175,9 +151,18 @@ public final class LavaEmitter implements Visitor<Context, Object> {
 		for (int i = 0; i < count; i++) {
 			args.get(i).visit(this, context);
 		}
-		context.w.write2(OpCode.CALL, base, count, value.expectedResults);
+		int expected = value.expectedResults;
+		context.w.write2(OpCode.CALL, base, count, expected);
+		// Pop the arguments and the function
 		context.pop(count + 1);
-		context.allocate(value.expectedResults);
+		// Allocate the expected results.
+
+		// Allocate at least one result,
+		// because if this is inside a
+		// function call itself, it tries to deallocate it.)
+		context.allocate(expected > 0
+				? expected
+				: 1);
 		return null;
 	}
 
@@ -207,14 +192,12 @@ public final class LavaEmitter implements Visitor<Context, Object> {
 
 	@Override
 	public Object visitFunctionBody(FunctionBody value, Context context) {
-		if (value.varargs) {
-			throw new IllegalStateException("NYI");
-		}
 		Context local = context.newContext(context.name + ":function");
 		value.body.visit(this, local);
 
 		LuaChunk chunk = local.build();
-//		chunk.params = value.parameters.size();
+		chunk.parameterCount = value.parameters.size();
+		chunk.varargs = value.varargs;
 		int index = context.pool.add(chunk);
 		int register = context.allocate();
 		context.w.write2(OpCode.LOAD_FUNC, index, register);
@@ -404,14 +387,14 @@ public final class LavaEmitter implements Visitor<Context, Object> {
 	@Override
 	public Object visitName(Name value, Context context) {
 		if (value.is(FLAG_ASSIGNMENT)) {
-			assignName(value, context);
+			writeName(value, context);
 		} else {
-			loadName(value, context);
+			readName(value, context);
 		}
 		return null;
 	}
 
-	private void assignName(Name value, Context context) {
+	private void writeName(Name value, Context context) {
 		if (value.is(FLAG_LOCAL)) {
 			int register = context.pop();
 			context.w.write2(OpCode.MOVE, register, value.index);
@@ -429,7 +412,7 @@ public final class LavaEmitter implements Visitor<Context, Object> {
 		}
 	}
 
-	private void loadName(Name value, Context context) {
+	private void readName(Name value, Context context) {
 		if (value.is(FLAG_LOCAL)) {
 			int register = context.allocate();
 			context.w.write2(OpCode.MOVE, value.index, register);
@@ -449,7 +432,16 @@ public final class LavaEmitter implements Visitor<Context, Object> {
 
 	@Override
 	public Object visitVarargs(Varargs value, Context context) {
-		throw new IllegalStateException("NYI");
+		if (value.expectedResults == Varargs.UNBOUNDED) {
+			int target = context.mark();
+			context.w.write2(OpCode.VARARGS, -1, target);
+			return null;
+		}
+		for (int i = 0, l = value.expectedResults; i < l; i++) {
+			int target = context.allocate();
+			context.w.write2(OpCode.VARARGS, i, target);
+		}
+		return null;
 	}
 
 	@Override
