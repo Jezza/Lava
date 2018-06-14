@@ -1,9 +1,10 @@
 package me.jezza.lava.lang;
 
+import static me.jezza.lava.lang.ParseTree.Block.FLAG_CONTROL_FLOW_BARRIER;
+import static me.jezza.lava.lang.ParseTree.Block.FLAG_CONTROL_FLOW_EXIT;
 import static me.jezza.lava.lang.ParseTree.Block.FLAG_NEW_CONTEXT;
 import static me.jezza.lava.lang.ParseTree.FLAG_ASSIGNMENT;
 import static me.jezza.lava.lang.ParseTree.Name.FLAG_LOCAL;
-import static me.jezza.lava.lang.ParseTree.Name.FLAG_UNCHECKED;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -18,7 +19,6 @@ import me.jezza.lava.lang.ParseTree.DoBlock;
 import me.jezza.lava.lang.ParseTree.Expression;
 import me.jezza.lava.lang.ParseTree.ExpressionList;
 import me.jezza.lava.lang.ParseTree.ForList;
-import me.jezza.lava.lang.ParseTree.ForLoop;
 import me.jezza.lava.lang.ParseTree.FunctionBody;
 import me.jezza.lava.lang.ParseTree.FunctionCall;
 import me.jezza.lava.lang.ParseTree.Goto;
@@ -50,9 +50,8 @@ public final class LavaParser extends AbstractParser {
 			System.out.println("File should have ended: " + current());
 		}
 		List<Statement> statements = body.statements;
-		Statement statement = statements.get(statements.size() - 1);
-		if (!(statement instanceof ReturnStatement)) {
-			statements.add(new ReturnStatement(new ExpressionList(new ArrayList<>())));
+		if (statements.isEmpty() || !(statements.get(statements.size() - 1) instanceof ReturnStatement)) {
+			statements.add(new ReturnStatement(new ExpressionList()));
 		}
 		return new FunctionBody(new ArrayList<>(), true, body);
 	}
@@ -113,7 +112,7 @@ public final class LavaParser extends AbstractParser {
 				consume();
 				// @CLEANUP Jezza - 20 Jan 2018: This is a bit messy...
 				ExpressionList expressions = blockFollowing(current().type) || match(';')
-						? new ExpressionList(new ArrayList<>())
+						? new ExpressionList()
 						: expressionList();
 				match(';');
 				statements.add(new ReturnStatement(expressions));
@@ -167,7 +166,7 @@ public final class LavaParser extends AbstractParser {
 
 	public Statement functionStatement() throws IOException {
 		consume(Tokens.FUNCTION);
-		Expression left = new Name(name(), FLAG_UNCHECKED);
+		Expression left = new Name(name(), 0);
 		while (match('.')) {
 			left = new BinaryOp(BinaryOp.OP_INDEXED, left, new Literal(Literal.STRING, name()));
 		}
@@ -199,17 +198,14 @@ public final class LavaParser extends AbstractParser {
 		}
 		Block body = block();
 		body.set(FLAG_NEW_CONTEXT, true);
+		body.set(FLAG_CONTROL_FLOW_BARRIER, true);
 		consume(Tokens.END);
 		List<Statement> statements = body.statements;
 		if (statements.isEmpty()
 				|| !(statements.get(statements.size() - 1) instanceof ReturnStatement)) {
-			statements.add(new ReturnStatement(new ExpressionList(new ArrayList<>())));
+			statements.add(new ReturnStatement(new ExpressionList()));
 		}
-		FunctionBody functionBody = new FunctionBody(parameters, varargs, body);
-//		if (varargs) {
-//			parameters.add(new Name("...", FLAG_LOCAL));
-//		}
-		return functionBody;
+		return new FunctionBody(parameters, varargs, body);
 	}
 
 	private String name() throws IOException {
@@ -226,6 +222,7 @@ public final class LavaParser extends AbstractParser {
 	private RepeatBlock repeatBlock() throws IOException {
 		consume(Tokens.REPEAT);
 		Block body = block();
+		body.set(FLAG_CONTROL_FLOW_EXIT, true);
 		consume(Tokens.UNTIL);
 		Expression condition = expression();
 		return new RepeatBlock(body, condition);
@@ -236,6 +233,7 @@ public final class LavaParser extends AbstractParser {
 		Expression condition = expression();
 		consume(Tokens.DO);
 		Block body = block();
+		body.set(FLAG_CONTROL_FLOW_EXIT, true);
 		consume(Tokens.END);
 		// Lowering: While (cond) (body) -> If (cond) Repeat (body) Until (not(cond))
 		RepeatBlock repeatBlock = new RepeatBlock(body, new UnaryOp(UnaryOp.OP_NOT, condition));
@@ -272,21 +270,160 @@ public final class LavaParser extends AbstractParser {
 		}
 	}
 
-	private ForLoop forNum(String name) throws IOException {
+	private static final String VAR_NAME = "(var)";
+	private static final String LIMIT_NAME = "(limit)";
+	private static final String STEP_NAME = "(step)";
+	private static final String LABEL_NAME = "(for_loop)";
+
+	private Statement forNum(String name) throws IOException {
 		consume('=');
 		Expression lowerBound = expression();
 		consume(',');
 		Expression upperBound = expression();
-		Expression step;
-		if (match(',')) {
-			step = expression();
-		} else {
-			step = new Literal(Literal.INTEGER, 1);
-		}
+		Expression step = match(',')
+				? expression()
+				: new Literal(Literal.INTEGER, 1);
 		consume(Tokens.DO);
-		Block body = block();
+		Block block = block();
 		consume(Tokens.END);
-		return new ForLoop(name, lowerBound, upperBound, step, body);
+		/*
+		for v = e1, e2, e3 do
+			{block}
+		end
+		
+		do
+			local var, limit, step = tonumber(e1), tonumber(e2), tonumber(e3)
+			if not (var and limit and step) then
+				error("for loop parameters must evaluate to numbers")
+			end
+			var = var - step
+			while true do
+				var = var + step
+				if (step >= 0 and var > limit) or (step < 0 and var < limit) then
+					break
+				end
+				local v = var
+				{block}
+			end
+		end
+		 */
+
+		List<Statement> statements = new ArrayList<>();
+
+		// local (var), (limit), (step) = tonumber(e1), tonumber(e2), tonumber(e3)
+		{
+			ExpressionList left = new ExpressionList();
+			ExpressionList right = new ExpressionList();
+
+			// local (var) = tonumber(e1)
+			Name var = new Name(VAR_NAME, FLAG_LOCAL | FLAG_ASSIGNMENT);
+			left.list.add(var);
+			right.list.add(new UnaryOp(UnaryOp.OP_TO_NUMBER, lowerBound));
+
+			// local (limit) = tonumber(e2)
+			Name limit = new Name(LIMIT_NAME, FLAG_LOCAL | FLAG_ASSIGNMENT);
+			left.list.add(limit);
+			right.list.add(new UnaryOp(UnaryOp.OP_TO_NUMBER, upperBound));
+
+			// local (step) = tonumber(e3)
+			Name increment = new Name(STEP_NAME, FLAG_LOCAL | FLAG_ASSIGNMENT);
+			left.list.add(increment);
+			right.list.add(new UnaryOp(UnaryOp.OP_TO_NUMBER, step));
+
+			statements.add(new Assignment(left, right));
+		}
+
+		// if not ((var) and (limit) and (step)) then error("blah") end
+		{
+			// error("blah")
+			List<Statement> thenBlock = new ArrayList<>();
+			UnaryOp error = new UnaryOp(UnaryOp.OP_ERROR, new Literal(Literal.STRING, "for loop parameters must evaluate to numbers"));
+			thenBlock.add(new Assignment(null, error));
+
+			Name var = new Name(VAR_NAME, FLAG_LOCAL);
+			Name limit = new Name(LIMIT_NAME, FLAG_LOCAL);
+			Name increment = new Name(STEP_NAME, FLAG_LOCAL);
+
+			// not (((var) and (limit)) and (step))
+			Expression condition = new UnaryOp(UnaryOp.OP_NOT,
+					new BinaryOp(BinaryOp.OP_AND, new BinaryOp(BinaryOp.OP_AND, var, limit), increment));
+
+			statements.add(new IfBlock(condition, new Block(thenBlock), null));
+		}
+
+		// var = var - step
+		{
+			BinaryOp op = new BinaryOp(BinaryOp.OP_SUB, new Name(VAR_NAME, FLAG_LOCAL), new Name(STEP_NAME, FLAG_LOCAL));
+			statements.add(new Assignment(new Name(VAR_NAME, FLAG_LOCAL | FLAG_ASSIGNMENT), op));
+		}
+
+		// while true do ... end
+		{
+			List<Statement> inner = new ArrayList<>();
+
+			// var = var + step
+			{
+				BinaryOp op = new BinaryOp(BinaryOp.OP_ADD, new Name(VAR_NAME, FLAG_LOCAL), new Name(STEP_NAME, FLAG_LOCAL));
+				inner.add(new Assignment(new Name(VAR_NAME, FLAG_LOCAL | FLAG_ASSIGNMENT), op));
+			}
+
+			// if (step >= 0 and var > limit) or (step < 0 and var < limit) then
+			//   break
+			// end
+			{
+
+				BinaryOp baseLeft;
+				{
+					// step >= 0
+					BinaryOp left = new BinaryOp(BinaryOp.OP_GE, new Name(STEP_NAME, FLAG_LOCAL), new Literal(Literal.INTEGER, 0));
+					// var > limit
+					BinaryOp right = new BinaryOp(BinaryOp.OP_GT, new Name(VAR_NAME, FLAG_LOCAL), new Name(LIMIT_NAME, FLAG_LOCAL));
+
+					// (step >= 0 and var > limit)
+					baseLeft = new BinaryOp(BinaryOp.OP_AND, left, right);
+				}
+
+				BinaryOp baseRight;
+				{
+					// step < 0
+					BinaryOp left = new BinaryOp(BinaryOp.OP_LT, new Name(STEP_NAME, FLAG_LOCAL), new Literal(Literal.INTEGER, 0));
+					// var < limit
+					BinaryOp right = new BinaryOp(BinaryOp.OP_LT, new Name(VAR_NAME, FLAG_LOCAL), new Name(LIMIT_NAME, FLAG_LOCAL));
+
+					// (step < 0 and var < limit)
+					baseRight = new BinaryOp(BinaryOp.OP_AND, left, right);
+				}
+
+				// (step >= 0 and var > limit) or (step < 0 and var < limit)
+				BinaryOp condition = new BinaryOp(BinaryOp.OP_OR, baseLeft, baseRight);
+
+				// break
+				Block body = new Block(new Goto(LABEL_NAME));
+
+				inner.add(new IfBlock(condition, body, null));
+			}
+
+			// local v = (var)
+			{
+				Name var = new Name(VAR_NAME, FLAG_LOCAL);
+				inner.add(new Assignment(new Name(name, FLAG_LOCAL | FLAG_ASSIGNMENT), var));
+			}
+
+			// {block}
+			{
+				inner.addAll(block.statements);
+			}
+
+			RepeatBlock repeatBlock = new RepeatBlock(new Block(inner), Literal.FALSE_LITERAL);
+			repeatBlock.set(FLAG_CONTROL_FLOW_EXIT, true);
+			statements.add(repeatBlock);
+		}
+
+		{
+			statements.add(new Label(LABEL_NAME));
+		}
+
+		return new DoBlock(new Block(statements));
 	}
 
 	private ForList forList(String name) throws IOException {
@@ -481,15 +618,14 @@ public final class LavaParser extends AbstractParser {
 		}
 	}
 
-	private static final int[] PRIORITY = new int[]
-			{
-					6, 6, 6, 6,                 // + -
-					7, 7, 7, 7, 7, 7,           // * / %
-					10, 9, 5, 4,                // power and concat (right associative)
-					3, 3, 3, 3,                 // equality and inequality
-					3, 3, 3, 3, 3, 3, 3, 3,     // order
-					2, 2, 1, 1                  // logical (and/or)
-			};
+	private static final int[] PRIORITY = {
+			6, 6, 6, 6,                 // + -
+			7, 7, 7, 7, 7, 7,           // * / %
+			10, 9, 5, 4,                // power and concat (right associative)
+			3, 3, 3, 3,                 // equality and inequality
+			3, 3, 3, 3, 3, 3, 3, 3,     // order
+			2, 2, 1, 1                  // logical (and/or)
+	};
 
 	/**
 	 * Priority for unary operators.
@@ -509,12 +645,11 @@ public final class LavaParser extends AbstractParser {
 		} else {
 			left = simpleExpression();
 		}
-		int op = binaryOp(current().type);
-		while (op >= 0 && PRIORITY[op] > limit) {
+		int op;
+		while ((op = binaryOp(current().type) << 1) >= 0 && PRIORITY[op] > limit) {
 			consume();
 			Expression right = expression(PRIORITY[op + 1]);
-			left = new BinaryOp(op, left, right);
-			op = binaryOp(current().type);
+			left = new BinaryOp(op >> 1, left, right);
 		}
 		return left;
 	}
@@ -546,10 +681,10 @@ public final class LavaParser extends AbstractParser {
 				return Literal.NIL_LITERAL;
 			case Tokens.TRUE:
 				consume();
-				return new Literal(Literal.TRUE, Boolean.TRUE);
+				return Literal.TRUE_LITERAL;
 			case Tokens.FALSE:
 				consume();
-				return new Literal(Literal.FALSE, Boolean.FALSE);
+				return Literal.FALSE_LITERAL;
 			case Tokens.DOTS:
 				consume();
 				return new Varargs();
@@ -571,7 +706,7 @@ public final class LavaParser extends AbstractParser {
 			consume(')');
 			return expression;
 		} else if (type == Tokens.NAMESPACE) {
-			return new Name(token.text, FLAG_UNCHECKED);
+			return new Name(token.text, 0);
 		} else {
 			throw new IllegalStateException("Syntax: " + token);
 		}
@@ -586,7 +721,7 @@ public final class LavaParser extends AbstractParser {
 				consume(')');
 				return value;
 			}
-			return new ExpressionList(new ArrayList<>());
+			return new ExpressionList();
 		} else if (type == '{') {
 			return new ExpressionList(tableConstructor());
 		} else if (type == Tokens.STRING) {

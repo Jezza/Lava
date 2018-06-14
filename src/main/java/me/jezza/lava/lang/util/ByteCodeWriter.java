@@ -10,7 +10,7 @@ public final class ByteCodeWriter {
 	private int index;
 
 	public ByteCodeWriter() {
-		this(64);
+		this(GROWTH_RATE);
 	}
 
 	public ByteCodeWriter(int initialCapacity) {
@@ -42,16 +42,6 @@ public final class ByteCodeWriter {
 		data[index++] = (byte) (code);
 	}
 
-	public void write4(int code) {
-		check(4);
-		int i = index;
-		data[i++] = (byte) (code >> 24);
-		data[i++] = (byte) (code >> 16);
-		data[i++] = (byte) (code >> 8);
-		data[i++] = (byte) (code);
-		index = i;
-	}
-
 	public void write1(int code, int second) {
 		write1(code);
 		write1(second);
@@ -60,11 +50,6 @@ public final class ByteCodeWriter {
 	public void write2(int code, int second) {
 		write1(code);
 		write2(second);
-	}
-
-	public void write4(int code, int second) {
-		write1(code);
-		write4(second);
 	}
 
 	public void write1(int code, int second, int third) {
@@ -77,12 +62,6 @@ public final class ByteCodeWriter {
 		write1(code);
 		write2(second);
 		write2(third);
-	}
-
-	public void write4(int code, int second, int third) {
-		write1(code);
-		write4(second);
-		write4(third);
 	}
 
 	public void write1(int code, int second, int third, int fourth) {
@@ -99,11 +78,20 @@ public final class ByteCodeWriter {
 		write2(fourth);
 	}
 
-	public void write4(int code, int second, int third, int fourth) {
+	public void write1(int code, int second, int third, int fourth, int fifth) {
 		write1(code);
-		write4(second);
-		write4(third);
-		write4(fourth);
+		write1(second);
+		write1(third);
+		write1(fourth);
+		write1(fifth);
+	}
+
+	public void write2(int code, int second, int third, int fourth, int fifth) {
+		write1(code);
+		write2(second);
+		write2(third);
+		write2(fourth);
+		write2(fifth);
 	}
 
 	public int mark() {
@@ -130,31 +118,17 @@ public final class ByteCodeWriter {
 		this.index = old;
 	}
 
-	public void patch4(int index, int code) {
-		int old = this.index;
-		this.index = index;
-		write4(code);
-		this.index = old;
-	}
-
-	public void backPatch1(int index) {
+	public void patchToHere1(int index) {
 		int old = this.index;
 		this.index = index;
 		write1(old);
 		this.index = old;
 	}
 
-	public void backPatch2(int index) {
+	public void patchToHere2(int index) {
 		int old = this.index;
 		this.index = index;
 		write2(old);
-		this.index = old;
-	}
-
-	public void backPatch4(int index) {
-		int old = this.index;
-		this.index = index;
-		write4(old);
 		this.index = old;
 	}
 

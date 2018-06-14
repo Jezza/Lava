@@ -1,121 +1,49 @@
--- local function test()
+
+
+-- for var in test do
+-- 	break;
 -- end
---
--- a, c = test()
---
--- local a = "a";
--- local b = "b";
--- b, a = a, b
--- local test, asdsd = "asdasddsasd", "asasdasd"
---
--- local a = "a";
--- local function test()
--- 	print(a);
--- end
--- 
--- test();
---
---local x = 5;
---local call = function()
---	local y = 0;
---	return function()
---		y = y + 1
---		return x + y;
---	end
---end
---
---local adder = call();
---
---print(adder());
---print(adder());
---print(adder());
---
---local function f(a, b, c)
---	local d = "";
---	print(a, b, c)
---end
---local function g(a, b, ...)
---	print(a, b, "::", ...)
---end
---local function r()
---	return 1,2,3
---end
---
---g("a", r())
---
---local function a()
---	local function b()
---		return function()
---			return 3
---		end
---	end
---	
---	local f = b()
---	return 1 + f()
---end
---
---print(a())
---
---
---local tab = {"from tab!", asd = "Hlo", "asdds"}
---
---local b = "b"
---local t = {"a", [1] = b}
---print(t)
 
--- { [1] = a,[2] = c,[3] = b,["name"] = b,["asd"] = a,} 
 
---local x = 5;
---local call_0;
+
+
+
+--[==[
+for v = 1, 10, 1 do
+	print("test")
+end
+
+
+]==]
+
+for v = e1, e2, e3 do
+	print("{block}")
+end
+
+do
+	local var, limit, step = tonumber(e1), tonumber(e2), tonumber(e3)
+	if not (var and limit and step) then
+		error("for loop parameters must evaluate to numbers")
+	end
+	var = var - step
+	while true do
+		var = var + step
+		if (step >= 0 and var > limit) or (step < 0 and var < limit) then
+			break
+		end
+		local v = var
+		print("{block}")
+	end
+end
+
+
+
+
+
 --do
---	local y = 0;
---	call_0 = function()
---		y = y + 1;
---		return x + y;
---	end
+--	goto label
 --end
---local call_1;
+--
 --do
---	local y = 0;
---	call_1 = function()
---		y = y + 1;
---        return x + y;
---	end
+--	::label::
 --end
---
---print(call_1());
---print(call_0());
---print(call_1());
---print(call_0());
-
--- table.key = "value"
-
---a, d = "vv", function() end
---
---function test()
---end
---
---function d()
---	print("")
---end
---
---function test(as)
---	t = "t"
---	d = "d"
---	e = "e"
---
---	return "aa", "bb"
---end
---
---test("first", "rubbish", "rubbish", "rubbish", "rubbish", "rubbish")
---
---d = "my value"
-
--- a e a a
-
--- a, b = b, a
-
--- a, b = b[asd], a
-
---
--- print(b)

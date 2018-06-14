@@ -139,6 +139,8 @@ public abstract class ParseTree {
 
 	public static class Block extends Statement {
 		public static final int FLAG_NEW_CONTEXT = 0x2;
+		public static final int FLAG_CONTROL_FLOW_EXIT = 0x4;
+		public static final int FLAG_CONTROL_FLOW_BARRIER = 0x8;
 
 		public Block parent;
 
@@ -166,6 +168,10 @@ public abstract class ParseTree {
 
 	public static final class ExpressionList extends Expression {
 		public List<Expression> list;
+
+		public ExpressionList() {
+			this(new ArrayList<>(0));
+		}
 
 		public ExpressionList(Expression value) {
 			this(new ArrayList<>(1));
@@ -342,9 +348,14 @@ public abstract class ParseTree {
 	}
 
 	public static final class UnaryOp extends Expression {
-		public static final int OP_MINUS = 0;
-		public static final int OP_NOT = 1;
-		public static final int OP_LEN = 2;
+		public static final int OP_MINUS     = 0b00000;
+		public static final int OP_NOT       = 0b00001;
+		public static final int OP_LEN       = 0b00010;
+		public static final int OP_TO_NUMBER = 0b10011;
+		public static final int OP_TO_STRING = 0b10100;
+		public static final int OP_ERROR     = 0b10101;
+
+		public static final int FLAG_MACRO = 0x2;
 
 		public int op;
 		public Expression arg;
@@ -365,25 +376,25 @@ public abstract class ParseTree {
 
 	public static final class BinaryOp extends Expression {
 		public static final int OP_ADD = 0;
-		public static final int OP_SUB = 2;
-		public static final int OP_MUL = 4;
-		public static final int OP_DIV = 6;
-		public static final int OP_MOD = 8;
+		public static final int OP_SUB = 1;
+		public static final int OP_MUL = 2;
+		public static final int OP_DIV = 3;
+		public static final int OP_MOD = 4;
 
-		public static final int OP_POW = 10;
-		public static final int OP_CONCAT = 12;
+		public static final int OP_POW = 5;
+		public static final int OP_CONCAT = 6;
 
-		public static final int OP_NE = 14;
-		public static final int OP_EQ = 16;
+		public static final int OP_NE = 7;
+		public static final int OP_EQ = 8;
 
-		public static final int OP_LT = 18;
-		public static final int OP_LE = 20;
-		public static final int OP_GT = 22;
-		public static final int OP_GE = 24;
+		public static final int OP_LT = 9;
+		public static final int OP_LE = 10;
+		public static final int OP_GT = 11;
+		public static final int OP_GE = 12;
 
-		public static final int OP_AND = 26;
-		public static final int OP_OR = 28;
-		public static final int OP_INDEXED = 30;
+		public static final int OP_AND = 13;
+		public static final int OP_OR = 14;
+		public static final int OP_INDEXED = 15;
 
 		public int op;
 		public Expression left;
@@ -485,16 +496,10 @@ public abstract class ParseTree {
 		public static final int FLAG_LOCAL = 0x2;
 		public static final int FLAG_UPVAL = 0x4;
 		public static final int FLAG_GLOBAL = 0x8;
-		public static final int FLAG_UNCHECKED = 0x10;
-		public static final int FLAG_CHECKED = 0x20;
 
 		public String value;
 		public int index;
 		public int level;
-
-		public Name(String value) {
-			this(value, FLAG_UNCHECKED);
-		}
 
 		public Name(String value, int flags) {
 			super(TYPE_NAME);
@@ -518,11 +523,14 @@ public abstract class ParseTree {
 		public static final int INTEGER = 1;
 		public static final int DOUBLE = 2;
 		public static final int STRING = 3;
+
 		public static final int TRUE = 4;
 		public static final int FALSE = 5;
 		public static final int NIL = 6;
 
 		public static final Literal NIL_LITERAL = new Literal(NIL, null);
+		public static final Literal TRUE_LITERAL = new Literal(TRUE, Boolean.TRUE);
+		public static final Literal FALSE_LITERAL = new Literal(FALSE, Boolean.FALSE);
 
 		public int type;
 		public Object value;

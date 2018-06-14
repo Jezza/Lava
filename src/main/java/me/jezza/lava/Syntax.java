@@ -23,11 +23,9 @@
  */
 package me.jezza.lava;
 
-import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.Reader;
-import java.nio.file.Files;
+import java.io.StringReader;
 import java.util.HashMap;
 
 import me.jezza.lava.lang.Main;
@@ -760,21 +758,19 @@ final class Syntax {
 	}
 
 	public static void main(String[] args) throws IOException {
-
-		Lua L = new Lua();
 //		StringReader reader = new StringReader("local files = {[\"A.lua\"] = \"\"}");
 //		StringReader reader = new StringReader("" +
 //				"first, second, third = print();\n");
 //		File file = Main.resolve("test.lua");
-		File file = Main.resolve("lang.lua");
-		FileReader reader = new FileReader(file);
 
+		String resource = Main.readResource("/lang.lua");
+		if (resource == null) {
+			System.out.println("Failed to locate ./lang.lua");
+			return;
+		}
+		StringReader reader = new StringReader(resource);
 
-//		FileReader reader = new FileReader(new File("C:\\Users\\Jezza\\Desktop\\JavaProjects\\Lava\\src\\test\\resources\\all.lua"));
-//		Syntax syntax = new Syntax(L, reader, "Testing");
-//		while (syntax.token != TK_EOS){
-//			syntax.xNext();
-//		}
+		Lua L = new Lua();
 
 		long start = System.nanoTime();
 		Proto proto = parser(L, reader, "chunkName");
@@ -792,7 +788,7 @@ final class Syntax {
 			return 3;
 		});
 
-		L.doString(new String(Files.readAllBytes(file.toPath())));
+		L.doString(resource);
 	}
 
 	private void removevars(int tolevel) {

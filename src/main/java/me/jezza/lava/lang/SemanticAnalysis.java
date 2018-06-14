@@ -1,16 +1,17 @@
 package me.jezza.lava.lang;
 
+import static me.jezza.lava.lang.ParseTree.Block.FLAG_CONTROL_FLOW_BARRIER;
+import static me.jezza.lava.lang.ParseTree.Block.FLAG_CONTROL_FLOW_EXIT;
 import static me.jezza.lava.lang.ParseTree.Block.FLAG_NEW_CONTEXT;
-import static me.jezza.lava.lang.ParseTree.Name.FLAG_CHECKED;
 import static me.jezza.lava.lang.ParseTree.Name.FLAG_GLOBAL;
 import static me.jezza.lava.lang.ParseTree.Name.FLAG_LOCAL;
-import static me.jezza.lava.lang.ParseTree.Name.FLAG_UNCHECKED;
 import static me.jezza.lava.lang.ParseTree.Name.FLAG_UPVAL;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import me.jezza.lava.lang.ParseTree.Block;
+import me.jezza.lava.lang.ParseTree.Break;
 import me.jezza.lava.lang.ParseTree.FunctionBody;
 import me.jezza.lava.lang.ParseTree.Name;
 
@@ -45,6 +46,7 @@ public final class SemanticAnalysis extends AbstractScanner<Block, Object> {
 		Block block = value.body;
 		prepBlock(block, userObject);
 		scan(value.parameters, block);
+		// Skip the direct scan, as it'll just refire the prepBlock method.
 		return super.visitBlock(block, block);
 	}
 
@@ -96,15 +98,20 @@ public final class SemanticAnalysis extends AbstractScanner<Block, Object> {
 //	}
 
 	@Override
+	public Object visitBreak(Break value, Block userObject) {
+		while (!userObject.is(FLAG_CONTROL_FLOW_BARRIER) && !userObject.is(FLAG_CONTROL_FLOW_EXIT)) {
+			userObject = userObject.parent;
+		}
+		System.out.println(userObject);
+		return null;
+	}
+
+	@Override
 	public Object visitName(Name value, Block userObject) {
-		// This is only used because we don't have proper AST copying. (take a look at the while loop)
-		if (value.is(FLAG_CHECKED)) {
+		if (value.index != -1) {
 			return null;
 		}
-		if (value.is(FLAG_UNCHECKED)) {
-			value.set(FLAG_UNCHECKED, false);
-			value.index = find(value, userObject);
-		} else if (value.is(FLAG_LOCAL)) {
+		if (value.is(FLAG_LOCAL)) {
 			int index = indexOf(value, userObject);
 			if (index == -1) {
 				index = userObject.offset + userObject.names.size();
@@ -112,11 +119,8 @@ public final class SemanticAnalysis extends AbstractScanner<Block, Object> {
 			}
 			value.index = index;
 		} else {
-			// Checked, but non-local?
-			// This shouldn't happen...
-			throw new IllegalStateException("Possible assertion fail: " + value);
+			value.index = find(value, userObject);
 		}
-		value.set(FLAG_CHECKED, true);
 		return null;
 	}
 

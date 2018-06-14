@@ -14,6 +14,8 @@ import java.util.Deque;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
+import java.util.OptionalDouble;
+import java.util.OptionalInt;
 import java.util.stream.LongStream;
 import java.util.stream.LongStream.Builder;
 
@@ -21,6 +23,7 @@ import me.jezza.lava.Strings;
 import me.jezza.lava.lang.ParseTree.Name;
 import me.jezza.lava.runtime.OpCode.Implemented;
 import me.jezza.lava.runtime.Registers.Slot;
+import me.jezza.lava.utils.Numbers;
 
 /**
  * @author Jezza
@@ -199,7 +202,7 @@ public final class Interpreter {
 
 	private void dispatchNext(MethodHandle next, StackFrame frame) throws Throwable {
 		if (DEBUG_MODE) {
-			next.invokeExact(this, frame, OpCode.DEBUG);
+			System.out.println(registers);
 		}
 		next.invokeExact(this, frame, frame.decode1());
 	}
@@ -223,6 +226,9 @@ public final class Interpreter {
 	private static final MethodHandle GET_UPVAL_MH = dispatcher();
 	private static final MethodHandle SET_UPVAL_MH = dispatcher();
 	private static final MethodHandle VARARGS_MH = dispatcher();
+	private static final MethodHandle AND_MH = dispatcher();
+	private static final MethodHandle OR_MH = dispatcher();
+	private static final MethodHandle TO_NUMBER_MH = dispatcher();
 
 	private void CONST(StackFrame frame) throws Throwable {
 		int poolIndex = frame.decode2();
@@ -358,9 +364,26 @@ public final class Interpreter {
 		dispatchNext(SET_TABLE_MH, frame);
 	}
 
-	private void KILL(StackFrame frame) throws Throwable {
-		DEBUG(frame);
-		throw new IllegalStateException();
+	private void ERROR(StackFrame frame) throws Throwable {
+		int message = frame.decode2();
+		int line = frame.decode2();
+
+		Object o = get(frame, message);
+
+		String value;
+		if (o instanceof String) {
+			value = (String) o;
+		} else {
+			throw new IllegalStateException("metamethods NYI");
+		}
+
+		StringBuilder builder = new StringBuilder("Lua Error: ");
+		builder.append(value);
+		if (line != MAX_2) {
+			builder.append(" @ Line ").append(line);
+		}
+		// @TODO Jezza - 04 Apr 2018: Throw a better exception.
+		throw new IllegalStateException(builder.toString());
 	}
 
 	private void EQ(StackFrame frame) throws Throwable {
@@ -632,9 +655,71 @@ public final class Interpreter {
 		}
 	}
 
+	private void AND(StackFrame frame) throws Throwable {
+		int target = frame.decode2();
+		int leftRegister = frame.decode2();
+		int rightRegister = frame.decode2();
+
+		Object left = get(frame, leftRegister);
+		Object right = get(frame, rightRegister);
+
+		boolean isTrue = left != Boolean.FALSE && left != NIL && right != Boolean.FALSE && right != NIL;
+		set(frame, target, isTrue);
+		dispatchNext(AND_MH, frame);
+	}
+
+	private void OR(StackFrame frame) throws Throwable {
+		int target = frame.decode2();
+		int leftRegister = frame.decode2();
+		int rightRegister = frame.decode2();
+
+		Object left = get(frame, leftRegister);
+		Object right = get(frame, rightRegister);
+
+		boolean isTrue = left != Boolean.FALSE && left != NIL || right != Boolean.FALSE && right != NIL;
+		set(frame, target, isTrue);
+		dispatchNext(OR_MH, frame);
+	}
+
 	private void CLOSE_SCOPE(StackFrame frame) throws Throwable {
 		int offset = frame.decode2();
 		registers.clear(frame.base + offset, frame.base + frame.max);
+	}
+
+	private void TO_NUMBER(StackFrame frame) throws Throwable {
+		int register = frame.decode2();
+		int target = frame.decode2();
+
+		Object value = get(frame, register);
+
+		// @TODO Jezza - 04 Apr 2018: Extract for use externally. (eg BaseLib)
+		// @TODO Jezza - 04 Apr 2018: Allow radix/base to be specified.
+		Object number;
+		if (value instanceof Number) {
+			number = value;
+		} else if (value instanceof String) {
+			String str = (String) value;
+			OptionalInt optInt = Numbers.parseInt(str);
+			if (optInt.isPresent()) {
+				number = optInt.getAsInt();
+			} else {
+				OptionalDouble optDouble = Numbers.parseDouble(str);
+				if (optDouble.isPresent()) {
+					number = optDouble.getAsDouble();
+				} else {
+					number = NIL;
+				}
+			}
+		} else {
+			throw new IllegalStateException("metamethods NYI");
+		}
+
+		if (DEBUG_MODE) {
+			System.out.println("TO_NUMBER s[" + register + "] = " + value + " -> to_number(" + number + ") -> s[" + target + ']');
+		}
+
+		set(frame, target, number);
+		dispatchNext(TO_NUMBER_MH, frame);
 	}
 
 	private void RETURN(StackFrame frame) throws Throwable {
@@ -655,13 +740,6 @@ public final class Interpreter {
 
 	private void GOTO(StackFrame frame) throws Throwable {
 		frame.pc = frame.decode2();
-	}
-
-	private void DEBUG(StackFrame f) throws Throwable {
-		if (!DEBUG_MODE) {
-			return;
-		}
-		System.out.println(registers);
 	}
 
 	public void execute() throws Throwable {

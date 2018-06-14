@@ -1,11 +1,11 @@
 package me.jezza.lava.lang.util;
 
 import java.io.IOException;
-import java.util.concurrent.BlockingDeque;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingDeque;
 
-import me.jezza.lava.Times;
 import me.jezza.lava.lang.Token;
 import me.jezza.lava.lang.Tokens;
 import me.jezza.lava.lang.interfaces.Lexer;
@@ -14,16 +14,25 @@ import me.jezza.lava.lang.interfaces.Lexer;
  * @author Jezza
  */
 public final class ParallelLexer implements Lexer, Runnable {
+	private static final int CONCURRENT = 0;
+	private static final int SWAPPING = 1;
+	private static final int FREE = 2;
+
 	private final Lexer delegate;
 
-	private BlockingDeque<Object> tokens;
+	private BlockingQueue<Object> blockingTokens;
+	private Token[] tokens;
+	private int index;
+	private volatile int mode;
+	private CountDownLatch swapSignal;
 	private Token end;
 
 	private ParallelLexer(Lexer delegate) {
 		this.delegate = delegate;
-
-		tokens = new LinkedBlockingDeque<>();
-		CompletableFuture.runAsync(this);
+		blockingTokens = new LinkedBlockingDeque<>();
+		swapSignal = new CountDownLatch(1);
+		mode = CONCURRENT;
+		index = 0;
 	}
 
 	@Override
@@ -31,47 +40,62 @@ public final class ParallelLexer implements Lexer, Runnable {
 		while (true) {
 			try {
 				Token t = delegate.next();
-				tokens.putLast(t);
+				blockingTokens.offer(t);
 				if (t.type == Tokens.EOS) {
-					System.out.println("Done: " + tokens.size());
+					mode = SWAPPING;
+					tokens = blockingTokens.toArray(new Token[0]);
+					mode = FREE;
+					swapSignal.countDown();
+					System.out.println("Done with " + tokens.length);
 					return;
 				}
 			} catch (Exception e) {
-				tokens.offerLast(e);
+				blockingTokens.offer(e);
+				break;
 			}
 		}
 	}
 
-	private static final Times NEXT = new Times("PARALLEL_NEXT", 256);
-
-	@Override
-	public Token next() throws IOException {
-		long start = System.nanoTime();
-		try {
-			if (end != null)
-				return this.end;
-			Object obj = null;
+	private Object takeNext() throws IOException {
+		if (mode != FREE) {
 			try {
-				Token t = (Token) (obj = tokens.takeFirst());
-				if (t.type == Tokens.EOS)
-					end = t;
-				return t;
-			} catch (ClassCastException e) {
-				if (obj instanceof IOException)
-					throw (IOException) obj;
-				if (obj instanceof Exception)
-					throw new IOException((Exception) obj);
-				throw new IOException(e);
+				if (mode == CONCURRENT) {
+					return blockingTokens.take();
+				}
+				swapSignal.await();
 			} catch (InterruptedException e) {
 				throw new IOException(e);
 			}
-		} finally {
-			long end = System.nanoTime();
-			NEXT.add(end - start);
+		}
+		return tokens[index++];
+	}
+
+	@Override
+	public Token next() throws IOException {
+		if (end != null) {
+			return this.end;
+		}
+		Object obj = null;
+		try {
+			Token t = (Token) (obj = takeNext());
+			if (t.type == Tokens.EOS) {
+				end = t;
+			}
+			return t;
+		} catch (ClassCastException e) {
+			if (obj instanceof IOException) {
+				throw (IOException) obj;
+			}
+			if (obj instanceof Exception) {
+				throw new IOException((Exception) obj);
+			}
+			throw new IOException(e);
 		}
 	}
 
 	public static Lexer of(Lexer lexer) {
-		return new ParallelLexer(lexer);
+		ParallelLexer parallel = new ParallelLexer(lexer);
+		CompletableFuture.runAsync(parallel);
+		return parallel;
 	}
 }

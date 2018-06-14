@@ -2,9 +2,10 @@ package me.jezza.lava.lang;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 
 import me.jezza.lava.lang.ParseTree.FunctionBody;
 import me.jezza.lava.lang.interfaces.Lexer;
@@ -19,8 +20,6 @@ public final class Main {
 		throw new IllegalStateException();
 	}
 
-	private static final String base = "C:\\Users\\Jezza\\Desktop\\JavaProjects\\Lava\\src\\test\\resources";
-
 	public static void main(String[] args) throws Throwable {
 //		long basic = run(Paths.get(base).resolve("accept-basic"));
 //		long libs = run(Paths.get(base).resolve("libs"));
@@ -34,15 +33,32 @@ public final class Main {
 //		System.out.println(libssub);
 //		System.out.println(speed);
 
-		LuaChunk chunk = nom(new File(ROOT, "lang.lua"));
-		Interpreter.testChunk(chunk, 1);
+		LuaChunk chunk = nom("lang.lua", resolve("/lang.lua"));
+		Interpreter.testChunk(chunk, 8);
 //		Interpreter.testChunk(chunk, 5);
 //		Interpreter.testChunk(chunk, 1_000_000);
 	}
 
+	public static InputStream resolve(String name) {
+		return Main.class.getResourceAsStream(name);
+	}
+
+	public static String readResource(String name) {
+		var resource = resolve(name);
+		if (resource == null) {
+			return null;
+		}
+		try (resource) {
+			return new String(resource.readAllBytes(), StandardCharsets.UTF_8);
+		} catch (IOException e) {
+			e.printStackTrace();
+			return "";
+		}
+	}
+
 	private static void run(String name) {
 		try {
-			nom(Paths.get(base, name).toFile());
+//			nom(Paths.get(base, name).toFile());
 		} catch (Throwable e) {
 			throw new IllegalStateException("File: " + name, e);
 		}
@@ -57,16 +73,11 @@ public final class Main {
 					} catch (Throwable e) {
 						throw new IllegalStateException("File: " + child, e);
 					}
-				}).sum();
+				})
+				.sum();
 	}
 
-	private static final File ROOT = new File("C:\\Users\\Jezza\\Desktop\\JavaProjects\\Lava\\src\\main\\resources");
-
-	public static File resolve(String name) {
-		return new File(ROOT, name);
-	}
-
-	private static LuaChunk nom(File data) throws IOException {
+	private static LuaChunk nom(String name, InputStream data) throws IOException {
 //		Lexer lexer = new PrintLexer(new LavaLexer(data));
 		Lexer lexer = new LavaLexer(data);
 //		LavaLexer lexer = new LavaLexer(new File("C:\\Users\\Jezza\\Desktop\\JavaProjects\\Lava\\src\\test\\resources\\SyntaxTest10.lua"));
@@ -95,7 +106,7 @@ public final class Main {
 
 
 		start = System.nanoTime();
-		LuaChunk emitted = LavaEmitter.emit(data.getName(), block);
+		LuaChunk emitted = LavaEmitter.emit(name, block);
 		end = System.nanoTime();
 		long emitterTime = end - start;
 		System.out.println("Emitter: " + emitterTime);

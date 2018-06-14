@@ -248,13 +248,20 @@ public final class OpCode {
 	@Implemented
 	public static final byte LT = 28;
 	public static final byte LE = 29;
-	public static final byte TEST = 30;
-	@Implemented
-	public static final byte CLOSE_SCOPE = 31;
-	public static final byte TAILCALL = 32;
 
-	public static final byte FOR_PREP = 33;
-	public static final byte FOR_LOOP = 34;
+	@Implemented
+	public static final byte AND = 30;
+
+	@Implemented
+	public static final byte OR = 31;
+
+	@Implemented
+	public static final byte CLOSE_SCOPE = 32;
+
+	@Implemented
+	public static final byte TO_NUMBER = 33;
+
+	public static final byte TO_STRING = 34;
 	public static final byte FOR_LOOP_TABLE = 35;
 
 	@Implemented
@@ -263,14 +270,14 @@ public final class OpCode {
 	@Implemented
 	public static final byte RETURN = 37;
 
-	@Implemented
-	public static final byte DEBUG = 38;
+//	@Implemented
+	public static final byte TAILCALL = 38;
 
 	@Implemented
 	public static final byte EQ = 39;
 
 	@Implemented
-	public static final byte KILL = 40;
+	public static final byte ERROR = 40;
 
 	public static void main(String[] args) {
 		// Used when we move around values.

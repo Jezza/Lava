@@ -6,9 +6,12 @@ import static me.jezza.lava.lang.ParseTree.Name.FLAG_LOCAL;
 import static me.jezza.lava.lang.ParseTree.Name.FLAG_UPVAL;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import me.jezza.lava.lang.LavaEmitter.Context;
+import me.jezza.lava.lang.LavaEmitter.Item;
 import me.jezza.lava.lang.ParseTree.Assignment;
 import me.jezza.lava.lang.ParseTree.BinaryOp;
 import me.jezza.lava.lang.ParseTree.Block;
@@ -41,7 +44,7 @@ import me.jezza.lava.runtime.OpCode;
 /**
  * @author Jezza
  */
-public final class LavaEmitter implements Visitor<Context, Object> {
+public final class LavaEmitter implements Visitor<Context, Item> {
 
 	public static LuaChunk emit(String name, FunctionBody node) {
 		LavaEmitter emitter = new LavaEmitter();
@@ -60,6 +63,8 @@ public final class LavaEmitter implements Visitor<Context, Object> {
 		final ConstantPool<Object> pool;
 		final List<Name> upvalues;
 
+		final Map<String, Integer> labels; 
+
 		private int index;
 		private int max;
 
@@ -73,6 +78,7 @@ public final class LavaEmitter implements Visitor<Context, Object> {
 			w = new ByteCodeWriter();
 			pool = new ConstantPool<>();
 			upvalues = new ArrayList<>();
+			labels = new HashMap<>();
 		}
 
 		Context newContext(String name) {
@@ -131,7 +137,7 @@ public final class LavaEmitter implements Visitor<Context, Object> {
 	}
 
 	@Override
-	public Object visitBlock(Block value, Context context) {
+	public Item visitBlock(Block value, Context context) {
 		context.allocate(value.names.size());
 		for (Statement statement : value.statements) {
 			statement.visit(this, context);
@@ -141,7 +147,7 @@ public final class LavaEmitter implements Visitor<Context, Object> {
 	}
 
 	@Override
-	public Object visitFunctionCall(FunctionCall value, Context context) {
+	public Item visitFunctionCall(FunctionCall value, Context context) {
 		int base = context.mark();
 		// Load function
 		value.target.visit(this, context);
@@ -167,7 +173,7 @@ public final class LavaEmitter implements Visitor<Context, Object> {
 	}
 
 	@Override
-	public Object visitAssignment(Assignment value, Context context) {
+	public Item visitAssignment(Assignment value, Context context) {
 		if (value.lhs == null) {
 			value.rhs.visit(this, context);
 		} else {
@@ -183,7 +189,7 @@ public final class LavaEmitter implements Visitor<Context, Object> {
 	}
 
 	@Override
-	public Object visitExpressionList(ExpressionList value, Context context) {
+	public Item visitExpressionList(ExpressionList value, Context context) {
 		for (Expression expression : value.list) {
 			expression.visit(this, context);
 		}
@@ -191,7 +197,7 @@ public final class LavaEmitter implements Visitor<Context, Object> {
 	}
 
 	@Override
-	public Object visitFunctionBody(FunctionBody value, Context context) {
+	public Item visitFunctionBody(FunctionBody value, Context context) {
 		Context local = context.newContext(context.name + ":function");
 		value.body.visit(this, local);
 
@@ -205,28 +211,33 @@ public final class LavaEmitter implements Visitor<Context, Object> {
 	}
 
 	@Override
-	public Object visitLabel(Label value, Context context) {
+	public Item visitLabel(Label value, Context context) {
+//		context.labels.put(value.name, context.w.mark());
+//		return null;
 		throw new IllegalStateException("NYI");
 	}
 
 	@Override
-	public Object visitGoto(Goto value, Context context) {
+	public Item visitGoto(Goto value, Context context) {
 		throw new IllegalStateException("NYI");
 	}
 
 	@Override
-	public Object visitBreak(Break value, Context context) {
+	public Item visitBreak(Break value, Context context) {
+//		context.w.write1(OpCode.GOTO);
+//		context.w.addJump2();
+//		return null;
 		throw new IllegalStateException("NYI");
 	}
 
 	@Override
-	public Object visitDoBlock(DoBlock value, Context context) {
+	public Item visitDoBlock(DoBlock value, Context context) {
 		value.body.visit(this, context);
 		return null;
 	}
 
 	@Override
-	public Object visitRepeatBlock(RepeatBlock value, Context context) {
+	public Item visitRepeatBlock(RepeatBlock value, Context context) {
 		int start = context.w.mark();
 		value.body.visit(this, context);
 		value.condition.visit(this, context);
@@ -236,7 +247,7 @@ public final class LavaEmitter implements Visitor<Context, Object> {
 	}
 
 	@Override
-	public Object visitIfBlock(IfBlock value, Context context) {
+	public Item visitIfBlock(IfBlock value, Context context) {
 		value.condition.visit(this, context);
 		int register = context.pop();
 		context.w.write2(OpCode.IF_FALSE, register);
@@ -244,26 +255,26 @@ public final class LavaEmitter implements Visitor<Context, Object> {
 		value.thenPart.visit(this, context);
 		context.w.write1(OpCode.GOTO);
 		int thenJump = context.w.mark2();
-		context.w.backPatch2(elseJump);
+		context.w.patchToHere2(elseJump);
 		if (value.elsePart != null) {
 			value.elsePart.visit(this, context);
 		}
-		context.w.backPatch2(thenJump);
+		context.w.patchToHere2(thenJump);
 		return null;
 	}
 
 	@Override
-	public Object visitForLoop(ForLoop value, Context context) {
+	public Item visitForLoop(ForLoop value, Context context) {
 		throw new IllegalStateException("NYI");
 	}
 
 	@Override
-	public Object visitForList(ForList value, Context context) {
+	public Item visitForList(ForList value, Context context) {
 		throw new IllegalStateException("NYI");
 	}
 
 	@Override
-	public Object visitReturnStatement(ReturnStatement value, Context context) {
+	public Item visitReturnStatement(ReturnStatement value, Context context) {
 		ExpressionList expressions = value.expressions;
 		if (expressions.size() != 0) {
 			int position = context.mark();
@@ -276,11 +287,15 @@ public final class LavaEmitter implements Visitor<Context, Object> {
 	}
 
 	@Override
-	public Object visitUnaryOp(UnaryOp value, Context context) {
+	public Item visitUnaryOp(UnaryOp value, Context context) {
 		value.arg.visit(this, context);
 		int result = context.pop();
-		int register = context.allocate();
-		context.w.write2(unaryOpCode(value.op), result, register);
+		if (value.op == UnaryOp.OP_ERROR) {
+			context.w.write2(OpCode.ERROR, result, -1);
+		} else {
+			int register = context.allocate();
+			context.w.write2(unaryOpCode(value.op), result, register);
+		}
 		return null;
 	}
 
@@ -292,13 +307,17 @@ public final class LavaEmitter implements Visitor<Context, Object> {
 				return OpCode.NOT;
 			case UnaryOp.OP_LEN:
 				return OpCode.LEN;
+			case UnaryOp.OP_TO_NUMBER:
+				return OpCode.TO_NUMBER;
+			case UnaryOp.OP_TO_STRING:
+				return OpCode.TO_STRING;
 			default:
 				throw new IllegalStateException("Unsupported: " + code);
 		}
 	}
 
 	@Override
-	public Object visitBinaryOp(BinaryOp value, Context context) {
+	public Item visitBinaryOp(BinaryOp value, Context context) {
 		if (value.is(FLAG_ASSIGNMENT)) {
 			if (value.op != BinaryOp.OP_INDEXED) {
 				throw new IllegalStateException("Illegal binary assignment op: " + value.op);
@@ -310,42 +329,84 @@ public final class LavaEmitter implements Visitor<Context, Object> {
 			int register = context.pop();
 
 			context.w.write2(OpCode.SET_TABLE, table, key, register);
-		} else {
-			value.left.visit(this, context);
-			value.right.visit(this, context);
-
-			int right = context.pop();
-			int left = context.pop();
-			int result = context.allocate();
-
-			// @TODO Jezza - 11 Feb 2018: Constant folding..
-			// Should I do that here or in the parser?
-
-			int op = binaryOpCode(value.op);
-			context.w.write2(op, result, left, right);
+			return null;
 		}
+
+		// @TODO Jezza - 09 Apr 2018: Constant folding...
+
+		switch (value.op) {
+			case BinaryOp.OP_ADD:
+				return writeGeneralBinary(OpCode.ADD, value, context);
+			case BinaryOp.OP_SUB:
+				return writeGeneralBinary(OpCode.SUB, value, context);
+			case BinaryOp.OP_MUL:
+				return writeGeneralBinary(OpCode.MUL, value, context);
+			case BinaryOp.OP_DIV:
+				return writeGeneralBinary(OpCode.DIV, value, context);
+			case BinaryOp.OP_MOD:
+
+			case BinaryOp.OP_POW:
+			case BinaryOp.OP_CONCAT:
+
+			case BinaryOp.OP_NE:
+				// NQ e1 e2 = N(EQ) e1 e2
+				return writeBinary(OpCode.EQ, true, value, context);
+			case BinaryOp.OP_EQ:
+				// EQ e1 e2 = EQ e1 e2
+				return writeBinary(OpCode.EQ, false, value, context);
+			case BinaryOp.OP_LT:
+				// LT e1 e2 = LT e1 e2
+				return writeBinary(OpCode.LT, false, value, context);
+			case BinaryOp.OP_LE:
+				// LE e1 e2 = LE e1 e2
+				return writeBinary(OpCode.LE, false, value, context);
+			case BinaryOp.OP_GT:
+				// GT e1 e2 = LT e2 e1
+				return writeBinary(OpCode.LT, true, value, context);
+			case BinaryOp.OP_GE:
+				// GE e1 e2 = LE e2 e1
+				return writeBinary(OpCode.LE, true, value, context);
+
+			case BinaryOp.OP_AND:
+//				return OpCode.AND;
+			case BinaryOp.OP_OR:
+//				return OpCode.OR;
+			case BinaryOp.OP_INDEXED:
+//				return OpCode.GET_TABLE;
+			default:
+				throw new IllegalStateException("Unsupported: " + value);
+		}
+	}
+
+	private Item writeGeneralBinary(int op, BinaryOp value, Context context) {
+		// @TODO Jezza - 09 Apr 2018: Constant folding.
+		value.left.visit(this, context);
+		value.right.visit(this, context);
+
+		int rightRegister = context.pop();
+		int leftRegister = context.pop();
+		int result = context.allocate();
+
+		context.w.write2(op, result, leftRegister, rightRegister);
 		return null;
 	}
 
-	private static int binaryOpCode(int code) {
-		switch (code) {
-			case BinaryOp.OP_EQ:
-				return OpCode.EQ;
-			case BinaryOp.OP_ADD:
-				return OpCode.ADD;
-			case BinaryOp.OP_SUB:
-				return OpCode.SUB;
-			case BinaryOp.OP_MUL:
-				return OpCode.MUL;
-			case BinaryOp.OP_DIV:
-				return OpCode.DIV;
-			case BinaryOp.OP_LT:
-				return OpCode.LT;
-			case BinaryOp.OP_INDEXED:
-				return OpCode.GET_TABLE;
-			default:
-				throw new IllegalStateException("Unsupported: " + code);
+	private Item writeBinary(int op, boolean swap, BinaryOp value, Context context) {
+		value.left.visit(this, context);
+		value.right.visit(this, context);
+
+		int rightRegister = context.pop();
+		int leftRegister = context.pop();
+		int result = context.allocate();
+
+		if (swap) {
+			int temp = rightRegister;
+			rightRegister = leftRegister;
+			leftRegister = temp;
 		}
+
+		context.w.write2(op, result, leftRegister, rightRegister);
+		return null;
 	}
 
 	private void loadConstant(Object value, Context context) {
@@ -355,7 +416,7 @@ public final class LavaEmitter implements Visitor<Context, Object> {
 	}
 
 	@Override
-	public Object visitLiteral(Literal value, Context context) {
+	public Item visitLiteral(Literal value, Context context) {
 		switch (value.type) {
 			case Literal.STRING:
 			case Literal.DOUBLE:
@@ -385,7 +446,7 @@ public final class LavaEmitter implements Visitor<Context, Object> {
 	}
 
 	@Override
-	public Object visitName(Name value, Context context) {
+	public Item visitName(Name value, Context context) {
 		if (value.is(FLAG_ASSIGNMENT)) {
 			writeName(value, context);
 		} else {
@@ -431,7 +492,7 @@ public final class LavaEmitter implements Visitor<Context, Object> {
 	}
 
 	@Override
-	public Object visitVarargs(Varargs value, Context context) {
+	public Item visitVarargs(Varargs value, Context context) {
 		if (value.expectedResults == Varargs.UNBOUNDED) {
 			int target = context.mark();
 			context.w.write2(OpCode.VARARGS, -1, target);
@@ -445,7 +506,7 @@ public final class LavaEmitter implements Visitor<Context, Object> {
 	}
 
 	@Override
-	public Object visitTableConstructor(TableConstructor value, Context context) {
+	public Item visitTableConstructor(TableConstructor value, Context context) {
 		int register = context.allocate();
 		context.w.write2(OpCode.NEW_TABLE, register);
 		for (TableField field : value.fields) {
@@ -455,7 +516,7 @@ public final class LavaEmitter implements Visitor<Context, Object> {
 	}
 
 	@Override
-	public Object visitTableField(TableField value, Context context) {
+	public Item visitTableField(TableField value, Context context) {
 		value.key.visit(this, context);
 		value.value.visit(this, context);
 		int val = context.pop();
@@ -465,4 +526,19 @@ public final class LavaEmitter implements Visitor<Context, Object> {
 		context.w.write2(OpCode.SET_TABLE, table, key, val);
 		return null;
 	}
+
+	static abstract class Item {
+		protected final Context context;
+
+		Item(Context context) {
+			this.context = context;
+		}
+
+		public void store() {
+		}
+
+		public Item invoke(int count, int expected) {
+			throw new IllegalStateException("Invoke not supported on " + getClass().getSimpleName());
+		}
+	} 
 }

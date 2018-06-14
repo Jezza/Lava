@@ -28,7 +28,7 @@ import me.jezza.lava.lang.interfaces.Visitor;
 /**
  * @author Jezza
  */
-public class AbstractScanner<P, R> implements Visitor<P, R> {
+public abstract class AbstractScanner<P, R> implements Visitor<P, R> {
 
 	public R scan(ParseTree node, P userObject) {
 		return node != null

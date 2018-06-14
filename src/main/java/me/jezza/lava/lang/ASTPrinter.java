@@ -38,8 +38,7 @@ public final class ASTPrinter implements EVisitor {
 
 	private int level;
 
-
-	public ASTPrinter(int increment) {
+	private ASTPrinter(int increment) {
 		text = new StringBuilder();
 		this.increment = increment;
 	}
@@ -152,6 +151,7 @@ public final class ASTPrinter implements EVisitor {
 
 	@Override
 	public Void visitLabel(Label value, Void userObject) {
+		indent();
 		text.append("::").append(value.name).append("::");
 		return null;
 	}
@@ -179,6 +179,7 @@ public final class ASTPrinter implements EVisitor {
 
 	@Override
 	public Void visitRepeatBlock(RepeatBlock value, Void userObject) {
+		indent();
 		text.append("repeat\n");
 		value.body.visit(this, userObject);
 		text.append("until (");
@@ -202,13 +203,19 @@ public final class ASTPrinter implements EVisitor {
 			value.elsePart.visit(this);
 		}
 		indent();
-		text.append("end\n");
+		text.append("end");
 		return null;
 	}
 
 	@Override
 	public Void visitForLoop(ForLoop value, Void userObject) {
-		text.append("[[FOR]]");
+		text.append("for ").append(value.name).append(" = ")
+				.append(value.lowerBound)
+				.append(", ").append(value.upperBound)
+				.append(", ").append(value.step)
+				.append(" do\n");
+		value.body.visit(this);
+		text.append("end");
 		return null;
 	}
 
@@ -230,8 +237,23 @@ public final class ASTPrinter implements EVisitor {
 	@Override
 	public Void visitUnaryOp(UnaryOp value, Void userObject) {
 		switch (value.op) {
+			case UnaryOp.OP_MINUS:
+				text.append('-');
+				break;
 			case UnaryOp.OP_NOT:
 				text.append("not");
+				break;
+			case UnaryOp.OP_LEN:
+				text.append('#');
+				break;
+			case UnaryOp.OP_TO_NUMBER:
+				text.append("to_number!");
+				break;
+			case UnaryOp.OP_TO_STRING:
+				text.append("to_string!");
+				break;
+			case UnaryOp.OP_ERROR:
+				text.append("error!");
 				break;
 			default:
 				throw new IllegalStateException("Unsupported op: " + value.op);
@@ -344,14 +366,15 @@ public final class ASTPrinter implements EVisitor {
 	public Void visitName(Name value, Void userObject) {
 		boolean local = value.is(FLAG_LOCAL);
 		boolean assign = value.is(FLAG_ASSIGNMENT);
+		String rep = value.value;
 		if (local && assign) {
-			text.append("local(set(").append(value).append("))");
+			text.append("local(set(").append(rep).append("))");
 		} else if (local) {
-			text.append("local(").append(value).append(')');
+			text.append("local(").append(rep).append(')');
 		} else if (assign) {
-			text.append("set(").append(value).append(')');
+			text.append("set(").append(rep).append(')');
 		} else {
-			text.append(value);
+			text.append(rep);
 		}
 		return null;
 	}
