@@ -60,6 +60,10 @@ public final class Table<K, V> {
 
 	@Override
 	public String toString() {
+		if (fallback == null) {
+			return Strings.format("Table{}",
+					map);
+		}
 		return Strings.format("Table{map={}, fallback={}}",
 				map,
 				fallback);

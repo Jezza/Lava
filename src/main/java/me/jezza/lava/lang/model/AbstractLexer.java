@@ -1,4 +1,4 @@
-package me.jezza.lava.lang.base;
+package me.jezza.lava.lang.model;
 
 import java.io.File;
 import java.io.FileInputStream;

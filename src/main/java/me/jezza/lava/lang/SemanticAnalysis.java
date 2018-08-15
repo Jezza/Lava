@@ -10,23 +10,26 @@ import static me.jezza.lava.lang.ParseTree.Name.FLAG_UPVAL;
 import java.util.ArrayList;
 import java.util.List;
 
+import me.jezza.lava.lang.ParseTree.Assignment;
 import me.jezza.lava.lang.ParseTree.Block;
 import me.jezza.lava.lang.ParseTree.Break;
+import me.jezza.lava.lang.ParseTree.Expression;
 import me.jezza.lava.lang.ParseTree.FunctionBody;
 import me.jezza.lava.lang.ParseTree.Name;
+import me.jezza.lava.lang.model.AbstractTranslator;
 
 /**
  * @author Jezza
  */
-public final class SemanticAnalysis extends AbstractScanner<Block, Object> {
+public final class SemanticAnalysis extends AbstractTranslator<Block> {
 
 	public static void run(FunctionBody node) {
 		SemanticAnalysis phase = new SemanticAnalysis();
-		phase.scan(node.body, node.body);
+		phase.translate(node.body, node.body);
 	}
 
 	private void prepBlock(Block block, Block parent) {
-		block.names = new ArrayList<>();
+		block.names = new ArrayList<>(0);
 		if (block != parent) {
 			block.parent = parent;
 			if (!block.is(FLAG_NEW_CONTEXT)) {
@@ -36,80 +39,47 @@ public final class SemanticAnalysis extends AbstractScanner<Block, Object> {
 	}
 
 	@Override
-	public Object visitBlock(Block value, Block userObject) {
+	public ParseTree visitBlock(Block value, Block userObject) {
 		prepBlock(value, userObject);
 		return super.visitBlock(value, value);
 	}
 
 	@Override
-	public Object visitFunctionBody(FunctionBody value, Block userObject) {
+	public ParseTree visitFunctionBody(FunctionBody value, Block userObject) {
 		Block block = value.body;
 		prepBlock(block, userObject);
-		scan(value.parameters, block);
+		translate(value.parameters, block);
 		// Skip the direct scan, as it'll just refire the prepBlock method.
 		return super.visitBlock(block, block);
 	}
 
-//	@Override
-//	public Object visitFunctionCall(FunctionCall value, Block userObject) {
-//		Object returnValue = scan(value.target, userObject);
-//
-//		Iterator<Expression> it = value.args.list.iterator();
-//		while (it.hasNext()) {
-//			Expression argument = it.next();
-//			boolean last = !it.hasNext();
-//			if (argument instanceof FunctionCall) {
-//				((FunctionCall) argument).expectedResults = last
-//						? 1 // FunctionCall.VARARGS
-//						: 1;
-//			} else if (argument instanceof Varargs) {
-//				((Varargs) argument).expectedResults = last
-//						? 1 // -1
-//						: 1;
-//			}
-//			returnValue = scanThenReduce(argument, userObject, returnValue);
-//		}
-//		return returnValue;
-//	}
-
-//	@Override
-//	public Object visitAssignment(Assignment value, Block userObject) {
-//		if (value.lhs != null) {
-//			ExpressionList lhs = value.lhs;
-//			ExpressionList rhs = value.rhs;
-//			a = {}
-//			b = {}
-//	
-//			function value(val)
-//					print("v:" .. val);
-//					return val;
-//			end
-//
-//			a[value(0)], b[value(1)] = value(2), value(3)
-//	
-//			print("---")
-//			local a__1 = value(0)
-//			local b__1 = value(1)
-//			a[a__1] = value(2)
-//			b[b__1] = value(3)
-//
-//		}
-//		return super.visitAssignment(value, userObject);
-//	}
+	@Override
+	public ParseTree visitAssignment(Assignment value, Block userObject) {
+		if (value.lhs != null) {
+			List<String> names = new ArrayList<>();
+			for (Expression expression : value.lhs.list) {
+				if (expression instanceof Name && expression.is(FLAG_LOCAL)) {
+					names.add(((Name) expression).value);
+				}
+			}
+			System.out.println(names);
+		}
+		return super.visitAssignment(value, userObject);
+	}
 
 	@Override
-	public Object visitBreak(Break value, Block userObject) {
+	public ParseTree visitBreak(Break value, Block userObject) {
 		while (!userObject.is(FLAG_CONTROL_FLOW_BARRIER) && !userObject.is(FLAG_CONTROL_FLOW_EXIT)) {
 			userObject = userObject.parent;
 		}
 		System.out.println(userObject);
-		return null;
+		return value;
 	}
 
 	@Override
-	public Object visitName(Name value, Block userObject) {
+	public ParseTree visitName(Name value, Block userObject) {
 		if (value.index != -1) {
-			return null;
+			return value;
 		}
 		if (value.is(FLAG_LOCAL)) {
 			int index = indexOf(value, userObject);
@@ -121,7 +91,7 @@ public final class SemanticAnalysis extends AbstractScanner<Block, Object> {
 		} else {
 			value.index = find(value, userObject);
 		}
-		return null;
+		return value;
 	}
 
 	private int find(Name name, Block block) {

@@ -6,8 +6,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingDeque;
 
-import me.jezza.lava.lang.Token;
-import me.jezza.lava.lang.Tokens;
+import me.jezza.lava.lang.model.Token;
+import me.jezza.lava.lang.model.Tokens;
 import me.jezza.lava.lang.interfaces.Lexer;
 
 /**

@@ -1,7 +1,8 @@
-package me.jezza.lava.lang;
+package me.jezza.lava.lang.model;
 
 import java.util.Iterator;
 
+import me.jezza.lava.lang.ParseTree;
 import me.jezza.lava.lang.ParseTree.Assignment;
 import me.jezza.lava.lang.ParseTree.BinaryOp;
 import me.jezza.lava.lang.ParseTree.Block;

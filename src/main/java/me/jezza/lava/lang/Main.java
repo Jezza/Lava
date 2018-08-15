@@ -9,6 +9,8 @@ import java.nio.file.Path;
 
 import me.jezza.lava.lang.ParseTree.FunctionBody;
 import me.jezza.lava.lang.interfaces.Lexer;
+import me.jezza.lava.lang.model.LavaLexer;
+import me.jezza.lava.lang.model.LavaParser;
 import me.jezza.lava.runtime.Interpreter;
 import me.jezza.lava.runtime.Interpreter.LuaChunk;
 
@@ -34,9 +36,7 @@ public final class Main {
 //		System.out.println(speed);
 
 		LuaChunk chunk = nom("lang.lua", resolve("/lang.lua"));
-		Interpreter.testChunk(chunk, 8);
-//		Interpreter.testChunk(chunk, 5);
-//		Interpreter.testChunk(chunk, 1_000_000);
+		Interpreter.testChunk(chunk, 1);
 	}
 
 	public static InputStream resolve(String name) {
@@ -78,32 +78,19 @@ public final class Main {
 	}
 
 	private static LuaChunk nom(String name, InputStream data) throws IOException {
-//		Lexer lexer = new PrintLexer(new LavaLexer(data));
 		Lexer lexer = new LavaLexer(data);
-//		LavaLexer lexer = new LavaLexer(new File("C:\\Users\\Jezza\\Desktop\\JavaProjects\\Lava\\src\\test\\resources\\SyntaxTest10.lua"));
 		LavaParser parser = new LavaParser(lexer);
 
 		long start = System.nanoTime();
 		FunctionBody block = parser.chunk();
+		block.name = name;
 		long end = System.nanoTime();
 		long parserTime = end - start;
 		System.out.println("AST: " + parserTime);
 
+		System.out.println(ASTPrinter.print(block));
 		SemanticAnalysis.run(block);
-
-		String text = ASTPrinter.print(block);
-		System.out.println(text);
-
-//		LoweringPhase.run(chunk);
-
-//		LavaEmitter emitter = new LavaEmitter();
-//		Scope scope = new Scope(data.getName());
-//		start = System.nanoTime();
-//		chunk.visit(emitter, scope);
-//		end = System.nanoTime();
-//		long visitorTime = end - start;
-//		System.out.println("Visitor: " + visitorTime);
-
+		System.out.println(ASTPrinter.print(block));
 
 		start = System.nanoTime();
 		LuaChunk emitted = LavaEmitter.emit(name, block);
@@ -119,24 +106,10 @@ public final class Main {
 		Lexer lexer = new LavaLexer(data);
 		LavaParser parser = new LavaParser(lexer);
 		FunctionBody chunk = parser.chunk();
+		chunk.name = data.getName();
 		String text = ASTPrinter.print(chunk);
 		long end = System.nanoTime();
 		System.out.println(text);
 		return end - start;
-	}
-
-	private static final class PrintLexer implements Lexer {
-		private final Lexer lexer;
-
-		public PrintLexer(Lexer lexer) {
-			this.lexer = lexer;
-		}
-
-		@Override
-		public Token next() throws IOException {
-			Token next = lexer.next();
-			System.out.println(next);
-			return next;
-		}
 	}
 }

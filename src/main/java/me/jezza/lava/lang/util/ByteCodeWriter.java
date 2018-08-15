@@ -22,6 +22,11 @@ public final class ByteCodeWriter {
 		return data[index];
 	}
 
+	public int get2(int index) {
+		return get(index) << 8
+				| get(index + 1);
+	}
+
 	private void check(int length) {
 		if (index + length >= data.length) {
 			int l = data.length;
@@ -97,8 +102,8 @@ public final class ByteCodeWriter {
 	public int mark() {
 		return index;
 	}
-	
-	public int mark2() {
+
+	public int reserve2() {
 		int index = mark();
 		write2(Integer.MAX_VALUE);
 		return index;

@@ -1,4 +1,4 @@
-package me.jezza.lava.lang;
+package me.jezza.lava.lang.model;
 
 import static me.jezza.lava.lang.ParseTree.Block.FLAG_CONTROL_FLOW_BARRIER;
 import static me.jezza.lava.lang.ParseTree.Block.FLAG_CONTROL_FLOW_EXIT;
@@ -9,7 +9,6 @@ import static me.jezza.lava.lang.ParseTree.Name.FLAG_LOCAL;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.ListIterator;
 
 import me.jezza.lava.lang.ParseTree.Assignment;
 import me.jezza.lava.lang.ParseTree.BinaryOp;
@@ -33,7 +32,6 @@ import me.jezza.lava.lang.ParseTree.TableConstructor;
 import me.jezza.lava.lang.ParseTree.TableField;
 import me.jezza.lava.lang.ParseTree.UnaryOp;
 import me.jezza.lava.lang.ParseTree.Varargs;
-import me.jezza.lava.lang.base.AbstractParser;
 import me.jezza.lava.lang.interfaces.Lexer;
 
 /**
@@ -53,11 +51,11 @@ public final class LavaParser extends AbstractParser {
 		if (statements.isEmpty() || !(statements.get(statements.size() - 1) instanceof ReturnStatement)) {
 			statements.add(new ReturnStatement(new ExpressionList()));
 		}
-		return new FunctionBody(new ArrayList<>(), true, body);
+		return new FunctionBody(new ArrayList<>(0), true, body);
 	}
 
 	public Block block() throws IOException {
-		List<Statement> statements = new ArrayList<>();
+		List<Statement> statements = new ArrayList<>(2);
 		while (!blockFollowing(current().type)) {
 			if (statement(statements)) {
 				break;
@@ -139,12 +137,13 @@ public final class LavaParser extends AbstractParser {
 			Name name = new Name(functionName, FLAG_LOCAL | FLAG_ASSIGNMENT);
 			Assignment declaration = new Assignment(name, Literal.NIL_LITERAL);
 			FunctionBody functionBody = functionBody();
+			functionBody.name = functionName;
 			Assignment assignment = new Assignment(name, functionBody);
 			statements.add(declaration);
 			statements.add(assignment);
 			return;
 		}
-		List<Expression> names = new ArrayList<>();
+		List<Expression> names = new ArrayList<>(2);
 		do {
 			names.add(new Name(name(), FLAG_LOCAL | FLAG_ASSIGNMENT));
 		} while (match(','));
@@ -166,7 +165,8 @@ public final class LavaParser extends AbstractParser {
 
 	public Statement functionStatement() throws IOException {
 		consume(Tokens.FUNCTION);
-		Expression left = new Name(name(), 0);
+		String functionName = name();
+		Expression left = new Name(functionName, 0);
 		while (match('.')) {
 			left = new BinaryOp(BinaryOp.OP_INDEXED, left, new Literal(Literal.STRING, name()));
 		}
@@ -176,6 +176,7 @@ public final class LavaParser extends AbstractParser {
 		}
 		left.set(FLAG_ASSIGNMENT, true);
 		FunctionBody functionBody = functionBody();
+		functionBody.name = functionName;
 		if (self) {
 			functionBody.parameters.add(0, new Name("self", FLAG_LOCAL));
 		}
@@ -184,7 +185,7 @@ public final class LavaParser extends AbstractParser {
 
 	private FunctionBody functionBody() throws IOException {
 		consume('(');
-		List<Name> parameters = new ArrayList<>();
+		List<Name> parameters = new ArrayList<>(2);
 		boolean varargs = false;
 		if (!match(')')) {
 			do {
@@ -308,7 +309,7 @@ public final class LavaParser extends AbstractParser {
 		end
 		 */
 
-		List<Statement> statements = new ArrayList<>();
+		List<Statement> statements = new ArrayList<>(5);
 
 		// local (var), (limit), (step) = tonumber(e1), tonumber(e2), tonumber(e3)
 		{
@@ -336,7 +337,7 @@ public final class LavaParser extends AbstractParser {
 		// if not ((var) and (limit) and (step)) then error("blah") end
 		{
 			// error("blah")
-			List<Statement> thenBlock = new ArrayList<>();
+			List<Statement> thenBlock = new ArrayList<>(1);
 			UnaryOp error = new UnaryOp(UnaryOp.OP_ERROR, new Literal(Literal.STRING, "for loop parameters must evaluate to numbers"));
 			thenBlock.add(new Assignment(null, error));
 
@@ -359,7 +360,7 @@ public final class LavaParser extends AbstractParser {
 
 		// while true do ... end
 		{
-			List<Statement> inner = new ArrayList<>();
+			List<Statement> inner = new ArrayList<>(block.statements.size() + 4);
 
 			// var = var + step
 			{
@@ -427,7 +428,7 @@ public final class LavaParser extends AbstractParser {
 	}
 
 	private ForList forList(String name) throws IOException {
-		List<Name> names = new ArrayList<>();
+		List<Name> names = new ArrayList<>(2);
 		names.add(new Name(name, FLAG_LOCAL));
 		while (match(',')) {
 			names.add(new Name(name(), FLAG_LOCAL));
@@ -463,7 +464,7 @@ public final class LavaParser extends AbstractParser {
 
 	public TableConstructor tableConstructor() throws IOException {
 		consume('{');
-		List<TableField> fields = new ArrayList<>();
+		List<TableField> fields = new ArrayList<>(2);
 		int index = 1;
 		do {
 			if (is('}')) {
@@ -519,7 +520,7 @@ public final class LavaParser extends AbstractParser {
 		if (!match(',')) {
 			return new ExpressionList(first);
 		}
-		List<Expression> expressions = new ArrayList<>();
+		List<Expression> expressions = new ArrayList<>(2);
 		expressions.add(first);
 		do {
 			expressions.add(expression());
@@ -528,26 +529,26 @@ public final class LavaParser extends AbstractParser {
 	}
 
 	private ExpressionList expressionList(int expected) throws IOException {
-		// @CLEANUP Jezza - 30 Mar 2018: Combine this call, and the iterator stuff.
-		ExpressionList rhs = expressionList();
-
-		ListIterator<Expression> it = rhs.list.listIterator();
-		while (it.hasNext()) {
-			Expression exp = it.next();
+		List<Expression> list = new ArrayList<>(expected);
+		do {
+			Expression exp = expression();
 			if (expected == 0) {
-				// remove all of the side-effect free expressions.
-				if (exp instanceof Name || exp instanceof Literal || exp instanceof Varargs) {
-					it.remove();
-				} else if (exp instanceof FunctionCall) {
-					((FunctionCall) exp).expectedResults = 0;
+				// Only add stateful expressions.
+				if (!(exp instanceof Name || exp instanceof Literal || exp instanceof Varargs)) {
+					if (exp instanceof FunctionCall) {
+						((FunctionCall) exp).expectedResults = 0;
+					}
+					list.add(exp);
 				}
-			} else if (exp instanceof FunctionCall && !it.hasNext()) {
+			} else if (exp instanceof FunctionCall && !match(',')) {
 				((FunctionCall) exp).expectedResults = expected;
 				expected = 0;
+				list.add(exp);
 				break;
-			} else if (exp instanceof Varargs && !it.hasNext()) {
+			} else if (exp instanceof Varargs && !match(',')) {
 				((Varargs) exp).expectedResults = expected;
 				expected = 0;
+				list.add(exp);
 				break;
 			} else {
 				if (exp instanceof FunctionCall) {
@@ -555,18 +556,15 @@ public final class LavaParser extends AbstractParser {
 				} else if (exp instanceof Varargs) {
 					((Varargs) exp).expectedResults = 1;
 				}
+				list.add(exp);
 				expected--;
 			}
-		}
+		} while (match(','));
 		while (expected > 0) {
 			expected--;
-			it.add(Literal.NIL_LITERAL);
+			list.add(Literal.NIL_LITERAL);
 		}
-
-//		} if (expected < 0) {
-//			 a = b, c
-//		}
-		return rhs;
+		return new ExpressionList(list);
 	}
 
 	private static int binaryOp(int type) {
@@ -725,7 +723,7 @@ public final class LavaParser extends AbstractParser {
 		} else if (type == '{') {
 			return new ExpressionList(tableConstructor());
 		} else if (type == Tokens.STRING) {
-			return new ExpressionList(new Literal(Tokens.STRING, consume().text));
+			return new ExpressionList(new Literal(Literal.STRING, consume().text));
 		} else {
 			throw new IllegalStateException("Syntax: " + current());
 		}
@@ -776,7 +774,7 @@ public final class LavaParser extends AbstractParser {
 		primary.set(FLAG_ASSIGNMENT, true);
 		ExpressionList lhs;
 		if (match(',')) {
-			List<Expression> expressions = new ArrayList<>();
+			List<Expression> expressions = new ArrayList<>(2);
 			expressions.add(primary);
 			do {
 				Expression expression = primaryExpression();

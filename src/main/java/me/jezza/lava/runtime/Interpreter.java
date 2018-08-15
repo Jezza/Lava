@@ -44,8 +44,9 @@ public final class Interpreter {
 
 		private void fallback(Interpreter interpreter, StackFrame frame, byte op) throws Throwable {
 			MethodHandle dispatch = INSTR_TABLE[op];
-			if (dispatch == null)
+			if (dispatch == null) {
 				throw new IllegalStateException("Opcode not yet implemented: " + op);
+			}
 
 			MethodHandle test = MethodHandles.insertArguments(TEST, 3, op);
 			MethodHandle target = MethodHandles.dropArguments(dispatch, 2, byte.class);
@@ -75,7 +76,7 @@ public final class Interpreter {
 
 			// @TODO Jezza - 28 Feb 2018: The annotations are obviously just temporary.
 			Field[] fields = OpCode.class.getDeclaredFields();
-			List<MethodHandle> handles = new ArrayList<>();
+			List<MethodHandle> handles = new ArrayList<>(fields.length);
 			for (Field field : fields) {
 				if (field.isAnnotationPresent(Implemented.class)) {
 					try {
@@ -265,7 +266,8 @@ public final class Interpreter {
 		}
 		LuaFunction function;
 		if (value instanceof LuaChunk) {
-			Name[] names = ((LuaChunk) value).upvalues;
+			LuaChunk chunk = (LuaChunk) value;
+			Name[] names = chunk.upvalues;
 			Slot[] values = new Slot[names.length];
 			for (int i = 0, l = names.length; i < l; i++) {
 				Name name = names[i];
@@ -287,9 +289,10 @@ public final class Interpreter {
 
 				values[i] = raw(current, index);
 			}
-			function = new LuaFunction(value, globals, values);
+			function = new LuaFunction(chunk, globals, values);
 		} else {
-			function = new LuaFunction(value, globals, new Slot[0]);
+			throw new IllegalStateException();
+//			function = new LuaFunction("<<native>>", value, globals, new Slot[0]);
 		}
 		set(frame, register, function);
 		dispatchNext(LOAD_FUNC_MH, frame);
@@ -338,7 +341,7 @@ public final class Interpreter {
 			System.out.println("(GET_TABLE) -> r[" + tableSlot + "] = " + table + " -> r[" + keySlot + "] = " + key);
 		}
 		if (!(table instanceof Table)) {
-			throw new IllegalStateException("NYI");
+			throw new IllegalStateException("NYI :: " + table);
 		}
 		Table<Object, Object> target = (Table<Object, Object>) table;
 		Object value = target.get(key, NIL);
@@ -463,30 +466,50 @@ public final class Interpreter {
 		dispatchNext(MUL_MH, frame);
 	}
 
-	private void NOT(StackFrame frame) throws Throwable {
-		int value = frame.decode2();
-		int register = frame.decode2();
+	private void SUB(StackFrame frame) throws Throwable {
+		int target = frame.decode2();
+		int leftSlot = frame.decode2();
+		int rightSlot = frame.decode2();
 
-		Object valueObj = get(frame, value);
+		Object leftObj = get(frame, leftSlot);
+		Object rightObj = get(frame, rightSlot);
 
 		if (DEBUG_MODE) {
-			System.out.println("NOT (s[" + value + "] = " + valueObj + ") -> " + register + ')');
+			System.out.println("SUB (s[" + leftSlot + "] = " + leftObj + ") * (s[" + rightSlot + "] = " + rightObj + ')');
 		}
 
-		// @TODO Jezza - 10 Mar 2018: Stuffs
-		if (!(valueObj instanceof Boolean)) {
-			throw new IllegalStateException("Boolean stuffs.");
-		}
-		Boolean negated = (Boolean) valueObj ? Boolean.FALSE : Boolean.TRUE;
-		set(frame, register, negated);
-		dispatchNext(NOT_MH, frame);
+		int left = (int) leftObj;
+		int right = (int) rightObj;
+
+		set(frame, target, left - right);
+
+		dispatchNext(MUL_MH, frame);
 	}
+
+//	private void NOT(StackFrame frame) throws Throwable {
+//		int value = frame.decode2();
+//		int register = frame.decode2();
+//
+//		Object valueObj = get(frame, value);
+//
+//		if (DEBUG_MODE) {
+//			System.out.println("NOT (s[" + value + "] = " + valueObj + ") -> " + register + ')');
+//		}
+//
+//		// @TODO Jezza - 10 Mar 2018: Stuffs
+//		if (!(valueObj instanceof Boolean)) {
+//			throw new IllegalStateException("Boolean stuffs.");
+//		}
+//		Boolean negated = (Boolean) valueObj ? Boolean.FALSE : Boolean.TRUE;
+//		set(frame, register, negated);
+//		dispatchNext(NOT_MH, frame);
+//	}
 
 	private void MOVE(StackFrame frame) throws Throwable {
 		int from = frame.decode2();
 		int to = frame.decode2();
 		if (DEBUG_MODE) {
-			System.out.println("MOVE " + from + " -> " + to);
+//			System.out.println("MOVE " + from + " -> " + to);
 		}
 		move(frame, from, to);
 		dispatchNext(MOVE_MH, frame);
@@ -633,26 +656,50 @@ public final class Interpreter {
 		}
 	}
 
-	private void IF_FALSE(StackFrame frame) throws Throwable {
-		int register = frame.decode2();
+	private void JMP(StackFrame frame) throws Throwable {
+		int leftSlot = frame.decode2();
+		int rightSlot = frame.decode2();
 		int target = frame.decode2();
+		boolean complement = frame.decode1() == 1;
 
-		Object o = get(frame, register);
-		// @TODO Jezza - 09 Mar 2018: Eval truth stuffs
-		if (o == Boolean.FALSE || o == NIL) {
+		Object left = get(frame, leftSlot);
+		Object right = get(frame, rightSlot);
+
+		// Check if left and right are equal?
+		boolean jumping = equals(left, right) != complement;
+		if (jumping) {
 			frame.pc = target;
+		}
+
+		if (DEBUG_MODE) {
+			System.out.println("JMP s[" + leftSlot + "] = " + left + " :: s[" + rightSlot + "] = " + right + " => " + target + ' ' + complement + " => " + jumping);
 		}
 	}
 
-	private void IF_TRUE(StackFrame frame) throws Throwable {
-		int register = frame.decode2();
+	private void TEST(StackFrame frame) throws Throwable {
+		int slot = frame.decode2();
 		int target = frame.decode2();
+		boolean complement = frame.decode1() == 1;
 
-		Object o = get(frame, register);
-		// @TODO Jezza - 09 Mar 2018: Eval truth stuffs
-		if (o != Boolean.FALSE && o != NIL) {
+		Object value = get(frame, slot);
+
+		// Check if left and right are equal?
+		boolean jumping = isFalse(value) == complement;
+		if (jumping) {
 			frame.pc = target;
 		}
+
+		if (DEBUG_MODE) {
+			System.out.println("JMP s[" + slot + "] = " + value + " => " + target + ' ' + complement + " => " + jumping);
+		}
+	}
+
+	private boolean equals(Object left, Object right) {
+		return Objects.equals(left, right);
+	}
+
+	private boolean isFalse(Object object) {
+		return object == Boolean.FALSE || object == NIL;
 	}
 
 	private void AND(StackFrame frame) throws Throwable {
@@ -663,7 +710,7 @@ public final class Interpreter {
 		Object left = get(frame, leftRegister);
 		Object right = get(frame, rightRegister);
 
-		boolean isTrue = left != Boolean.FALSE && left != NIL && right != Boolean.FALSE && right != NIL;
+		boolean isTrue = !(isFalse(left) || isFalse(right));
 		set(frame, target, isTrue);
 		dispatchNext(AND_MH, frame);
 	}
@@ -676,7 +723,7 @@ public final class Interpreter {
 		Object left = get(frame, leftRegister);
 		Object right = get(frame, rightRegister);
 
-		boolean isTrue = left != Boolean.FALSE && left != NIL || right != Boolean.FALSE && right != NIL;
+		boolean isTrue = !(isFalse(left) && isFalse(right));
 		set(frame, target, isTrue);
 		dispatchNext(OR_MH, frame);
 	}
@@ -753,7 +800,7 @@ public final class Interpreter {
 
 	private static RegisterView print(Interpreter interpreter, RegisterView registers, StackFrame frame) {
 		for (Object value : registers) {
-			System.err.println(value);
+			System.out.println("PRINT :: \"" + value + '"');
 		}
 		return RegisterView.EMPTY;
 	}
@@ -919,12 +966,12 @@ public final class Interpreter {
 	}
 
 	private static final class LuaFunction {
-		final Object function;
+		final LuaChunk function;
 
 		Table<Object, Object> environment;
 		Slot[] values;
 
-		public LuaFunction(Object function, Table<Object, Object> environment, Slot[] values) {
+		public LuaFunction(LuaChunk function, Table<Object, Object> environment, Slot[] values) {
 			this.function = function;
 			this.environment = environment;
 			this.values = values;
@@ -979,7 +1026,7 @@ public final class Interpreter {
 		private final List<Object> values;
 
 		RegisterView(Object[] values) {
-			this.values = new ArrayList<>();
+			this.values = new ArrayList<>(4);
 			Collections.addAll(this.values, values);
 		}
 

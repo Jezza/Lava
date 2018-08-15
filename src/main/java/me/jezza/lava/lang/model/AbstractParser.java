@@ -1,10 +1,8 @@
-package me.jezza.lava.lang.base;
+package me.jezza.lava.lang.model;
 
 import java.io.IOException;
 
 import me.jezza.lava.Strings;
-import me.jezza.lava.lang.Token;
-import me.jezza.lava.lang.Tokens;
 import me.jezza.lava.lang.interfaces.Lexer;
 
 /**

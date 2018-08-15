@@ -10,7 +10,7 @@ public final class ConstantPool<T> {
 	private final List<T> pool;
 
 	public ConstantPool() {
-		this.pool = new ArrayList<>();
+		this.pool = new ArrayList<>(4);
 	}
 
 	public int size() {

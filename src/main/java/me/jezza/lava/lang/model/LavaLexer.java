@@ -1,4 +1,4 @@
-package me.jezza.lava.lang;
+package me.jezza.lava.lang.model;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -8,7 +8,6 @@ import java.io.Reader;
 import java.util.Arrays;
 
 import me.jezza.lava.Times;
-import me.jezza.lava.lang.base.AbstractLexer;
 import me.jezza.lava.lang.interfaces.Lexer;
 
 /**

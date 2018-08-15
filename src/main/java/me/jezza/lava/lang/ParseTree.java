@@ -302,6 +302,8 @@ public abstract class ParseTree {
 		public boolean varargs;
 		public Block body;
 
+		public String name;
+
 		public FunctionBody(List<Name> parameters, boolean varargs, Block body) {
 			super(TYPE_FUNCTION_BODY);
 			this.parameters = parameters;
@@ -417,7 +419,7 @@ public abstract class ParseTree {
 	}
 
 	public static final class FunctionCall extends Expression {
-		public static final int UNBOUNDED = -1;
+//		public static final int UNBOUNDED = -1;
 
 		public Expression target;
 		public String name;
@@ -430,7 +432,7 @@ public abstract class ParseTree {
 			this.target = target;
 			this.name = name;
 			this.args = args;
-			expectedResults = UNBOUNDED;
+			expectedResults = 1;
 		}
 
 		@Override

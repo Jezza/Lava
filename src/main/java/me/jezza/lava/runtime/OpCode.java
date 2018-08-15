@@ -199,6 +199,8 @@ public final class OpCode {
 	 */
 	@Implemented
 	public static final byte ADD = 14;
+
+	@Implemented
 	public static final byte SUB = 15;
 	@Implemented
 	public static final byte MUL = 16;
@@ -206,7 +208,7 @@ public final class OpCode {
 	public static final byte MOD = 18;
 	public static final byte POW = 19;
 	public static final byte NEG = 20;
-	@Implemented
+//	@Implemented
 	public static final byte NOT = 21;
 
 	public static final byte LEN = 22;
@@ -240,10 +242,10 @@ public final class OpCode {
 	public static final byte GOTO = 25;
 	// @CLEANUP Jezza - 09 Mar 2018: if false and if true could be collapsed into one...
 	@Implemented
-	public static final byte IF_FALSE = 26;
+	public static final byte JMP = 26;
 	// @CLEANUP Jezza - 09 Mar 2018: if false and if true could be collapsed into one...
 	@Implemented
-	public static final byte IF_TRUE = 27;
+	public static final byte TEST = 27;
 	// TODO: 30/05/2017 Think about encoding equal and not equal
 	@Implemented
 	public static final byte LT = 28;

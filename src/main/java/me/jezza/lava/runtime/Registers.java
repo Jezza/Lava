@@ -2,6 +2,7 @@ package me.jezza.lava.runtime;
 
 import java.util.Arrays;
 
+import me.jezza.lava.LuaFunction;
 import me.jezza.lava.Strings;
 
 /**
@@ -14,7 +15,7 @@ final class Registers {
 	private Slot[] registers;
 
 	Registers(int initial, Object emptyValue) {
-		assert initial >= 1;
+		assert initial >= 0;
 		this.emptyValue = emptyValue;
 		registers = new Slot[initial];
 		for (int i = 0; i < initial; i++) {
@@ -32,15 +33,12 @@ final class Registers {
 	}
 
 	void move(int from, int to) {
-//		check(to);
-//		check(from);
 		if (from != to) {
 			registers[to].value = registers[from].value;
 		}
 	}
 
 	void set(int index, Object object) {
-//		check(index);
 		registers[index].value = object;
 	}
 
@@ -53,8 +51,6 @@ final class Registers {
 	}
 
 	private void shift(int source, int dest, int length, boolean destroy) {
-//		check(source + length);
-//		check(dest + length);
 		Slot[] registers = this.registers;
 		for (int i = 0; i < length; i++) {
 			registers[dest + i].value = registers[source + i].value;
@@ -132,8 +128,23 @@ final class Registers {
 
 		@Override
 		public String toString() {
+			if ("NIL".equals(value)) {
+				return "Slot{value=NIL}";
+			} else if (value instanceof String) {
+				return Strings.format("Slot{value=\"{}\"}",
+						value);
+			} else if (value instanceof LuaFunction) {
+				return Strings.format("Slot{value={}}",
+						value);
+			} else if (value instanceof Number) {
 			return Strings.format("Slot{value={}}",
 					value);
+		}
+//			return Strings.format("Slot{value={}}",
+//					value);
+			return Strings.format("Slot{value={}::{}}",
+					value.getClass().getSimpleName(),
+					System.identityHashCode(value));
 		}
 	}
 }
