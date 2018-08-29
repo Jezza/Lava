@@ -1,15 +1,38 @@
 local a = 1;
 local b = 2;
-local t = {};
+local c = 3;
+
+print(a, b, c);
+a, b, c = b, c, a
+print(a, b, c);
+a, b, c = b, c, a
+print(a, b, c);
+a, b, c = b, c, a
+print(a, b, c);
+
+print("======")
+
+local t = {}
+local a = 1
+
+   t[a], a, t[a] = 1, 2, 2
+-- t[a], a1, a, t[a1] = 1, %a, 2, 2
+print(t[1]);
+
+--[==[
+a1, a, b = a, b, a1
+
+a1, b1, a, b = a, b, b1, a1
 
 t[a], a, t[a] = b, 3, 4
+
+t[a], a1, a, t[a1] = b, a, 3, 4
 
 print(t[1])
 print(t[2])
 print(t[3])
 print(t[4])
 
---[==[
 local a = 1;
 local b = 2;
 a, b = b, a;

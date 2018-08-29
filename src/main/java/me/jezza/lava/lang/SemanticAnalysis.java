@@ -1,8 +1,7 @@
 package me.jezza.lava.lang;
 
-import static me.jezza.lava.lang.ParseTree.Block.FLAG_CONTROL_FLOW_BARRIER;
-import static me.jezza.lava.lang.ParseTree.Block.FLAG_CONTROL_FLOW_EXIT;
 import static me.jezza.lava.lang.ParseTree.Block.FLAG_NEW_CONTEXT;
+import static me.jezza.lava.lang.ParseTree.FLAG_ASSIGNMENT;
 import static me.jezza.lava.lang.ParseTree.Name.FLAG_GLOBAL;
 import static me.jezza.lava.lang.ParseTree.Name.FLAG_LOCAL;
 import static me.jezza.lava.lang.ParseTree.Name.FLAG_UPVAL;
@@ -10,22 +9,59 @@ import static me.jezza.lava.lang.ParseTree.Name.FLAG_UPVAL;
 import java.util.ArrayList;
 import java.util.List;
 
+import me.jezza.lava.Strings;
 import me.jezza.lava.lang.ParseTree.Assignment;
 import me.jezza.lava.lang.ParseTree.Block;
-import me.jezza.lava.lang.ParseTree.Break;
 import me.jezza.lava.lang.ParseTree.Expression;
 import me.jezza.lava.lang.ParseTree.FunctionBody;
 import me.jezza.lava.lang.ParseTree.Name;
+import me.jezza.lava.lang.SemanticAnalysis.Context;
 import me.jezza.lava.lang.model.AbstractTranslator;
 
 /**
  * @author Jezza
  */
-public final class SemanticAnalysis extends AbstractTranslator<Block> {
+public final class SemanticAnalysis extends AbstractTranslator<Context> {
+
+	private static final String CONFLICT_PREFIX = "$";
+
+	static final class Context {
+		Block block;
+		int index = -1;
+		List<NameData> data = new ArrayList<>(0);
+
+		Context(Block block) {
+			this.block = block;
+		}
+
+		void push(Name name) {
+			data.add(new NameData(name.value, index));
+		}
+	}
+
+	static final class NameData {
+		final String value;
+		final int index;
+
+		Name replacement;
+		Name insert;
+
+		NameData(String value, int index) {
+			this.value = value;
+			this.index = index;
+		}
+
+		@Override
+		public String toString() {
+			return Strings.format("NameData{value={}, index={}}",
+					value,
+					index);
+		}
+	}
 
 	public static void run(FunctionBody node) {
 		SemanticAnalysis phase = new SemanticAnalysis();
-		phase.translate(node.body, node.body);
+		phase.translate(node.body, new Context(node.body));
 	}
 
 	private void prepBlock(Block block, Block parent) {
@@ -39,57 +75,113 @@ public final class SemanticAnalysis extends AbstractTranslator<Block> {
 	}
 
 	@Override
-	public ParseTree visitBlock(Block value, Block userObject) {
-		prepBlock(value, userObject);
-		return super.visitBlock(value, value);
+	public ParseTree visitBlock(Block value, Context context) {
+		prepBlock(value, context.block);
+		Block old = context.block;
+		context.block = value;
+		ParseTree node = super.visitBlock(value, context);
+		context.block = old;
+		return node;
 	}
 
 	@Override
-	public ParseTree visitFunctionBody(FunctionBody value, Block userObject) {
+	public ParseTree visitFunctionBody(FunctionBody value, Context context) {
 		Block block = value.body;
-		prepBlock(block, userObject);
-		translate(value.parameters, block);
+		prepBlock(block, context.block);
+		Block old = context.block;
+		context.block = block;
+		translate(value.parameters, context);
 		// Skip the direct scan, as it'll just refire the prepBlock method.
-		return super.visitBlock(block, block);
+		ParseTree node = super.visitBlock(block, context);
+		context.block = old;
+		return node;
 	}
 
 	@Override
-	public ParseTree visitAssignment(Assignment value, Block userObject) {
+	public ParseTree visitAssignment(Assignment value, Context context) {
+		assert context.index == -1 : "Recursive assignment node : " + context.index;
+		List<Expression> left = null;
 		if (value.lhs != null) {
-			List<String> names = new ArrayList<>();
-			for (Expression expression : value.lhs.list) {
-				if (expression instanceof Name && expression.is(FLAG_LOCAL)) {
-					names.add(((Name) expression).value);
+			left = value.lhs.list;
+			transform(left, context);
+		}
+		var right = value.rhs.list;
+		transform(right, context);
+		if (left != null) {
+			for (NameData datum : context.data) {
+				Name insert = datum.insert;
+				if (insert != null) {
+					String newName = CONFLICT_PREFIX.concat(datum.value);
+
+					Name name = new Name(newName, FLAG_LOCAL | FLAG_ASSIGNMENT);
+					visitName(name, context);
+
+					left.add(datum.index, name);
+					right.add(datum.index, insert);
 				}
 			}
-			System.out.println(names);
 		}
-		return super.visitAssignment(value, userObject);
-	}
-
-	@Override
-	public ParseTree visitBreak(Break value, Block userObject) {
-		while (!userObject.is(FLAG_CONTROL_FLOW_BARRIER) && !userObject.is(FLAG_CONTROL_FLOW_EXIT)) {
-			userObject = userObject.parent;
-		}
-		System.out.println(userObject);
+		context.data.clear();
 		return value;
 	}
 
-	@Override
-	public ParseTree visitName(Name value, Block userObject) {
-		if (value.index != -1) {
-			return value;
-		}
-		if (value.is(FLAG_LOCAL)) {
-			int index = indexOf(value, userObject);
-			if (index == -1) {
-				index = userObject.offset + userObject.names.size();
-				userObject.names.add(value);
+	private void transform(List<Expression> expressions, Context context) {
+		for (int i = 0, l = expressions.size(); i < l; i++) {
+			var oldExpr = expressions.get(i);
+			context.index = i;
+			var newExpr = translate(oldExpr, context);
+			if (newExpr != oldExpr) {
+				expressions.set(i, newExpr);
 			}
-			value.index = index;
-		} else {
-			value.index = find(value, userObject);
+		}
+		context.index = -1;
+	}
+
+//	@Override
+//	public ParseTree visitBreak(Break value, Block userObject) {
+//		while (!userObject.is(FLAG_CONTROL_FLOW_BARRIER) && !userObject.is(FLAG_CONTROL_FLOW_EXIT)) {
+//			userObject = userObject.parent;
+//		}
+//		System.out.println(userObject);
+//		return value;
+//	}
+
+	@Override
+	public ParseTree visitName(Name value, Context context) {
+		if (value.index == -1) {
+			Block block = context.block;
+			if (value.is(FLAG_LOCAL)) {
+				int index = indexOf(value, block);
+				if (index == -1) {
+					index = block.offset + block.names.size();
+					block.names.add(value);
+				}
+				value.index = index;
+			} else {
+				value.index = find(value, block);
+			}
+		}
+		int i = context.index;
+		if (i >= 0 && value.is(FLAG_ASSIGNMENT)) {
+			context.push(value);
+		}
+		for (NameData datum : context.data) {
+			if (datum.value.equals(value.value)) {
+				int index = datum.index;
+				if (index < i) {
+//					System.out.println(" CONFLICT :: " + value + " :: " + index + " :: " + i);
+					var replacement = datum.replacement;
+					if (replacement == null) {
+						String newName = CONFLICT_PREFIX.concat(datum.value);
+						replacement = new Name(newName, FLAG_LOCAL);
+						visitName(replacement, context);
+						datum.replacement = replacement;
+					}
+					assert datum.insert == null : "Insert is already occupied.";
+					datum.insert = value;
+					return replacement;
+				}
+			}
 		}
 		return value;
 	}

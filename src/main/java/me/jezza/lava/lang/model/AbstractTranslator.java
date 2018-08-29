@@ -31,7 +31,6 @@ import me.jezza.lava.lang.interfaces.Visitor;
  * @author Jezza
  */
 public abstract class AbstractTranslator<T> implements Visitor<T, ParseTree> {
-	private static final Object NULL = new Object();
 
 	@SuppressWarnings("unchecked")
 	protected <N extends ParseTree> N translate(N node, T userObject) {
