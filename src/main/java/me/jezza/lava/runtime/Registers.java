@@ -128,21 +128,22 @@ final class Registers {
 
 		@Override
 		public String toString() {
+			int i = System.identityHashCode(this);
 			if ("NIL".equals(value)) {
-				return "Slot{value=NIL}";
+				return "Slot{value=NIL::" + i + '}';
 			} else if (value instanceof String) {
-				return Strings.format("Slot{value=\"{}\"}",
+				return Strings.format("Slot{value=\"{}\"::" + i +'}',
 						value);
 			} else if (value instanceof LuaFunction) {
-				return Strings.format("Slot{value={}}",
+				return Strings.format("Slot{value={}::" + i + '}',
 						value);
 			} else if (value instanceof Number) {
-			return Strings.format("Slot{value={}}",
+			return Strings.format("Slot{value={}::" + i + '}',
 					value);
 		}
 //			return Strings.format("Slot{value={}}",
 //					value);
-			return Strings.format("Slot{value={}::{}}",
+			return Strings.format("Slot{value={}::{}::" + i + '}',
 					value.getClass().getSimpleName(),
 					System.identityHashCode(value));
 		}

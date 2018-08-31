@@ -1,5 +1,6 @@
 package me.jezza.lava.lang;
 
+import static me.jezza.lava.lang.ParseTree.Block.FLAG_CUSTOM_SCOPE;
 import static me.jezza.lava.lang.ParseTree.Name.FLAG_GLOBAL;
 import static me.jezza.lava.lang.ParseTree.Name.FLAG_LOCAL;
 import static me.jezza.lava.lang.ParseTree.Name.FLAG_UPVAL;
@@ -181,7 +182,9 @@ public final class LavaEmitter implements Visitor<Context, Item> {
 		for (Statement statement : value.statements) {
 			statement.visit(this, context);
 		}
-		context.w.write2(CLOSE_SCOPE, value.offset);
+		if (!value.is(FLAG_CUSTOM_SCOPE)) {
+			context.w.write2(CLOSE_SCOPE, value.offset);
+		}
 		return null;
 	}
 
@@ -284,6 +287,7 @@ public final class LavaEmitter implements Visitor<Context, Item> {
 		int exit = cond.jumpTrue();
 		context.w.write2(GOTO, start);
 		context.w.patchToHere2(exit);
+		context.w.write2(CLOSE_SCOPE, value.body.offset);
 
 //		int start = context.w.mark();
 //		value.body.visit(this, context).drop();
@@ -343,33 +347,15 @@ public final class LavaEmitter implements Visitor<Context, Item> {
 
 	@Override
 	public Item visitUnaryOp(UnaryOp value, Context context) {
-//		value.arg.visit(this, context);
-//		int result = context.pop();
-//		if (value.op == UnaryOp.OP_ERROR) {
-//			context.w.write2(OpCode.ERROR, result, -1);
-//		} else {
-//			int register = context.allocate();
-//			context.w.write2(unaryOpCode(value.op), result, register);
-//		}
-//		return null;
-		throw new IllegalStateException("NYI");
-	}
-
-	private static int unaryOpCode(int code) {
-		switch (code) {
-			case UnaryOp.OP_MINUS:
-				return NEG;
-			case UnaryOp.OP_NOT:
-				return NOT;
-			case UnaryOp.OP_LEN:
-				return LEN;
-			case UnaryOp.OP_TO_NUMBER:
-				return TO_NUMBER;
-			case UnaryOp.OP_TO_STRING:
-				return TO_STRING;
-			default:
-				throw new IllegalStateException("Unsupported: " + code);
+		Item argument = value.arg.visit(this, context);
+		if (value.op == UnaryOp.OP_NOT) {
+			CondItem cond = argument.cond();
+			cond.op = NOT;
+//			int target = cond.jumpFalse();
+//			cond.insertTrueTarget();
+			return cond;
 		}
+		return new UnaryItem(context, argument, value.op);
 	}
 
 	@Override
@@ -383,7 +369,13 @@ public final class LavaEmitter implements Visitor<Context, Item> {
 					.cond();
 			return new CondItem(context, rCond, target);
 		} else if (value.op == BinaryOp.OP_OR) {
-
+			CondItem lCond = value.left.visit(this, context)
+					.cond();
+			int target = lCond.jumpTrue();
+			lCond.insertFalseTarget();
+			CondItem rCond = value.right.visit(this, context)
+					.cond();
+			return new CondItem(context, rCond, target);
 		}
 		// @TODO Jezza - 09 Apr 2018: Constant folding?
 		Item left = value.left.visit(this, context);
@@ -604,6 +596,46 @@ public final class LavaEmitter implements Visitor<Context, Item> {
 					items.add(new RegisterItem(context, base + i));
 				}
 			}
+		}
+	}
+
+	static final class UnaryItem extends Item {
+		private final Item value;
+		private final int op;
+
+		UnaryItem(Context context, Item value, int op) {
+			super(context);
+			this.value = value;
+			this.op = op;
+		}
+
+		@Override
+		public Item load(int register) {
+			switch (op) {
+				case UnaryOp.OP_MINUS:
+					return makeUnary(NEG, register);
+				case UnaryOp.OP_LEN:
+					return makeUnary(LEN, register);
+				case UnaryOp.OP_TO_NUMBER:
+					return makeUnary(TO_NUMBER, register);
+				case UnaryOp.OP_TO_STRING:
+					return makeUnary(TO_STRING, register);
+				case UnaryOp.OP_NOT:
+					assert false;
+				default:
+					throw new IllegalStateException("Unsupported: " + op);
+			}
+		}
+
+		private Item makeUnary(int op, int register) {
+			int addr = value.address();
+			if (addr == -1) {
+				// Don't bother allocating, as we're just gonna clear it right as we exit.
+				addr = context.mark();
+				value.load(addr);
+			}
+			context.w.write2(op, register, addr);
+			return new RegisterItem(context, register);
 		}
 	}
 

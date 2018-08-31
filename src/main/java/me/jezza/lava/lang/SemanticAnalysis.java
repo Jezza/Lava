@@ -15,6 +15,7 @@ import me.jezza.lava.lang.ParseTree.Block;
 import me.jezza.lava.lang.ParseTree.Expression;
 import me.jezza.lava.lang.ParseTree.FunctionBody;
 import me.jezza.lava.lang.ParseTree.Name;
+import me.jezza.lava.lang.ParseTree.RepeatBlock;
 import me.jezza.lava.lang.SemanticAnalysis.Context;
 import me.jezza.lava.lang.model.AbstractTranslator;
 
@@ -95,6 +96,23 @@ public final class SemanticAnalysis extends AbstractTranslator<Context> {
 		ParseTree node = super.visitBlock(block, context);
 		context.block = old;
 		return node;
+	}
+
+	@Override
+	public ParseTree visitRepeatBlock(RepeatBlock value, Context context) {
+		Block block = value.body;
+		prepBlock(block, context.block);
+		Block old = context.block;
+		context.block = block;
+		// Skip the direct scan, as it'll just refire the prepBlock method.
+		super.visitBlock(block, context);
+		var oldCondition = value.condition;
+		var newCondition = translate(oldCondition, context);
+		if (oldCondition != newCondition) {
+			value.condition = newCondition;
+		}
+		context.block = old;
+		return value;
 	}
 
 	@Override

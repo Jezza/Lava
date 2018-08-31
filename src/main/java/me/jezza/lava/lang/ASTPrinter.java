@@ -366,7 +366,7 @@ public final class ASTPrinter implements EVisitor {
 	public Void visitName(Name value, Void userObject) {
 		boolean local = value.is(FLAG_LOCAL);
 		boolean assign = value.is(FLAG_ASSIGNMENT);
-		String rep = value.value;
+		String rep = value.value + '<' + value.level + ',' + value.index + '>';
 		if (local && assign) {
 			text.append("local(set(").append(rep).append("))");
 		} else if (local) {

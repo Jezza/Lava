@@ -29,7 +29,7 @@ import me.jezza.lava.utils.Numbers;
  * @author Jezza
  */
 public final class Interpreter {
-	private static final boolean DEBUG_MODE = false;
+	private static final boolean DEBUG_MODE = true;
 	private static final Object NIL = "NIL";
 
 	private static final int MAX_1 = Byte.toUnsignedInt((byte) -1);
@@ -729,6 +729,9 @@ public final class Interpreter {
 	}
 
 	private void CLOSE_SCOPE(StackFrame frame) throws Throwable {
+		if (DEBUG_MODE) {
+			System.out.println("CLOSE_SCOPE");
+		}
 		int offset = frame.decode2();
 		registers.clear(frame.base + offset, frame.base + frame.max);
 	}

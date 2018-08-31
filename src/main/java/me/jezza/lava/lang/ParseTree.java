@@ -1,5 +1,7 @@
 package me.jezza.lava.lang;
 
+import static me.jezza.lava.lang.ParseTree.Block.FLAG_CUSTOM_SCOPE;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -139,8 +141,9 @@ public abstract class ParseTree {
 
 	public static class Block extends Statement {
 		public static final int FLAG_NEW_CONTEXT = 0x2;
-		public static final int FLAG_CONTROL_FLOW_EXIT = 0x4;
-		public static final int FLAG_CONTROL_FLOW_BARRIER = 0x8;
+		public static final int FLAG_CUSTOM_SCOPE = 0x4;
+		public static final int FLAG_CONTROL_FLOW_EXIT = 0x8;
+		public static final int FLAG_CONTROL_FLOW_BARRIER = 0x10;
 
 		public Block parent;
 
@@ -216,6 +219,7 @@ public abstract class ParseTree {
 		public RepeatBlock(Block body, Expression condition) {
 			super(TYPE_REPEAT_BLOCK);
 			this.body = body;
+			body.set(FLAG_CUSTOM_SCOPE, true);
 			this.condition = condition;
 		}
 
