@@ -178,7 +178,6 @@ public final class OpCode {
 	@Implemented
 	public static final byte SET_GLOBAL = 12;
 
-
 	public static final byte SELF = 13;
 
 	/**
@@ -199,7 +198,6 @@ public final class OpCode {
 	 */
 	@Implemented
 	public static final byte ADD = 14;
-
 	@Implemented
 	public static final byte SUB = 15;
 	@Implemented
@@ -239,8 +237,7 @@ public final class OpCode {
 	public static final byte CALL = 24;
 	@Implemented
 	public static final byte GOTO = 25;
-	// @CLEANUP Jezza - 09 Mar 2018: if false and if true could be collapsed into one...
-	@Implemented
+//	@Implemented
 	public static final byte JMP = 26;
 	// @CLEANUP Jezza - 09 Mar 2018: if false and if true could be collapsed into one...
 	@Implemented

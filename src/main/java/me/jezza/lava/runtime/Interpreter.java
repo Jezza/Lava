@@ -9,7 +9,7 @@ import java.lang.invoke.MutableCallSite;
 import java.lang.reflect.Field;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.Deque;
 import java.util.Iterator;
 import java.util.List;
@@ -403,7 +403,7 @@ public final class Interpreter {
 			System.out.println("EQ (s[" + leftSlot + "] = " + leftObj + ") + (s[" + rightSlot + "] = " + rightObj + ')');
 		}
 
-		set(frame, target, Objects.equals(leftObj, rightObj));
+		set(frame, target, equals(leftObj, rightObj));
 
 		dispatchNext(EQ_MH, frame);
 	}
@@ -661,26 +661,6 @@ public final class Interpreter {
 		}
 	}
 
-	private void JMP(StackFrame frame) throws Throwable {
-		int leftSlot = frame.decode2();
-		int rightSlot = frame.decode2();
-		int target = frame.decode2();
-		boolean complement = frame.decode1() == 1;
-
-		Object left = get(frame, leftSlot);
-		Object right = get(frame, rightSlot);
-
-		// Check if left and right are equal?
-		boolean jumping = equals(left, right) != complement;
-		if (jumping) {
-			frame.pc = target;
-		}
-
-		if (DEBUG_MODE) {
-			System.out.println("JMP s[" + leftSlot + "] = " + left + " :: s[" + rightSlot + "] = " + right + " => " + target + ' ' + complement + " => " + jumping);
-		}
-	}
-
 	private void TEST(StackFrame frame) throws Throwable {
 		int slot = frame.decode2();
 		int target = frame.decode2();
@@ -715,8 +695,7 @@ public final class Interpreter {
 		Object left = get(frame, leftRegister);
 		Object right = get(frame, rightRegister);
 
-		boolean isTrue = !(isFalse(left) || isFalse(right));
-		set(frame, target, isTrue);
+		set(frame, target, !isFalse(left) && !isFalse(right));
 		dispatchNext(AND_MH, frame);
 	}
 
@@ -728,8 +707,7 @@ public final class Interpreter {
 		Object left = get(frame, leftRegister);
 		Object right = get(frame, rightRegister);
 
-		boolean isTrue = !(isFalse(left) && isFalse(right));
-		set(frame, target, isTrue);
+		set(frame, target, !isFalse(left) || !isFalse(right));
 		dispatchNext(OR_MH, frame);
 	}
 
@@ -780,7 +758,6 @@ public final class Interpreter {
 	private void RETURN(StackFrame frame) throws Throwable {
 		// @MAYBE Jezza - 27 Feb 2018: Should we unroll the last frame?
 		if (frames.size() > 1) {
-			// @MAYBE Jezza - 20 Jan 2018: Is it acceptable to ignore any arguments given by the bytecode?
 			int expected = frame.expected;
 			int results = frame.decode1();
 			int position = frame.decode1();
@@ -1036,28 +1013,27 @@ public final class Interpreter {
 
 		// @TODO Jezza - 03 Apr 2018: 
 		// @CLEANUP Jezza - 03 Apr 2018: 
-		private final List<Object> values;
+		private final Object[] values;
 
 		RegisterView(Object[] values) {
-			this.values = new ArrayList<>(4);
-			Collections.addAll(this.values, values);
+			this.values = values;
 		}
 
 		public int size() {
-			return values.size();
+			return values.length;
 		}
 
 		public Object get(int index) {
-			return values.get(index);
+			return values[index];
 		}
 
 		public Object set(int index, Object value) {
-			return values.set(index, value);
+			return values[index] = value;
 		}
 
 		public RegisterView of(int from, int to) {
 			// @TODO Jezza - 28 Feb 2018: Range check, make sure that they're returning an allowed subset of the current range.
-			return new RegisterView(values.subList(from, to).toArray(new Object[0]));
+			return new RegisterView(Arrays.copyOfRange(values, from, to));
 		}
 
 		public String getString(int index) {
@@ -1068,10 +1044,9 @@ public final class Interpreter {
 		public String optString(int index, String defaultValue) {
 			// @TODO Jezza - 28 Feb 2018: Lua String conversion?
 			Object value = get(index);
-			if (value == null || !(value instanceof String)) {
-				return defaultValue;
-			}
-			return (String) value;
+			return value instanceof String
+					? (String) value
+					: defaultValue;
 		}
 
 		public int getInt(int index) {
@@ -1082,10 +1057,9 @@ public final class Interpreter {
 		public int optInt(int index, int defaultValue) {
 			// @TODO Jezza - 28 Feb 2018: Lua number conversion?
 			Object value = get(index);
-			if (value == null || !(value instanceof Integer)) {
-				return defaultValue;
-			}
-			return (Integer) value;
+			return value instanceof Integer
+					? (Integer) value
+					: defaultValue;
 		}
 
 		@Override
@@ -1096,10 +1070,9 @@ public final class Interpreter {
 
 				@Override
 				protected Object computeNext() {
-					if (index >= size) {
-						return endOfData();
-					}
-					return get(index++);
+					return index < size
+							? get(index++)
+							: endOfData();
 				}
 			};
 		}
