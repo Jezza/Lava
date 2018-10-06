@@ -29,7 +29,7 @@ import me.jezza.lava.utils.Numbers;
  * @author Jezza
  */
 public final class Interpreter {
-	private static final boolean DEBUG_MODE = true;
+	private static final boolean DEBUG_MODE = false;
 	private static final Object NIL = "NIL";
 
 	private static final int MAX_1 = Byte.toUnsignedInt((byte) -1);
@@ -220,9 +220,9 @@ public final class Interpreter {
 	private static final MethodHandle GET_TABLE_MH = dispatcher();
 	private static final MethodHandle EQ_MH = dispatcher();
 	private static final MethodHandle LT_MH = dispatcher();
+	private static final MethodHandle LE_MH = dispatcher();
 	private static final MethodHandle ADD_MH = dispatcher();
 	private static final MethodHandle MUL_MH = dispatcher();
-	private static final MethodHandle NOT_MH = dispatcher();
 	private static final MethodHandle MOVE_MH = dispatcher();
 	private static final MethodHandle GET_UPVAL_MH = dispatcher();
 	private static final MethodHandle SET_UPVAL_MH = dispatcher();
@@ -426,6 +426,26 @@ public final class Interpreter {
 		dispatchNext(LT_MH, frame);
 	}
 
+	private void LE(StackFrame frame) throws Throwable {
+		int target = frame.decode2();
+		int leftSlot = frame.decode2();
+		int rightSlot = frame.decode2();
+
+		Object leftObj = get(frame, leftSlot);
+		Object rightObj = get(frame, rightSlot);
+
+		if (DEBUG_MODE) {
+			System.out.println("LT (s[" + leftSlot + "] = " + leftObj + ") < (s[" + rightSlot + "] = " + rightObj + ')');
+		}
+
+		int left = (int) leftObj;
+		int right = (int) rightObj;
+
+		set(frame, target, left <= right);
+
+		dispatchNext(LE_MH, frame);
+	}
+
 	private void ADD(StackFrame frame) throws Throwable {
 		int target = frame.decode2();
 		int leftSlot = frame.decode2();
@@ -437,6 +457,8 @@ public final class Interpreter {
 		if (DEBUG_MODE) {
 			System.out.println("ADD (s[" + leftSlot + "] = " + leftObj + ") + (s[" + rightSlot + "] = " + rightObj + ')');
 		}
+		assert leftObj != NIL : "left operand is nil";
+		assert rightObj != NIL : "right operand is nil";
 
 		int left = (int) leftObj;
 		int right = (int) rightObj;
@@ -737,8 +759,8 @@ public final class Interpreter {
 	}
 
 	private void TO_NUMBER(StackFrame frame) throws Throwable {
-		int register = frame.decode2();
 		int target = frame.decode2();
+		int register = frame.decode2();
 
 		Object value = get(frame, register);
 
@@ -765,7 +787,7 @@ public final class Interpreter {
 		}
 
 		if (DEBUG_MODE) {
-			System.out.println("TO_NUMBER s[" + register + "] = " + value + " -> to_number(" + number + ") -> s[" + target + ']');
+			System.out.println("TO_NUMBER s[" + register + "] = to_number(" + value + ") -> " + number + " -> s[" + target + ']');
 		}
 
 		set(frame, target, number);
@@ -929,6 +951,11 @@ public final class Interpreter {
 		}
 
 		int decode2() {
+//			int value = (code[pc++] & 0xFF) << 8 |
+//					(code[pc++] & 0xFF);
+//			return value == 0xFF_FF
+//					? -1
+//					: value;
 			return (code[pc++] & 0xFF) << 8 |
 					(code[pc++] & 0xFF);
 		}

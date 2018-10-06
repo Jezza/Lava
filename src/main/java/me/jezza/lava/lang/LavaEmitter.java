@@ -27,7 +27,6 @@ import static me.jezza.lava.runtime.OpCode.MOVE;
 import static me.jezza.lava.runtime.OpCode.MUL;
 import static me.jezza.lava.runtime.OpCode.NEG;
 import static me.jezza.lava.runtime.OpCode.NEW_TABLE;
-import static me.jezza.lava.runtime.OpCode.NOT;
 import static me.jezza.lava.runtime.OpCode.POW;
 import static me.jezza.lava.runtime.OpCode.RETURN;
 import static me.jezza.lava.runtime.OpCode.SET_GLOBAL;
@@ -39,9 +38,7 @@ import static me.jezza.lava.runtime.OpCode.TO_NUMBER;
 import static me.jezza.lava.runtime.OpCode.TO_STRING;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import me.jezza.lava.lang.LavaEmitter.Context;
 import me.jezza.lava.lang.LavaEmitter.Item;
@@ -72,6 +69,7 @@ import me.jezza.lava.lang.interfaces.Visitor;
 import me.jezza.lava.lang.util.ByteCodeWriter;
 import me.jezza.lava.lang.util.ConstantPool;
 import me.jezza.lava.runtime.Interpreter.LuaChunk;
+import me.jezza.lava.runtime.OpCode;
 
 /**
  * @author Jezza
@@ -95,7 +93,7 @@ public final class LavaEmitter implements Visitor<Context, Item> {
 		final ConstantPool<Object> pool;
 		final List<Name> upvalues;
 
-		final Map<String, Integer> labels;
+		final List<Goto> jumps;
 
 		private int index;
 		private int max;
@@ -110,7 +108,7 @@ public final class LavaEmitter implements Visitor<Context, Item> {
 			w = new ByteCodeWriter();
 			pool = new ConstantPool<>();
 			upvalues = new ArrayList<>(0);
-			labels = new HashMap<>();
+			jumps = new ArrayList<>(0);
 		}
 
 		Context newContext(String name) {
@@ -254,22 +252,35 @@ public final class LavaEmitter implements Visitor<Context, Item> {
 
 	@Override
 	public Item visitLabel(Label value, Context context) {
-//		context.labels.put(value.name, context.w.mark());
-//		return null;
-		throw new IllegalStateException("NYI");
+		int mark = context.w.mark();
+		value.mark = mark;
+		for (Goto jump : value.jumps) {
+			int index = jump.mark;
+			if (index != -1) {
+				context.w.patch2(index, mark);
+			}
+		}
+		return null;
 	}
 
 	@Override
 	public Item visitGoto(Goto value, Context context) {
-		throw new IllegalStateException("NYI");
+		int mark = value.resolvedLabel.mark;
+		if (mark != -1) {
+			context.w.write1(OpCode.GOTO);
+			context.w.write2(mark);
+		} else {
+			context.w.write1(OpCode.GOTO);
+			value.mark = context.w.mark();
+			context.w.reserve2();
+			value.resolvedLabel.jumps.add(value);
+		}
+		return null;
 	}
 
 	@Override
 	public Item visitBreak(Break value, Context context) {
-//		context.w.write1(OpCode.GOTO);
-//		context.w.addJump2();
-//		return null;
-		throw new IllegalStateException("NYI");
+		throw new IllegalStateException("Semantic analysis should have already erased these.");
 	}
 
 	@Override
@@ -288,15 +299,6 @@ public final class LavaEmitter implements Visitor<Context, Item> {
 		context.w.write2(GOTO, start);
 		context.w.patchToHere2(exit);
 		context.w.write2(CLOSE_SCOPE, value.body.offset);
-
-//		int start = context.w.mark();
-//		value.body.visit(this, context).drop();
-//		value.condition.visit(this, context);
-//				.cond(OpCode.IF_FALSE, start);
-//		int register = context.pop();
-//		context.w.write2(OpCode.IF_FALSE, register, start);
-//		return null;
-//		throw new IllegalStateException("NYI");
 		return null;
 	}
 
@@ -349,11 +351,8 @@ public final class LavaEmitter implements Visitor<Context, Item> {
 	public Item visitUnaryOp(UnaryOp value, Context context) {
 		Item argument = value.arg.visit(this, context);
 		if (value.op == UnaryOp.OP_NOT) {
-			CondItem cond = argument.cond();
-			cond.op = NOT;
-//			int target = cond.jumpFalse();
-//			cond.insertTrueTarget();
-			return cond;
+			return argument.cond()
+					.negate();
 		}
 		return new UnaryItem(context, argument, value.op);
 	}
@@ -367,7 +366,7 @@ public final class LavaEmitter implements Visitor<Context, Item> {
 			lCond.insertTrueTarget();
 			CondItem rCond = value.right.visit(this, context)
 					.cond();
-			return new CondItem(context, rCond, target);
+			return new CondItem(context, rCond, -1, target);
 		} else if (value.op == BinaryOp.OP_OR) {
 			CondItem lCond = value.left.visit(this, context)
 					.cond();
@@ -375,7 +374,7 @@ public final class LavaEmitter implements Visitor<Context, Item> {
 			lCond.insertFalseTarget();
 			CondItem rCond = value.right.visit(this, context)
 					.cond();
-			return new CondItem(context, rCond, target);
+			return new CondItem(context, rCond, target, -1);
 		}
 		// @TODO Jezza - 09 Apr 2018: Constant folding?
 		Item left = value.left.visit(this, context);
@@ -630,8 +629,8 @@ public final class LavaEmitter implements Visitor<Context, Item> {
 		private Item makeUnary(int op, int register) {
 			int addr = value.address();
 			if (addr == -1) {
-				// Don't bother allocating, as we're just gonna clear it right as we exit.
-				addr = context.mark();
+				addr = context.allocate();
+				context.pop();
 				value.load(addr);
 			}
 			context.w.write2(op, register, addr);
@@ -801,25 +800,31 @@ public final class LavaEmitter implements Visitor<Context, Item> {
 		private final int register;
 		public int op;
 
-		private int trueJumpList;
-		private int falseJumpList;
+		private int trueList;
+		private int falseList;
+
+		private boolean flip;
 
 		CondItem(Context context, int register) {
 			super(context);
 			this.register = register;
 			op = TEST;
-			trueJumpList = -1;
-			falseJumpList = -1;
+			trueList = -1;
+			falseList = -1;
 		}
 
-		CondItem(Context context, CondItem item, int jumpList) {
+		CondItem(Context context, CondItem item, int trueList, int falseList) {
 			super(context);
 			register = item.register;
 			op = item.op;
-			trueJumpList = item.trueJumpList;
-			falseJumpList = jumpList; // item.falseJumpList;
-//			code[item.falseJumpList] = jumpList
-//			code[jumpList] = item.falseJumpList
+			assert item.trueList == -1 || trueList == -1 : "Invalid jump state [true]: " + item.trueList + " :: " + trueList;
+			assert item.falseList == -1 || falseList == -1 : "Invalid jump state [false]: " + item.falseList + " :: " + falseList;
+			this.trueList = trueList != -1
+					? trueList
+					: item.trueList;
+			this.falseList = falseList != -1
+					? falseList
+					: item.falseList;
 		}
 
 		@Override
@@ -828,11 +833,11 @@ public final class LavaEmitter implements Visitor<Context, Item> {
 		}
 
 		public int jumpTrue() {
-			return jump(0, trueJumpList);
+			return jump(flip ? 1 : 0, trueList);
 		}
 
 		public int jumpFalse() {
-			return jump(1, falseJumpList);
+			return jump(flip ? 0 : 1, falseList);
 		}
 
 		private int jump(int complement, int list) {
@@ -847,14 +852,14 @@ public final class LavaEmitter implements Visitor<Context, Item> {
 		}
 
 		public void insertTrueTarget() {
-			if (trueJumpList != -1) {
-				backpatchList(trueJumpList);
+			if (trueList != -1) {
+				backpatchList(trueList);
 			}
 		}
 
 		public void insertFalseTarget() {
-			if (falseJumpList != -1) {
-				backpatchList(falseJumpList);
+			if (falseList != -1) {
+				backpatchList(falseList);
 			}
 		}
 
@@ -867,6 +872,11 @@ public final class LavaEmitter implements Visitor<Context, Item> {
 				w.patch2(target, mark);
 				target = next;
 			} while (target != -1);
+		}
+
+		CondItem negate() {
+			flip = !flip;
+			return this;
 		}
 	}
 

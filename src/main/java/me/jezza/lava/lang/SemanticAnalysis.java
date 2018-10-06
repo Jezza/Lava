@@ -1,5 +1,7 @@
 package me.jezza.lava.lang;
 
+import static me.jezza.lava.lang.ParseTree.Block.FLAG_CONTROL_FLOW_BARRIER;
+import static me.jezza.lava.lang.ParseTree.Block.FLAG_CONTROL_FLOW_EXIT;
 import static me.jezza.lava.lang.ParseTree.Block.FLAG_NEW_CONTEXT;
 import static me.jezza.lava.lang.ParseTree.FLAG_ASSIGNMENT;
 import static me.jezza.lava.lang.ParseTree.Name.FLAG_GLOBAL;
@@ -12,8 +14,11 @@ import java.util.List;
 import me.jezza.lava.Strings;
 import me.jezza.lava.lang.ParseTree.Assignment;
 import me.jezza.lava.lang.ParseTree.Block;
+import me.jezza.lava.lang.ParseTree.Break;
 import me.jezza.lava.lang.ParseTree.Expression;
 import me.jezza.lava.lang.ParseTree.FunctionBody;
+import me.jezza.lava.lang.ParseTree.Goto;
+import me.jezza.lava.lang.ParseTree.Label;
 import me.jezza.lava.lang.ParseTree.Name;
 import me.jezza.lava.lang.ParseTree.RepeatBlock;
 import me.jezza.lava.lang.SemanticAnalysis.Context;
@@ -30,13 +35,101 @@ public final class SemanticAnalysis extends AbstractTranslator<Context> {
 		Block block;
 		int index = -1;
 		List<NameData> data = new ArrayList<>(0);
+		List<Goto> jumps = new ArrayList<>(0);
+
+		Block exit;
 
 		Context(Block block) {
 			this.block = block;
 		}
 
-		void push(Name name) {
+		void register(Name name) {
 			data.add(new NameData(name.value, index));
+		}
+
+		void mark(Label newLabel) {
+			String name = newLabel.name;
+			Block block = this.block;
+			List<Label> labels = block.labels;
+			for (Label label : labels) {
+				if (label.name.equals(name)) {
+					return;
+				}
+			}
+			labels.add(newLabel);
+
+			var it = jumps.iterator();
+			while (it.hasNext()) {
+				Goto value = it.next();
+				if (name.equals(value.label)) {
+					value.resolvedLabel = newLabel;
+					it.remove();
+				}
+			}
+		}
+
+		void mark(Goto value) {
+			jumps.add(value);
+		}
+
+		Label resolveLabel(String name) {
+			Block block = this.block;
+			while (block != null && !block.is(FLAG_CONTROL_FLOW_BARRIER)) {
+				for (Label label : block.labels) {
+					if (label.name.equals(name)) {
+						return label;
+					}
+				}
+				block = block.parent;
+			}
+			return null;
+		}
+
+		Block pushBlock(Block block) {
+//			System.out.println("Pushing : " + block);
+			Block parent = this.block;
+			if (block != parent) {
+				block.parent = parent;
+				if (!block.is(FLAG_NEW_CONTEXT)) {
+					block.offset = parent.names.size() + parent.offset;
+				}
+			}
+			if (block.is(FLAG_CONTROL_FLOW_EXIT)) {
+				exit = block;
+			} else if (block.is(FLAG_CONTROL_FLOW_BARRIER)) {
+				exit = null;
+			}
+			this.block = block;
+			return parent;
+		}
+
+		Block popBlock(Block parent) {
+//			System.out.println("Popping : " + block);
+			assert block.parent == null && block == parent || block.parent == parent : "Current: " + block + " :: Parent: " + block.parent + " :: Old: " + parent;
+			Block block = this.block;
+			this.block = parent;
+			exit = null;
+			if (parent.is(FLAG_CONTROL_FLOW_BARRIER)) {
+				throw new IllegalStateException("Unresolved goto(s): " + jumps);
+			}
+			return block;
+		}
+
+		Block exit() {
+			if (exit == null) {
+				Block block = this.block;
+				if (block.is(FLAG_CONTROL_FLOW_BARRIER)) {
+					return null;
+				}
+				Block current = block.parent;
+				while (current != null && !current.is(FLAG_CONTROL_FLOW_EXIT)) {
+					current = !current.is(FLAG_CONTROL_FLOW_BARRIER)
+							? current.parent
+							: null;
+				}
+				exit = current;
+			}
+			return exit;
 		}
 	}
 
@@ -65,45 +158,60 @@ public final class SemanticAnalysis extends AbstractTranslator<Context> {
 		phase.translate(node.body, new Context(node.body));
 	}
 
-	private void prepBlock(Block block, Block parent) {
-		block.names = new ArrayList<>(0);
-		if (block != parent) {
-			block.parent = parent;
-			if (!block.is(FLAG_NEW_CONTEXT)) {
-				block.offset = parent.names.size() + parent.offset;
-			}
+	@Override
+	public ParseTree visitBreak(Break value, Context context) {
+		Block exit = context.exit();
+		if (exit == null) {
+			throw new IllegalStateException("<break> not inside loop");
 		}
+//		exit.set(FLAG_CONTROL_FLOW_VALID, true);
+		String name = "label::".concat(Integer.toString(exit.hashCode()));
+		return new Goto(name);
+	}
+
+	@Override
+	public ParseTree visitLabel(Label value, Context context) {
+		context.mark(value);
+		return value;
+	}
+
+	@Override
+	public ParseTree visitGoto(Goto value, Context context) {
+		Label resolved = context.resolveLabel(value.label);
+		if (resolved != null) {
+			value.resolvedLabel = resolved;
+		} else {
+			context.mark(value);
+		}
+		return value;
 	}
 
 	@Override
 	public ParseTree visitBlock(Block value, Context context) {
-		prepBlock(value, context.block);
-		Block old = context.block;
-		context.block = value;
+		Block old = context.pushBlock(value);
 		ParseTree node = super.visitBlock(value, context);
-		context.block = old;
+		context.popBlock(old);
 		return node;
 	}
 
 	@Override
 	public ParseTree visitFunctionBody(FunctionBody value, Context context) {
 		Block block = value.body;
-		prepBlock(block, context.block);
-		Block old = context.block;
-		context.block = block;
+		Block old = context.pushBlock(block);
 		translate(value.parameters, context);
 		// Skip the direct scan, as it'll just refire the prepBlock method.
-		ParseTree node = super.visitBlock(block, context);
-		context.block = old;
-		return node;
+		var newBlock = super.visitBlock(block, context);
+		if (block != newBlock) {
+			value.body = block;
+		}
+		context.popBlock(old);
+		return value;
 	}
 
 	@Override
 	public ParseTree visitRepeatBlock(RepeatBlock value, Context context) {
 		Block block = value.body;
-		prepBlock(block, context.block);
-		Block old = context.block;
-		context.block = block;
+		Block old = context.pushBlock(block);
 		// Skip the direct scan, as it'll just refire the prepBlock method.
 		super.visitBlock(block, context);
 		var oldCondition = value.condition;
@@ -111,7 +219,7 @@ public final class SemanticAnalysis extends AbstractTranslator<Context> {
 		if (oldCondition != newCondition) {
 			value.condition = newCondition;
 		}
-		context.block = old;
+		context.popBlock(old);
 		return value;
 	}
 
@@ -155,33 +263,26 @@ public final class SemanticAnalysis extends AbstractTranslator<Context> {
 		context.index = -1;
 	}
 
-//	@Override
-//	public ParseTree visitBreak(Break value, Block userObject) {
-//		while (!userObject.is(FLAG_CONTROL_FLOW_BARRIER) && !userObject.is(FLAG_CONTROL_FLOW_EXIT)) {
-//			userObject = userObject.parent;
-//		}
-//		System.out.println(userObject);
-//		return value;
-//	}
-
 	@Override
 	public ParseTree visitName(Name value, Context context) {
 		if (value.index == -1) {
+			int old = value.index;
 			Block block = context.block;
 			if (value.is(FLAG_LOCAL)) {
-				int index = indexOf(value, block);
+				int index = indexOf(block, value);
 				if (index == -1) {
 					index = block.offset + block.names.size();
 					block.names.add(value);
 				}
 				value.index = index;
 			} else {
-				value.index = find(value, block);
+				value.index = find(block, value);
 			}
 		}
 		int i = context.index;
-		if (i >= 0 && value.is(FLAG_ASSIGNMENT)) {
-			context.push(value);
+		if (value.is(FLAG_ASSIGNMENT)) {
+			assert i >= 0 : "Illegal compiler assertion";
+			context.register(value);
 		}
 		for (NameData datum : context.data) {
 			if (datum.value.equals(value.value)) {
@@ -204,14 +305,14 @@ public final class SemanticAnalysis extends AbstractTranslator<Context> {
 		return value;
 	}
 
-	private int find(Name name, Block block) {
-		int index = indexOf(name, block);
+	private int find(Block block, Name name) {
+		int index = indexOf(block, name);
 		if (index >= 0) {
 			name.set(FLAG_LOCAL, true);
 			return index;
 		}
 		if (block.parent != null) {
-			index = find(name, block.parent);
+			index = find(block.parent, name);
 			if (name.is(FLAG_GLOBAL)) {
 				return -1;
 			}
@@ -226,7 +327,7 @@ public final class SemanticAnalysis extends AbstractTranslator<Context> {
 		return -1;
 	}
 
-	private int indexOf(Name name, Block block) {
+	private int indexOf(Block block, Name name) {
 		List<Name> names = block.names;
 		for (int i = 0, size = names.size(); i < size; i++) {
 			Name other = names.get(i);

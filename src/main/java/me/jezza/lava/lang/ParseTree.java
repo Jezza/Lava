@@ -42,8 +42,6 @@ public abstract class ParseTree {
 	private final int type;
 	private int flags;
 
-//	public Block block;
-
 	ParseTree(int type) {
 		this.type = type;
 	}
@@ -144,12 +142,14 @@ public abstract class ParseTree {
 		public static final int FLAG_CUSTOM_SCOPE = 0x4;
 		public static final int FLAG_CONTROL_FLOW_EXIT = 0x8;
 		public static final int FLAG_CONTROL_FLOW_BARRIER = 0x10;
+		public static final int FLAG_CONTROL_FLOW_VALID = 0x20;
 
 		public Block parent;
 
 		public List<Statement> statements;
 
 		public List<Name> names;
+		public List<Label> labels;
 		public int offset;
 
 		public Block(Statement statement) {
@@ -160,6 +160,8 @@ public abstract class ParseTree {
 		public Block(List<Statement> statements) {
 			super(TYPE_BLOCK);
 			this.statements = statements;
+			names = new ArrayList<>(0);
+			labels = new ArrayList<>(0);
 		}
 
 		@Override
@@ -354,12 +356,12 @@ public abstract class ParseTree {
 	}
 
 	public static final class UnaryOp extends Expression {
-		public static final int OP_MINUS     = 0b00000;
-		public static final int OP_NOT       = 0b00001;
-		public static final int OP_LEN       = 0b00010;
+		public static final int OP_MINUS = 0b00000;
+		public static final int OP_NOT = 0b00001;
+		public static final int OP_LEN = 0b00010;
 		public static final int OP_TO_NUMBER = 0b10011;
 		public static final int OP_TO_STRING = 0b10100;
-		public static final int OP_ERROR     = 0b10101;
+		public static final int OP_ERROR = 0b10101;
 
 		public static final int FLAG_MACRO = 0x2;
 
@@ -568,6 +570,8 @@ public abstract class ParseTree {
 
 	public static final class Goto extends Statement {
 		public String label;
+		public Label resolvedLabel;
+		public int mark = -1;
 
 		public Goto(String label) {
 			super(TYPE_GOTO);
@@ -583,6 +587,8 @@ public abstract class ParseTree {
 
 	public static final class Label extends Statement {
 		public String name;
+		public int mark = -1;
+		public List<Goto> jumps = new ArrayList<>(0);
 
 		public Label(String name) {
 			super(TYPE_LABEL);

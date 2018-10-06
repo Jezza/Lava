@@ -152,13 +152,18 @@ public final class ASTPrinter implements EVisitor {
 	@Override
 	public Void visitLabel(Label value, Void userObject) {
 		indent();
-		text.append("::").append(value.name).append("::");
+		text.append("::").append(value.name).append('<').append(value.hashCode()).append(">::");
 		return null;
 	}
 
 	@Override
 	public Void visitGoto(Goto value, Void userObject) {
-		text.append("goto ").append(value.label).append(';');
+		indent();
+		text.append("goto <");
+		text.append(value.resolvedLabel != null
+				? value.resolvedLabel.hashCode()
+				: -1);
+		text.append('>').append(value.label).append(';');
 		return null;
 	}
 

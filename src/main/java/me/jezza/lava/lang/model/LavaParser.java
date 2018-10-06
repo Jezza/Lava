@@ -101,11 +101,8 @@ public final class LavaParser extends AbstractParser {
 				break;
 			case Tokens.BREAK:
 				consume();
-				while (match(';')) {
-					;
-				}
-				statements.add(new Break());
-				return true;
+				statement = new Break();
+				break;
 			case Tokens.RETURN:
 				consume();
 				// @CLEANUP Jezza - 20 Jan 2018: This is a bit messy...
@@ -271,11 +268,6 @@ public final class LavaParser extends AbstractParser {
 		}
 	}
 
-	private static final String VAR_NAME = "(var)";
-	private static final String LIMIT_NAME = "(limit)";
-	private static final String STEP_NAME = "(step)";
-	private static final String LABEL_NAME = "(for_loop)";
-
 	private Statement forNum(String name) throws IOException {
 		consume('=');
 		Expression lowerBound = expression();
@@ -309,6 +301,12 @@ public final class LavaParser extends AbstractParser {
 		end
 		 */
 
+		String loopName = ':' + Integer.toString(System.identityHashCode(block)) + ')';
+		String varName = "(var" + loopName;
+		String limitName = "(limit" + loopName;
+		String stepName = "(step" + loopName;
+		String labelName = "(for_loop" + loopName;
+
 		List<Statement> statements = new ArrayList<>(5);
 
 		// local (var), (limit), (step) = tonumber(e1), tonumber(e2), tonumber(e3)
@@ -317,17 +315,17 @@ public final class LavaParser extends AbstractParser {
 			ExpressionList right = new ExpressionList();
 
 			// local (var) = tonumber(e1)
-			Name var = new Name(VAR_NAME, FLAG_LOCAL | FLAG_ASSIGNMENT);
+			Name var = new Name(varName, FLAG_LOCAL | FLAG_ASSIGNMENT);
 			left.list.add(var);
 			right.list.add(new UnaryOp(UnaryOp.OP_TO_NUMBER, lowerBound));
 
 			// local (limit) = tonumber(e2)
-			Name limit = new Name(LIMIT_NAME, FLAG_LOCAL | FLAG_ASSIGNMENT);
+			Name limit = new Name(limitName, FLAG_LOCAL | FLAG_ASSIGNMENT);
 			left.list.add(limit);
 			right.list.add(new UnaryOp(UnaryOp.OP_TO_NUMBER, upperBound));
 
 			// local (step) = tonumber(e3)
-			Name increment = new Name(STEP_NAME, FLAG_LOCAL | FLAG_ASSIGNMENT);
+			Name increment = new Name(stepName, FLAG_LOCAL | FLAG_ASSIGNMENT);
 			left.list.add(increment);
 			right.list.add(new UnaryOp(UnaryOp.OP_TO_NUMBER, step));
 
@@ -341,9 +339,9 @@ public final class LavaParser extends AbstractParser {
 			UnaryOp error = new UnaryOp(UnaryOp.OP_ERROR, new Literal(Literal.STRING, "for loop parameters must evaluate to numbers"));
 			thenBlock.add(new Assignment(null, error));
 
-			Name var = new Name(VAR_NAME, FLAG_LOCAL);
-			Name limit = new Name(LIMIT_NAME, FLAG_LOCAL);
-			Name increment = new Name(STEP_NAME, FLAG_LOCAL);
+			Name var = new Name(varName, FLAG_LOCAL);
+			Name limit = new Name(limitName, FLAG_LOCAL);
+			Name increment = new Name(stepName, FLAG_LOCAL);
 
 			// not (((var) and (limit)) and (step))
 			Expression condition = new UnaryOp(UnaryOp.OP_NOT,
@@ -354,8 +352,8 @@ public final class LavaParser extends AbstractParser {
 
 		// var = var - step
 		{
-			BinaryOp op = new BinaryOp(BinaryOp.OP_SUB, new Name(VAR_NAME, FLAG_LOCAL), new Name(STEP_NAME, FLAG_LOCAL));
-			statements.add(new Assignment(new Name(VAR_NAME, FLAG_LOCAL | FLAG_ASSIGNMENT), op));
+			BinaryOp op = new BinaryOp(BinaryOp.OP_SUB, new Name(varName, FLAG_LOCAL), new Name(stepName, FLAG_LOCAL));
+			statements.add(new Assignment(new Name(varName, FLAG_LOCAL | FLAG_ASSIGNMENT), op));
 		}
 
 		// while true do ... end
@@ -364,8 +362,8 @@ public final class LavaParser extends AbstractParser {
 
 			// var = var + step
 			{
-				BinaryOp op = new BinaryOp(BinaryOp.OP_ADD, new Name(VAR_NAME, FLAG_LOCAL), new Name(STEP_NAME, FLAG_LOCAL));
-				inner.add(new Assignment(new Name(VAR_NAME, FLAG_LOCAL | FLAG_ASSIGNMENT), op));
+				BinaryOp op = new BinaryOp(BinaryOp.OP_ADD, new Name(varName, 0), new Name(stepName, 0));
+				inner.add(new Assignment(new Name(varName, FLAG_ASSIGNMENT), op));
 			}
 
 			// if (step >= 0 and var > limit) or (step < 0 and var < limit) then
@@ -376,9 +374,9 @@ public final class LavaParser extends AbstractParser {
 				BinaryOp baseLeft;
 				{
 					// step >= 0
-					BinaryOp left = new BinaryOp(BinaryOp.OP_GE, new Name(STEP_NAME, FLAG_LOCAL), new Literal(Literal.INTEGER, 0));
+					BinaryOp left = new BinaryOp(BinaryOp.OP_GE, new Name(stepName, 0), new Literal(Literal.INTEGER, 0));
 					// var > limit
-					BinaryOp right = new BinaryOp(BinaryOp.OP_GT, new Name(VAR_NAME, FLAG_LOCAL), new Name(LIMIT_NAME, FLAG_LOCAL));
+					BinaryOp right = new BinaryOp(BinaryOp.OP_GT, new Name(varName, 0), new Name(limitName, 0));
 
 					// (step >= 0 and var > limit)
 					baseLeft = new BinaryOp(BinaryOp.OP_AND, left, right);
@@ -387,9 +385,9 @@ public final class LavaParser extends AbstractParser {
 				BinaryOp baseRight;
 				{
 					// step < 0
-					BinaryOp left = new BinaryOp(BinaryOp.OP_LT, new Name(STEP_NAME, FLAG_LOCAL), new Literal(Literal.INTEGER, 0));
+					BinaryOp left = new BinaryOp(BinaryOp.OP_LT, new Name(stepName, 0), new Literal(Literal.INTEGER, 0));
 					// var < limit
-					BinaryOp right = new BinaryOp(BinaryOp.OP_LT, new Name(VAR_NAME, FLAG_LOCAL), new Name(LIMIT_NAME, FLAG_LOCAL));
+					BinaryOp right = new BinaryOp(BinaryOp.OP_LT, new Name(varName, 0), new Name(limitName, 0));
 
 					// (step < 0 and var < limit)
 					baseRight = new BinaryOp(BinaryOp.OP_AND, left, right);
@@ -399,14 +397,14 @@ public final class LavaParser extends AbstractParser {
 				BinaryOp condition = new BinaryOp(BinaryOp.OP_OR, baseLeft, baseRight);
 
 				// break
-				Block body = new Block(new Goto(LABEL_NAME));
+				Block body = new Block(new Goto(labelName));
 
 				inner.add(new IfBlock(condition, body, null));
 			}
 
 			// local v = (var)
 			{
-				Name var = new Name(VAR_NAME, FLAG_LOCAL);
+				Name var = new Name(varName, 0);
 				inner.add(new Assignment(new Name(name, FLAG_LOCAL | FLAG_ASSIGNMENT), var));
 			}
 
@@ -415,13 +413,13 @@ public final class LavaParser extends AbstractParser {
 				inner.addAll(block.statements);
 			}
 
-			RepeatBlock repeatBlock = new RepeatBlock(new Block(inner), Literal.FALSE_LITERAL);
-			repeatBlock.set(FLAG_CONTROL_FLOW_EXIT, true);
-			statements.add(repeatBlock);
+			Block repeatBody = new Block(inner);
+			repeatBody.set(FLAG_CONTROL_FLOW_EXIT, true);
+			statements.add(new RepeatBlock(repeatBody, Literal.FALSE_LITERAL));
 		}
 
 		{
-			statements.add(new Label(LABEL_NAME));
+			statements.add(new Label(labelName));
 		}
 
 		return new DoBlock(new Block(statements));
@@ -611,6 +609,8 @@ public final class LavaParser extends AbstractParser {
 			return UnaryOp.OP_NOT;
 		} else if (type == '#') {
 			return UnaryOp.OP_LEN;
+		} else if (type == '@') {
+			return UnaryOp.OP_TO_NUMBER;
 		} else {
 			return -1;
 		}

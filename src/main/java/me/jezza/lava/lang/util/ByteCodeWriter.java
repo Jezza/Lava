@@ -1,5 +1,7 @@
 package me.jezza.lava.lang.util;
 
+import java.util.Arrays;
+
 /**
  * @author Jezza
  */
@@ -23,8 +25,13 @@ public final class ByteCodeWriter {
 	}
 
 	public int get2(int index) {
-		return get(index) << 8
-				| get(index + 1);
+		int value = (get(index) & 0xFF) << 8
+				| (get(index + 1) & 0xFF);
+		// @TODO Jezza - 06 Oct. 2018: I don't like the check here...
+		// Is there a better way to represent no value with 2 bytes?
+		return value == 0xFF_FF
+				? -1
+				: value;
 	}
 
 	private void check(int length) {
@@ -138,8 +145,6 @@ public final class ByteCodeWriter {
 	}
 
 	public byte[] code() {
-		byte[] code = new byte[index];
-		System.arraycopy(data, 0, code, 0, index);
-		return code;
+		return Arrays.copyOf(data, index);
 	}
 }
