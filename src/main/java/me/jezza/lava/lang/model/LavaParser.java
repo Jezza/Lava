@@ -611,6 +611,8 @@ public final class LavaParser extends AbstractParser {
 			return UnaryOp.OP_LEN;
 		} else if (type == '@') {
 			return UnaryOp.OP_TO_NUMBER;
+		} else if (type == '!') {
+			return UnaryOp.OP_ERROR;
 		} else {
 			return -1;
 		}

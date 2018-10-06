@@ -1,4 +1,4 @@
-package me.jezza.lava.runtime;
+package me.jezza.lava.utils;
 
 import java.util.Iterator;
 import java.util.NoSuchElementException;

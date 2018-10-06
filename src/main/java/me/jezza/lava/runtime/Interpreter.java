@@ -23,7 +23,9 @@ import me.jezza.lava.Strings;
 import me.jezza.lava.lang.ParseTree.Name;
 import me.jezza.lava.runtime.OpCode.Implemented;
 import me.jezza.lava.runtime.Registers.Slot;
+import me.jezza.lava.utils.AbstractIterator;
 import me.jezza.lava.utils.Numbers;
+import me.jezza.lava.utils.Table;
 
 /**
  * @author Jezza
@@ -507,25 +509,6 @@ public final class Interpreter {
 
 		dispatchNext(MUL_MH, frame);
 	}
-
-//	private void NOT(StackFrame frame) throws Throwable {
-//		int value = frame.decode2();
-//		int register = frame.decode2();
-//
-//		Object valueObj = get(frame, value);
-//
-//		if (DEBUG_MODE) {
-//			System.out.println("NOT (s[" + value + "] = " + valueObj + ") -> " + register + ')');
-//		}
-//
-//		// @TODO Jezza - 10 Mar 2018: Stuffs
-//		if (!(valueObj instanceof Boolean)) {
-//			throw new IllegalStateException("Boolean stuffs.");
-//		}
-//		Boolean negated = (Boolean) valueObj ? Boolean.FALSE : Boolean.TRUE;
-//		set(frame, register, negated);
-//		dispatchNext(NOT_MH, frame);
-//	}
 
 	private void MOVE(StackFrame frame) throws Throwable {
 		int from = frame.decode2();

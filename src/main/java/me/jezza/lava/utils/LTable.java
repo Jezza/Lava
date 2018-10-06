@@ -1,4 +1,4 @@
-package me.jezza.lava.runtime;
+package me.jezza.lava.utils;
 
 import java.util.Arrays;
 import java.util.HashMap;
