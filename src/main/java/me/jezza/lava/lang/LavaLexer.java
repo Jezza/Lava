@@ -38,7 +38,7 @@ public final class LavaLexer extends AbstractLexer implements Lexer {
 		super(in, BUFFER_SIZE);
 	}
 
-//	private static final Times NEXT = new Times("NEXT", 2048);
+	private static final Times NEXT = new Times("NEXT", 2048);
 //	private static final Times WHITESPACE = new Times("WHITESPACE", 2048);
 //	private static final Times NAMESPACE = new Times("NAMESPACE", 2048);
 //
@@ -46,152 +46,152 @@ public final class LavaLexer extends AbstractLexer implements Lexer {
 
 	@Override
 	public Token next() throws IOException {
-//		long start = System.nanoTime();
-//		try {
-		int c;
-		int[] pos = this.pos.clone();
-		while ((c = advance()) != EOS) {
-			switch (c) {
-				case '-': {
-					if (peek() != '-')
-						return token('-', c, pos);
-					advance();
-					if (peek() != '[') {
-						// Line comment, scan until EOS or EOL
-						while ((c = advance()) != EOS && c != '\n') ;
-						pos = this.pos.clone();
-						continue;
-					}
-					// block comment
-					int count = skipSeparator(advance());
-					readLongString(pos, false, count);
-					pos = this.pos.clone();
-					continue;
-				}
-				case '[': {
-					int count = skipSeparator(c);
-					if (count < 0)
-						return token('[', '[', pos);
-					return readLongString(pos, true, count);
-				}
-				case '=': {
-					if (peek() != '=')
-						return token('=', '=', pos);
-					advance();
-					return token(Tokens.EQ, "==", pos);
-				}
-				case '<': {
-					if (peek() != '=')
-						return token('<', '<', pos);
-					advance();
-					return token(Tokens.LE, "<=", pos);
-				}
-				case '>': {
-					if (peek() != '=')
-						return token('>', '>', pos);
-					advance();
-					return token(Tokens.GE, ">=", pos);
-				}
-				case '~': {
-					if (peek() != '=')
-						return token('~', '~', pos);
-					advance();
-					return token(Tokens.NE, "~=", pos);
-				}
-				case '"':
-				case '\'': {
-					return readString(pos, c);
-				}
-				case '.': {
-					int p = peek();
-					if (p == '.') {
+		long start = System.nanoTime();
+		try {
+			int c;
+			int[] pos = this.pos.clone();
+			while ((c = advance()) != EOS) {
+				switch (c) {
+					case '-': {
+						if (peek() != '-')
+							return token('-', c, pos);
 						advance();
-						if (peek() == '.')
-							return token(Tokens.DOTS, "...", pos);
-						return token(Tokens.CONCAT, "..", pos);
-					} else if (!Character.isDigit(p)) {
-						return token('.', '.', pos);
-					}
-					return readNumber(pos, c);
-				}
-				default:
-					if (Character.isWhitespace(c)) {
-//						long startW = System.nanoTime();
-						while (Character.isWhitespace(peek()))
-							advance();
+						if (peek() != '[') {
+							// Line comment, scan until EOS or EOL
+							while ((c = advance()) != EOS && c != '\n') ;
+							pos = this.pos.clone();
+							continue;
+						}
+						// block comment
+						int count = skipSeparator(advance());
+						readLongString(pos, false, count);
 						pos = this.pos.clone();
-//						WHITESPACE.add(System.nanoTime() - startW);
 						continue;
 					}
-					if (Character.isDigit(c))
+					case '[': {
+						int count = skipSeparator(c);
+						if (count < 0)
+							return token('[', '[', pos);
+						return readLongString(pos, true, count);
+					}
+					case '=': {
+						if (peek() != '=')
+							return token('=', '=', pos);
+						advance();
+						return token(Tokens.EQ, "==", pos);
+					}
+					case '<': {
+						if (peek() != '=')
+							return token('<', '<', pos);
+						advance();
+						return token(Tokens.LE, "<=", pos);
+					}
+					case '>': {
+						if (peek() != '=')
+							return token('>', '>', pos);
+						advance();
+						return token(Tokens.GE, ">=", pos);
+					}
+					case '~': {
+						if (peek() != '=')
+							return token('~', '~', pos);
+						advance();
+						return token(Tokens.NE, "~=", pos);
+					}
+					case '"':
+					case '\'': {
+						return readString(pos, c);
+					}
+					case '.': {
+						int p = peek();
+						if (p == '.') {
+							advance();
+							if (peek() == '.')
+								return token(Tokens.DOTS, "...", pos);
+							return token(Tokens.CONCAT, "..", pos);
+						} else if (!Character.isDigit(p)) {
+							return token('.', '.', pos);
+						}
 						return readNumber(pos, c);
-					if (isAlphabetic(c)) {
+					}
+					default:
+						if (Character.isWhitespace(c)) {
+//						long startW = System.nanoTime();
+							while (Character.isWhitespace(peek()))
+								advance();
+							pos = this.pos.clone();
+//						WHITESPACE.add(System.nanoTime() - startW);
+							continue;
+						}
+						if (Character.isDigit(c))
+							return readNumber(pos, c);
+						if (isAlphabetic(c)) {
 //						long startW = System.nanoTime();
 //						try {
-						StringBuilder text = this.text;
+							StringBuilder text = this.text;
 //								if (text.length() > 0)
-						text.setLength(0);
-						text.append((char) c);
-						while (isAlphabetic(peek()))
-							text.append((char) advance());
-						String s = text.toString();
-						switch (s) {
-							case "and":
-								return token(Tokens.AND, s, pos);
-							case "break":
-								return token(Tokens.BREAK, s, pos);
-							case "do":
-								return token(Tokens.DO, s, pos);
-							case "else":
-								return token(Tokens.ELSE, s, pos);
-							case "elseif":
-								return token(Tokens.ELSEIF, s, pos);
-							case "end":
-								return token(Tokens.END, s, pos);
-							case "false":
-								return token(Tokens.FALSE, s, pos);
-							case "for":
-								return token(Tokens.FOR, s, pos);
-							case "function":
-								return token(Tokens.FUNCTION, s, pos);
-							case "if":
-								return token(Tokens.IF, s, pos);
-							case "in":
-								return token(Tokens.IN, s, pos);
-							case "local":
-								return token(Tokens.LOCAL, s, pos);
-							case "nil":
-								return token(Tokens.NIL, s, pos);
-							case "not":
-								return token(Tokens.NOT, s, pos);
-							case "or":
-								return token(Tokens.OR, s, pos);
-							case "repeat":
-								return token(Tokens.REPEAT, s, pos);
-							case "return":
-								return token(Tokens.RETURN, s, pos);
-							case "then":
-								return token(Tokens.THEN, s, pos);
-							case "true":
-								return token(Tokens.TRUE, s, pos);
-							case "until":
-								return token(Tokens.UNTIL, s, pos);
-							case "while":
-								return token(Tokens.WHILE, s, pos);
-							default:
-								return token(Tokens.NAME, s, pos);
-						}
+							text.setLength(0);
+							text.append((char) c);
+							while (isAlphabetic(peek()))
+								text.append((char) advance());
+							String s = text.toString();
+							switch (s) {
+								case "and":
+									return token(Tokens.AND, s, pos);
+								case "break":
+									return token(Tokens.BREAK, s, pos);
+								case "do":
+									return token(Tokens.DO, s, pos);
+								case "else":
+									return token(Tokens.ELSE, s, pos);
+								case "elseif":
+									return token(Tokens.ELSEIF, s, pos);
+								case "end":
+									return token(Tokens.END, s, pos);
+								case "false":
+									return token(Tokens.FALSE, s, pos);
+								case "for":
+									return token(Tokens.FOR, s, pos);
+								case "function":
+									return token(Tokens.FUNCTION, s, pos);
+								case "if":
+									return token(Tokens.IF, s, pos);
+								case "in":
+									return token(Tokens.IN, s, pos);
+								case "local":
+									return token(Tokens.LOCAL, s, pos);
+								case "nil":
+									return token(Tokens.NIL, s, pos);
+								case "not":
+									return token(Tokens.NOT, s, pos);
+								case "or":
+									return token(Tokens.OR, s, pos);
+								case "repeat":
+									return token(Tokens.REPEAT, s, pos);
+								case "return":
+									return token(Tokens.RETURN, s, pos);
+								case "then":
+									return token(Tokens.THEN, s, pos);
+								case "true":
+									return token(Tokens.TRUE, s, pos);
+								case "until":
+									return token(Tokens.UNTIL, s, pos);
+								case "while":
+									return token(Tokens.WHILE, s, pos);
+								default:
+									return token(Tokens.NAME, s, pos);
+							}
 //						} finally {
 //							NAMESPACE.add(System.nanoTime() - startW);
 //						}
-					}
-					return token(c, c, pos);
+						}
+						return token(c, c, pos);
+				}
 			}
+			return Token.EOS;
+		} finally {
+			NEXT.add(System.nanoTime() - start);
 		}
-		return Token.EOS;
-//		} finally {
-//			NEXT.add(System.nanoTime() - start);
-//		}
 	}
 
 	private static boolean isAlphabetic(int c) {
@@ -203,48 +203,48 @@ public final class LavaLexer extends AbstractLexer implements Lexer {
 	private Token readNumber(int[] pos, int start) throws IOException {
 //		long star2t = System.nanoTime();
 //		try {
-			StringBuilder text = this.text;
-			// Reset buffer
+		StringBuilder text = this.text;
+		// Reset buffer
 //			if (text.length() > 0)
-			text.setLength(0);
+		text.setLength(0);
 
-			// Prep
-			text.append((char) start);
-			int c = peek();
-			boolean hex = start == '0' && (c == 'x' || c == 'X');
-			final int first;
-			final int second;
-			if (hex) {
-				first = 'P';
-				second = 'p';
-			} else {
-				first = 'E';
-				second = 'e';
-			}
-			boolean integer = true;
-			// Read number from text
-			while (true) {
-				if (c == first || c == second) {
-					integer = false;
-					text.append((char) c);
-					advance();
-					c = peek();
-					if (c == '+' || c == '-')
-						text.append((char) c);
-				}
-				if (Character.isDigit(c)) {
-					text.append((char) c);
-					advance();
-				} else if (c == '.') {
-					integer = false;
-					text.append((char) c);
-					advance();
-				} else {
-					break;
-				}
+		// Prep
+		text.append((char) start);
+		int c = peek();
+		boolean hex = start == '0' && (c == 'x' || c == 'X');
+		final int first;
+		final int second;
+		if (hex) {
+			first = 'P';
+			second = 'p';
+		} else {
+			first = 'E';
+			second = 'e';
+		}
+		boolean integer = true;
+		// Read number from text
+		while (true) {
+			if (c == first || c == second) {
+				integer = false;
+				text.append((char) c);
+				advance();
 				c = peek();
+				if (c == '+' || c == '-')
+					text.append((char) c);
 			}
-			return token(integer ? Tokens.INT : Tokens.FLT, text.toString(), pos);
+			if (Character.isDigit(c)) {
+				text.append((char) c);
+				advance();
+			} else if (c == '.') {
+				integer = false;
+				text.append((char) c);
+				advance();
+			} else {
+				break;
+			}
+			c = peek();
+		}
+		return token(integer ? Tokens.INT : Tokens.FLT, text.toString(), pos);
 //		} finally {
 //			NUMBER.add(System.nanoTime() - star2t);
 //		}
@@ -360,11 +360,11 @@ public final class LavaLexer extends AbstractLexer implements Lexer {
 //		}
 	}
 
-	protected final Token token(int type, int c, int[] pos) {
+	protected static Token token(int type, int c, int[] pos) {
 		return token(type, String.valueOf((char) c), pos);
 	}
 
-	protected final Token token(int type, String text, int[] pos) {
+	protected static Token token(int type, String text, int[] pos) {
 		return new Token(type, text, pos[0], pos[1]);
 	}
 
