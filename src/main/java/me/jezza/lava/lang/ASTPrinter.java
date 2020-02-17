@@ -392,13 +392,18 @@ public final class ASTPrinter implements EVisitor {
 
 	@Override
 	public Void visitTableConstructor(TableConstructor value, Void userObject) {
-		text.append("table constructor");
+		text.append('{');
+		visit(value.fields.iterator(), ",\n");
+		text.append('}');
 		return null;
 	}
 
 	@Override
 	public Void visitTableField(TableField value, Void userObject) {
-		text.append("table field");
+		indent();
+		value.key.visit(this);
+		text.append('=');
+		value.value.visit(this);
 		return null;
 	}
 

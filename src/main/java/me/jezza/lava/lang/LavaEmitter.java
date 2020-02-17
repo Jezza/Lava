@@ -407,17 +407,7 @@ public final class LavaEmitter implements Visitor<Context, Item> {
 
 	@Override
 	public Item visitVarargs(Varargs value, Context context) {
-//		if (value.expectedResults == Varargs.UNBOUNDED) {
-//			int target = context.mark();
-//			context.w.write2(OpCode.VARARGS, -1, target);
-//			return null;
-//		}
-//		for (int i = 0, l = value.expectedResults; i < l; i++) {
-//			int target = context.allocate();
-//			context.w.write2(OpCode.VARARGS, i, target);
-//		}
-//		return null;
-		throw new IllegalStateException("NYI");
+		return new VarargsItem(context, value.expectedResults);
 	}
 
 	@Override
@@ -793,6 +783,30 @@ public final class LavaEmitter implements Visitor<Context, Item> {
 			this.value.load(value);
 
 			context.w.write2(SET_TABLE, register, key, value);
+		}
+	}
+
+	static final class VarargsItem extends Item {
+		private final int expected;
+
+		VarargsItem(Context context, int expected) {
+			super(context);
+			this.expected = expected;
+		}
+
+		@Override
+		public Item load(int register) {
+			int expected = this.expected;
+			if (expected == Varargs.UNBOUNDED) {
+				int target = context.mark();
+				context.w.write2(OpCode.VARARGS, -1, target);
+				return new RegisterItem(context, register);
+			}
+			for (int i = 0; i < expected; i++) {
+				int target = context.allocate();
+				context.w.write2(OpCode.VARARGS, i, target);
+			}
+			return new RegisterItem(context, register);
 		}
 	}
 

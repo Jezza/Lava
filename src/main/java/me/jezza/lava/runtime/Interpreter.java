@@ -31,7 +31,7 @@ import me.jezza.lava.utils.Table;
  * @author Jezza
  */
 public final class Interpreter {
-	private static final boolean DEBUG_MODE = false;
+	private static final boolean DEBUG_MODE = true;
 	private static final Object NIL = "NIL";
 
 	private static final int MAX_1 = Byte.toUnsignedInt((byte) -1);
@@ -990,23 +990,6 @@ public final class Interpreter {
 					b);
 		}
 	}
-
-//	public static final class RegisterList implements Iterable<Object> {
-//		public static final RegisterList EMPTY = new RegisterList(null, 0, 0);
-//
-//		public RegisterList(Registers registers, int from, int to) {
-//			Slot[] range = registers.range(from, to - from);
-//		}
-//
-//		public RegisterList(Slot[] slots) {
-//			
-//		}
-//
-//		@Override
-//		public Iterator<Object> iterator() {
-//			return null;
-//		}
-//	}
 
 	public static final class RegisterView implements Iterable<Object> {
 		public static final RegisterView EMPTY = null;

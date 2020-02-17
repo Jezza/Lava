@@ -17,10 +17,13 @@ import me.jezza.lava.lang.ParseTree.Block;
 import me.jezza.lava.lang.ParseTree.Break;
 import me.jezza.lava.lang.ParseTree.Expression;
 import me.jezza.lava.lang.ParseTree.FunctionBody;
+import me.jezza.lava.lang.ParseTree.FunctionCall;
 import me.jezza.lava.lang.ParseTree.Goto;
 import me.jezza.lava.lang.ParseTree.Label;
 import me.jezza.lava.lang.ParseTree.Name;
 import me.jezza.lava.lang.ParseTree.RepeatBlock;
+import me.jezza.lava.lang.ParseTree.TableConstructor;
+import me.jezza.lava.lang.ParseTree.Varargs;
 import me.jezza.lava.lang.SemanticAnalysis.Context;
 import me.jezza.lava.lang.model.AbstractTranslator;
 
@@ -224,8 +227,31 @@ public final class SemanticAnalysis extends AbstractTranslator<Context> {
 	}
 
 	@Override
+	public ParseTree visitTableConstructor(TableConstructor value, Context context) {
+		var it = value.fields.listIterator();
+		while (it.hasNext()) {
+			var oldField = it.next();
+			var newField = translate(oldField, context);
+			if (newField != oldField) {
+				it.set(newField);
+			}
+			Expression exp = newField.value;
+			if (it.hasNext()) {
+				if (exp instanceof FunctionCall) {
+					((FunctionCall) exp).expectedResults = 1;
+				} else if (exp instanceof Varargs) {
+					((Varargs) exp).expectedResults = 1;
+				}
+			}
+		}
+		return value;
+	}
+
+	@Override
 	public ParseTree visitAssignment(Assignment value, Context context) {
-		assert context.index == -1 : "Recursive assignment node : " + context.index;
+		int oldIndex = context.index;
+		context.index = -1;
+//		assert context.index == -1 : "Recursive assignment node : " + value;
 		List<Expression> left = null;
 		if (value.lhs != null) {
 			left = value.lhs.list;
@@ -248,6 +274,7 @@ public final class SemanticAnalysis extends AbstractTranslator<Context> {
 			}
 		}
 		context.data.clear();
+		context.index = oldIndex;
 		return value;
 	}
 
